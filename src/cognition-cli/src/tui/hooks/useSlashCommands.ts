@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import fs from 'fs';
 import path from 'path';
-import { getSigmaDirectory } from '../../ipc/sigma-directory.js';
+import { environmentService } from '../../core/services/environment/EnvironmentService.js';
 import type { MessageQueue } from '../../ipc/MessageQueue.js';
 import type { MessagePublisher } from '../../ipc/MessagePublisher.js';
 
@@ -47,7 +47,7 @@ export function useSlashCommands({
         }
 
         let targetAgentId: string | null = null;
-        const sigmaDir = getSigmaDirectory(projectRoot);
+        const sigmaDir = environmentService.resolveSigmaDir(projectRoot);
         const queueDir = path.join(sigmaDir, 'message_queue');
         const ACTIVE_THRESHOLD_MS = 5000;
         const now = Date.now();
@@ -301,7 +301,7 @@ export function useSlashCommands({
         };
 
         try {
-          const sigmaDir = getSigmaDirectory(projectRoot);
+          const sigmaDir = environmentService.resolveSigmaDir(projectRoot);
           const queueDir = path.join(sigmaDir, 'message_queue');
 
           if (!fs.existsSync(queueDir)) {

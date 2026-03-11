@@ -16,7 +16,7 @@ import {
   SelectOptions,
 } from '../../core/algebra/overlay-algebra.js';
 import { ConversationLanceStore } from '../conversation-lance-store.js';
-import { systemLog } from '../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../core/services/diagnostics/SystemDiagnosticsService.js';
 
 import { AlignmentScores } from './types.js';
 
@@ -132,7 +132,7 @@ export abstract class BaseConversationManager<
    */
   setCurrentSession(sessionId: string): void {
     if (this.debug) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'sigma',
         `[Manager] ${this.overlayName}.setCurrentSession(${sessionId})`
       );
@@ -165,7 +165,7 @@ export abstract class BaseConversationManager<
       } else {
         const overlayFiles = await fs.readdir(this.overlayPath);
         if (this.debug) {
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'sigma',
             `[getAllItems] ${this.overlayName}: Found ${overlayFiles.length} files`,
             {
@@ -229,7 +229,7 @@ export abstract class BaseConversationManager<
 
       if (lanceTurns.length > 0) {
         if (this.debug) {
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'sigma',
             `[getAllItems] ${this.overlayName}: Loaded session ${sessionId} from LanceDB in ${lanceTime}ms`
           );
@@ -260,7 +260,7 @@ export abstract class BaseConversationManager<
       }
     } catch (lanceError) {
       // LanceDB failed or not initialized - fall through to YAML
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'sigma',
         `LanceDB unavailable for ${sessionId}, using YAML fallback`,
         {
@@ -286,7 +286,7 @@ export abstract class BaseConversationManager<
       const isLegacyFormat = formatVersion === 1 && overlay.turns[0]?.embedding;
 
       if (isLegacyFormat) {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'sigma',
           `Session ${sessionId} uses v1 format (embeddings in YAML). Migrating to v2 (LanceDB)...`,
           undefined,
@@ -309,7 +309,7 @@ export abstract class BaseConversationManager<
           } else {
             // DISABLED: Re-embedding blocks UI - skip turns without embeddings
             if (process.env.DEBUG) {
-              systemLog(
+              systemDiagnosticsService.systemLog(
                 'sigma',
                 `Skipping turn ${turn.turn_id} - no embedding in LanceDB`,
                 undefined,
@@ -338,7 +338,7 @@ export abstract class BaseConversationManager<
         }
       }
     } catch (yamlError) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'sigma',
         `Failed to load session ${sessionId} from YAML`,
         {
@@ -420,7 +420,7 @@ export abstract class BaseConversationManager<
       });
     } catch (error) {
       // Fallback to in-memory search if LanceDB fails
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'sigma',
         'LanceDB query failed, falling back to in-memory',
         { error: error instanceof Error ? error.message : String(error) },
@@ -609,7 +609,7 @@ export abstract class BaseConversationManager<
         );
         migratedCount++;
       } catch (error) {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'sigma',
           `Failed to migrate turn ${turn.turn_id}`,
           { error: error instanceof Error ? error.message : String(error) },
@@ -619,7 +619,7 @@ export abstract class BaseConversationManager<
       }
     }
 
-    systemLog(
+    systemDiagnosticsService.systemLog(
       'sigma',
       `Migrated ${migratedCount} turns to LanceDB (${failedCount} failed)`
     );
@@ -710,7 +710,7 @@ export abstract class BaseConversationManager<
         );
       }
     } catch (error) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'sigma',
         'Failed to write to LanceDB',
         { error: error instanceof Error ? error.message : String(error) },

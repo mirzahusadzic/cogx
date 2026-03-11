@@ -7,7 +7,7 @@ import { loadCommands, filterCommands, Command } from '../commands/loader.js';
 import { writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { systemLog } from '../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../core/services/diagnostics/SystemDiagnosticsService.js';
 import { terminal } from '../services/TerminalService.js';
 import type { ToolConfirmationState } from '../hooks/useToolConfirmation.js';
 import type { WizardConfirmationState } from '../hooks/useOnboardingWizard.js';
@@ -179,7 +179,7 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
   // Debug: Track when disabled prop changes
   useEffect(() => {
     if (process.env.DEBUG_ESC_INPUT) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'tui',
         `[InputBox] disabled prop changed to: ${disabled}`,
         {},
@@ -191,7 +191,7 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
   // Debug: Track when focused prop changes
   useEffect(() => {
     if (process.env.DEBUG_ESC_INPUT) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'tui',
         `[InputBox] focused prop changed to: ${focused}`,
         {},
@@ -203,7 +203,7 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
   // Debug: Track when confirmationPending changes
   useEffect(() => {
     if (process.env.DEBUG_ESC_INPUT) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'tui',
         `[InputBox] confirmationPending changed to: ${confirmationPending}`,
         {},
@@ -216,7 +216,7 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
   const isInputActive = focused && !confirmationPending;
   useEffect(() => {
     if (process.env.DEBUG_ESC_INPUT) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'tui',
         `[InputBox] useInput isActive: ${isInputActive} (focused: ${focused} confirmationPending: ${confirmationPending})`,
         {},
@@ -237,13 +237,13 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
     | { type: 'content'; value: string }
     | { type: 'file'; filepath: string } => {
     if (process.env.DEBUG_INPUT) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'tui',
         `PASTE DEBUG: Processing paste, length: ${content.length}`,
         {},
         'error'
       );
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'tui',
         `PASTE DEBUG: Raw content: ${JSON.stringify(content.substring(0, 200))}`,
         {},
@@ -259,7 +259,7 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
       .replace(/\[201~/g, ''); // Bracketed paste end
 
     if (process.env.DEBUG_INPUT) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'tui',
         `PASTE DEBUG: Normalized content: ${JSON.stringify(normalizedContent.substring(0, 200))}`,
         {},
@@ -271,7 +271,7 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
     // This threshold can be adjusted, e.g., 500 characters or less
     if (normalizedContent.length < 500) {
       if (process.env.DEBUG_INPUT) {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'tui',
           'PASTE DEBUG: Small paste, inserting directly',
           {},
@@ -290,7 +290,7 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
       writeFileSync(filepath, normalizedContent, 'utf-8');
 
       if (process.env.DEBUG_INPUT) {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'tui',
           `PASTE DEBUG: Large paste saved to: ${filepath}`,
           {},
@@ -307,7 +307,12 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
       return { type: 'file', filepath }; // Successfully saved to file
     } catch (error) {
       // If save fails, just return content to be pasted normally into input
-      systemLog('tui', `Failed to save paste: ${error}`, {}, 'error');
+      systemDiagnosticsService.systemLog(
+        'tui',
+        `Failed to save paste: ${error}`,
+        {},
+        'error'
+      );
       return { type: 'content', value: normalizedContent };
     }
   };
@@ -338,7 +343,7 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
         setCommandsLoading(false);
         // Log any errors/warnings
         if (result.errors.length > 0) {
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'tui',
             `Command loading errors: ${result.errors}`,
             {},
@@ -346,7 +351,7 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
           );
         }
         if (result.warnings.length > 0) {
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'tui',
             `Command loading warnings: ${result.warnings}`,
             {},
@@ -355,7 +360,12 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
         }
       })
       .catch((error) => {
-        systemLog('tui', `Failed to load commands: ${error}`, {}, 'error');
+        systemDiagnosticsService.systemLog(
+          'tui',
+          `Failed to load commands: ${error}`,
+          {},
+          'error'
+        );
         setCommandsLoading(false);
       });
   }, []);
@@ -491,19 +501,19 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
           }
           // Update state immediately for pastes
           if (process.env.DEBUG_INPUT) {
-            systemLog(
+            systemDiagnosticsService.systemLog(
               'tui',
               `PASTE DEBUG: Setting value to: ${JSON.stringify(newValue.substring(0, 100))}`,
               {},
               'error'
             );
-            systemLog(
+            systemDiagnosticsService.systemLog(
               'tui',
               `PASTE DEBUG: Cursor position: ${newCursorPosition}`,
               {},
               'error'
             );
-            systemLog(
+            systemDiagnosticsService.systemLog(
               'tui',
               `PASTE DEBUG: Previous value was: ${JSON.stringify(currentValue.substring(0, 100))}`,
               {},
@@ -694,7 +704,7 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
         const timeSinceLastEsc = now - lastEscapeTime.current;
 
         if (process.env.DEBUG_ESC_INPUT) {
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'tui',
             'ESC pressed',
             {
@@ -708,12 +718,22 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
 
         if (disabled && onInterrupt) {
           if (process.env.DEBUG_ESC_INPUT) {
-            systemLog('tui', 'Calling onInterrupt()', undefined, 'debug');
+            systemDiagnosticsService.systemLog(
+              'tui',
+              'Calling onInterrupt()',
+              undefined,
+              'debug'
+            );
           }
           onInterrupt();
         } else if (timeSinceLastEsc < 500) {
           if (process.env.DEBUG_ESC_INPUT) {
-            systemLog('tui', 'Double ESC - clearing input', undefined, 'debug');
+            systemDiagnosticsService.systemLog(
+              'tui',
+              'Double ESC - clearing input',
+              undefined,
+              'debug'
+            );
           }
           newValue = '';
           newCursorPosition = 0;

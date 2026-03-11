@@ -13,7 +13,7 @@
 
 import type { TurnAnalysis } from './types.js';
 import type { EmbeddingService } from '../core/services/embedding.js';
-import { systemLog } from '../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../core/services/diagnostics/SystemDiagnosticsService.js';
 
 /**
  * Cosine similarity between two vectors
@@ -153,7 +153,7 @@ export async function injectRelevantContext(
   }
 
   if (debug) {
-    systemLog(
+    systemDiagnosticsService.systemLog(
       'sigma',
       'Querying lattice for relevant context',
       undefined,
@@ -177,7 +177,7 @@ export async function injectRelevantContext(
     // Validate embedding is an array
     if (!Array.isArray(userEmbed)) {
       if (debug) {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'sigma',
           'Invalid embedding format, skipping',
           { keys: Object.keys(embedResponse) },
@@ -195,9 +195,13 @@ export async function injectRelevantContext(
     // Skip if no candidates match gating criteria
     if (candidates.length === 0) {
       if (debug) {
-        systemLog('sigma', 'No archived turns found before timestamp', {
-          beforeTimestamp,
-        });
+        systemDiagnosticsService.systemLog(
+          'sigma',
+          'No archived turns found before timestamp',
+          {
+            beforeTimestamp,
+          }
+        );
       }
       return { message: userMessage, embedding: userEmbed };
     }
@@ -229,7 +233,7 @@ export async function injectRelevantContext(
 
     if (relevantTurns.length === 0) {
       if (debug) {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'sigma',
           'No turns above relevance threshold',
           { minRelevance },
@@ -240,7 +244,7 @@ export async function injectRelevantContext(
     }
 
     if (debug) {
-      systemLog('sigma', 'Found relevant context', {
+      systemDiagnosticsService.systemLog('sigma', 'Found relevant context', {
         count: relevantTurns.length,
         relevanceScores: relevantTurns.map((t) => t.relevance.toFixed(2)),
       });
@@ -263,14 +267,17 @@ export async function injectRelevantContext(
     const enrichedMessage = `${userMessage}\n\n---\n\n**Recent context for reference:**\n\n${contextSnippets.join('\n\n')}`;
 
     if (debug) {
-      systemLog('sigma', 'Injected context successfully');
+      systemDiagnosticsService.systemLog(
+        'sigma',
+        'Injected context successfully'
+      );
     }
 
     return { message: enrichedMessage, embedding: userEmbed };
   } catch (err) {
     // On error, return original message (fail gracefully)
     if (debug) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'sigma',
         'Context injection failed',
         { error: err instanceof Error ? err.message : String(err) },

@@ -12,7 +12,7 @@ import {
   extractBaseCommand,
   ToolRiskLevel,
 } from '../utils/tool-safety.js';
-import { systemLog } from '../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../core/services/diagnostics/SystemDiagnosticsService.js';
 import { terminal, TerminalStatus } from '../services/index.js';
 
 export interface ToolConfirmationState {
@@ -53,11 +53,13 @@ export function useToolConfirmation() {
 
       // Debug logging
       if (process.env.DEBUG_CONFIRMATION) {
-        systemLog('tui', '[Confirmation] Tool:', { toolName });
-        systemLog('tui', '[Confirmation] Input:', {
+        systemDiagnosticsService.systemLog('tui', '[Confirmation] Tool:', {
+          toolName,
+        });
+        systemDiagnosticsService.systemLog('tui', '[Confirmation] Input:', {
           input: JSON.stringify(input, null, 2),
         });
-        systemLog('tui', '[Confirmation] Safety:', {
+        systemDiagnosticsService.systemLog('tui', '[Confirmation] Safety:', {
           safety: safety as unknown as Record<string, unknown>,
         });
       }
@@ -88,17 +90,29 @@ export function useToolConfirmation() {
 
       // Debug logging
       if (process.env.DEBUG_CONFIRMATION) {
-        systemLog('tui', '[Confirmation] Checking keys:', { keysToCheck });
-        systemLog('tui', '[Confirmation] Allow list:', {
-          keys: Object.keys(sessionAllowList.current),
-        });
+        systemDiagnosticsService.systemLog(
+          'tui',
+          '[Confirmation] Checking keys:',
+          { keysToCheck }
+        );
+        systemDiagnosticsService.systemLog(
+          'tui',
+          '[Confirmation] Allow list:',
+          {
+            keys: Object.keys(sessionAllowList.current),
+          }
+        );
       }
 
       // Check if any key is allowed
       for (const key of keysToCheck) {
         if (sessionAllowList.current[key]) {
           if (process.env.DEBUG_CONFIRMATION) {
-            systemLog('tui', '[Confirmation] Auto-allowing via key:', { key });
+            systemDiagnosticsService.systemLog(
+              'tui',
+              '[Confirmation] Auto-allowing via key:',
+              { key }
+            );
           }
           return Promise.resolve('allow');
         }
@@ -169,10 +183,18 @@ export function useToolConfirmation() {
 
       // Debug logging
       if (process.env.DEBUG_CONFIRMATION) {
-        systemLog('tui', '[Confirmation] Always Allow - Key:', { key });
-        systemLog('tui', '[Confirmation] Session Allow List:', {
-          keys: Object.keys(sessionAllowList.current),
-        });
+        systemDiagnosticsService.systemLog(
+          'tui',
+          '[Confirmation] Always Allow - Key:',
+          { key }
+        );
+        systemDiagnosticsService.systemLog(
+          'tui',
+          '[Confirmation] Session Allow List:',
+          {
+            keys: Object.keys(sessionAllowList.current),
+          }
+        );
       }
     }
 

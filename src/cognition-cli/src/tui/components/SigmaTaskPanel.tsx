@@ -4,10 +4,7 @@ import { TUITheme } from '../theme.js';
 import type { SigmaTasks } from '../hooks/useAgent/types.js';
 import type { TokenCount } from '../hooks/tokens/useTokenCount.js';
 import { SessionTokenCount } from '../hooks/tokens/useSessionTokenCount.js';
-import {
-  cleanAnsi as stripAnsi,
-  formatCompactNumber,
-} from '../../utils/string-utils.js';
+import { terminalFormatter } from '../../core/services/terminal-formatter/TerminalFormatterService.js';
 
 const MAX_SUMMARY_LENGTH = 140;
 const MAX_TASKS_FOR_ALL_SUMMARIES = 3;
@@ -159,7 +156,7 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
                       dimColor={!isExpanded}
                     >
                       [{getStatusIcon(task.status)}]{' '}
-                      {stripAnsi(
+                      {terminalFormatter.cleanAnsi(
                         (task.status === 'in_progress'
                           ? task.activeForm
                           : task.content) || `Task ${task.id}`
@@ -180,14 +177,16 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
                               dimColor={!isExpanded}
                             >
                               {task.tokensSaved && task.tokensSaved > 0
-                                ? `${formatCompactNumber(task.tokensSaved)}/`
+                                ? `${terminalFormatter.formatCompactNumber(task.tokensSaved)}/`
                                 : ''}
                             </Text>
                             <Text
                               color={TUITheme.text.success}
                               dimColor={!isExpanded}
                             >
-                              {formatCompactNumber(task.tokensUsed)}
+                              {terminalFormatter.formatCompactNumber(
+                                task.tokensUsed
+                              )}
                             </Text>
                           </Text>
                         </Box>
@@ -200,7 +199,7 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
                         <Text color={TUITheme.text.tertiary} italic wrap="wrap">
                           ↳{' '}
                           {truncate(
-                            stripAnsi(task.result_summary),
+                            terminalFormatter.cleanAnsi(task.result_summary),
                             MAX_SUMMARY_LENGTH
                           )}
                         </Text>
@@ -226,11 +225,13 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
               <Text color={TUITheme.text.secondary}>
                 📊{' '}
                 <Text color={TUITheme.providers.google}>
-                  {formatCompactNumber(tokenCount.cached || 0)}
+                  {terminalFormatter.formatCompactNumber(
+                    tokenCount.cached || 0
+                  )}
                 </Text>
                 <Text color={TUITheme.text.secondary}>/</Text>
                 <Text color={TUITheme.text.success}>
-                  {formatCompactNumber(tokenCount.total)}
+                  {terminalFormatter.formatCompactNumber(tokenCount.total)}
                 </Text>
               </Text>
             </Box>
@@ -238,12 +239,12 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
               <Text color={TUITheme.text.secondary}>
                 In:{' '}
                 <Text color={TUITheme.text.primary}>
-                  {formatCompactNumber(tokenCount.input)}
+                  {terminalFormatter.formatCompactNumber(tokenCount.input)}
                 </Text>
                 {' | '}
                 Out:{' '}
                 <Text color={TUITheme.text.primary}>
-                  {formatCompactNumber(tokenCount.output)}
+                  {terminalFormatter.formatCompactNumber(tokenCount.output)}
                 </Text>
               </Text>
             </Box>
@@ -268,11 +269,15 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
               <Text color={TUITheme.text.secondary}>
                 📊{' '}
                 <Text color={TUITheme.providers.google}>
-                  {formatCompactNumber(sessionTokenCount.cached || 0)}
+                  {terminalFormatter.formatCompactNumber(
+                    sessionTokenCount.cached || 0
+                  )}
                 </Text>
                 <Text color={TUITheme.text.secondary}>/</Text>
                 <Text color={TUITheme.text.success}>
-                  {formatCompactNumber(sessionTokenCount.total)}
+                  {terminalFormatter.formatCompactNumber(
+                    sessionTokenCount.total
+                  )}
                 </Text>
               </Text>
               {sessionTokenCount.costUsd > 0 && (
@@ -285,12 +290,16 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
               <Text color={TUITheme.text.secondary}>
                 In:{' '}
                 <Text color={TUITheme.text.primary}>
-                  {formatCompactNumber(sessionTokenCount.input)}
+                  {terminalFormatter.formatCompactNumber(
+                    sessionTokenCount.input
+                  )}
                 </Text>
                 {' | '}
                 Out:{' '}
                 <Text color={TUITheme.text.primary}>
-                  {formatCompactNumber(sessionTokenCount.output)}
+                  {terminalFormatter.formatCompactNumber(
+                    sessionTokenCount.output
+                  )}
                 </Text>
                 {sessionTokenCount.turns > 0 && (
                   <>

@@ -45,7 +45,7 @@ import type { Query, SDKMessage } from '../../../tui/hooks/sdk/types.js';
 import { BaseAgentProvider } from '../../core/base-agent-provider.js';
 import { UnifiedStreamingChunk } from '../../core/types.js';
 import { ThinkingBudget } from '../../core/utils/thinking-utils.js';
-import { systemLog } from '../../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../../core/services/diagnostics/SystemDiagnosticsService.js';
 
 /**
  * Claude Provider
@@ -80,7 +80,10 @@ export class ClaudeProvider extends BaseAgentProvider {
       this.claudeAgentSdk = await import('@anthropic-ai/claude-agent-sdk');
     } catch (err) {
       // SDK not installed - this is OK, agent mode will be disabled
-      systemLog('claude', `Failed to load Claude Agent SDK: ${err}`);
+      systemDiagnosticsService.systemLog(
+        'claude',
+        `Failed to load Claude Agent SDK: ${err}`
+      );
       this.claudeAgentSdk = undefined;
     }
   }

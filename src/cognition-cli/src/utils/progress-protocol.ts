@@ -130,16 +130,6 @@ export function shouldUseJsonProgress(forceJson?: boolean): boolean {
 import { systemDiagnosticsService } from '../core/services/diagnostics/SystemDiagnosticsService.js';
 
 /**
- * Emit a progress event to stdout as JSON line
- *
- * @deprecated Use systemDiagnosticsService.emitProgress()
- * @param event - Progress event (without timestamp, added automatically)
- */
-export function emitProgress(event: Omit<AnyProgressEvent, 'timestamp'>): void {
-  systemDiagnosticsService.emitProgress(event);
-}
-
-/**
  * Create a progress emitter for a specific task
  *
  * Provides convenience methods for emitting typed events.
@@ -156,7 +146,7 @@ export function emitProgress(event: Omit<AnyProgressEvent, 'timestamp'>): void {
 export function createProgressEmitter(task: string) {
   return {
     start(opts: { total?: number; message: string }) {
-      emitProgress({ type: 'start', task, ...opts });
+      systemDiagnosticsService.emitProgress({ type: 'start', task, ...opts });
     },
 
     update(opts: {
@@ -167,7 +157,11 @@ export function createProgressEmitter(task: string) {
       file?: string;
       phase?: string;
     }) {
-      emitProgress({ type: 'progress', task, ...opts });
+      systemDiagnosticsService.emitProgress({
+        type: 'progress',
+        task,
+        ...opts,
+      });
     },
 
     complete(opts: {
@@ -175,15 +169,19 @@ export function createProgressEmitter(task: string) {
       stats?: Record<string, number>;
       message?: string;
     }) {
-      emitProgress({ type: 'complete', task, ...opts });
+      systemDiagnosticsService.emitProgress({
+        type: 'complete',
+        task,
+        ...opts,
+      });
     },
 
     error(opts: { message: string; recoverable: boolean; details?: string }) {
-      emitProgress({ type: 'error', task, ...opts });
+      systemDiagnosticsService.emitProgress({ type: 'error', task, ...opts });
     },
 
     warning(opts: { message: string; file?: string }) {
-      emitProgress({ type: 'warning', task, ...opts });
+      systemDiagnosticsService.emitProgress({ type: 'warning', task, ...opts });
     },
   };
 }

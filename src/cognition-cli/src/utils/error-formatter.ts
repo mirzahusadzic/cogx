@@ -17,7 +17,7 @@
 
 import chalk from 'chalk';
 import { CognitionError } from './errors.js';
-import { useColor, emoji as emojiHelper } from './terminal-capabilities.js';
+import { terminalFormatter } from '../core/services/terminal-formatter/TerminalFormatterService.js';
 
 /**
  * Format a CognitionError for display
@@ -37,8 +37,8 @@ import { useColor, emoji as emojiHelper } from './terminal-capabilities.js';
  */
 export function formatError(error: CognitionError, verbose: boolean): string {
   const lines: string[] = [];
-  const c = useColor() ? chalk : createNoopChalk();
-  const showEmoji = emojiHelper;
+  const c = terminalFormatter.useColor() ? chalk : createNoopChalk();
+  const showEmoji = terminalFormatter.emoji.bind(terminalFormatter);
 
   // Error header with code and title
   lines.push(
@@ -110,8 +110,8 @@ function createNoopChalk() {
  */
 export function formatGenericError(error: unknown, verbose: boolean): string {
   const lines: string[] = [];
-  const c = useColor() ? chalk : createNoopChalk();
-  const showEmoji = emojiHelper;
+  const c = terminalFormatter.useColor() ? chalk : createNoopChalk();
+  const showEmoji = terminalFormatter.emoji.bind(terminalFormatter);
 
   lines.push(c.red.bold(`${showEmoji('✗', 'X')} Unexpected Error`));
   lines.push('');

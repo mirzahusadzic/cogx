@@ -31,7 +31,7 @@
  * //   security-audit.md
  *
  * const { commands, errors, warnings } = await loadCommands('/home/user/project');
- * systemLog('tui', `Loaded ${commands.size} commands`);
+ * systemDiagnosticsService.systemLog('tui', `Loaded ${commands.size} commands`);
  *
  * @example
  * // Command with placeholders (analyze-symbol.md):
@@ -44,7 +44,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { systemLog } from '../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../core/services/diagnostics/SystemDiagnosticsService.js';
 
 /**
  * Command metadata and content
@@ -111,12 +111,12 @@ export interface LoadCommandsResult {
  *
  * @example
  * const result = await loadCommands('/home/user/project');
- * systemLog('tui', `Loaded ${result.commands.size} commands`);
+ * systemDiagnosticsService.systemLog('tui', `Loaded ${result.commands.size} commands`);
  * if (result.errors.length > 0) {
- *   systemLog('tui', 'Errors: ' + JSON.stringify(result.errors), undefined, 'error');
+ *   systemDiagnosticsService.systemLog('tui', 'Errors: ' + JSON.stringify(result.errors), undefined, 'error');
  * }
  * if (result.warnings.length > 0) {
- *   systemLog('tui', 'Warnings: ' + JSON.stringify(result.warnings), undefined, 'warn');
+ *   systemDiagnosticsService.systemLog('tui', 'Warnings: ' + JSON.stringify(result.warnings), undefined, 'warn');
  * }
  *
  * @example
@@ -124,8 +124,8 @@ export interface LoadCommandsResult {
  * const { commands } = await loadCommands('/home/user/project');
  * const questStart = commands.get('quest-start');
  * if (questStart) {
- *   systemLog('tui', questStart.description || '');
- *   systemLog('tui', questStart.category || ''); // "quest"
+ *   systemDiagnosticsService.systemLog('tui', questStart.description || '');
+ *   systemDiagnosticsService.systemLog('tui', questStart.category || ''); // "quest"
  * }
  */
 export async function loadCommands(
@@ -424,7 +424,12 @@ export function expandCommand(
         return placeholders[key];
       }
       // Log warning for unknown placeholder but keep it in output
-      systemLog('tui', `Unknown placeholder: {{${key}}}`, undefined, 'warn');
+      systemDiagnosticsService.systemLog(
+        'tui',
+        `Unknown placeholder: {{${key}}}`,
+        undefined,
+        'warn'
+      );
       return match;
     });
 

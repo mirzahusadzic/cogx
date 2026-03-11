@@ -36,7 +36,7 @@ import {
   useCompression,
   UseCompressionResult,
 } from '../hooks/compression/useCompression.js';
-import { systemLog } from '../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../core/services/diagnostics/SystemDiagnosticsService.js';
 import {
   AUTO_RESPONSE_TRIGGER,
   isProviderContextSensitive,
@@ -326,7 +326,11 @@ export const AgentProvider: React.FC<{
   const debug = useCallback(
     (message: string, ...args: unknown[]) => {
       if (debugFlag) {
-        systemLog('sigma', message, args.length > 0 ? { args } : {});
+        systemDiagnosticsService.systemLog(
+          'sigma',
+          message,
+          args.length > 0 ? { args } : {}
+        );
       }
     },
     [debugFlag]
@@ -359,7 +363,7 @@ export const AgentProvider: React.FC<{
       reason: string;
     }) => {
       if (debugFlag) {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'sigma',
           `Session updated: ${event.previousSessionId} → ${event.newSessionId} (${event.reason})`
         );

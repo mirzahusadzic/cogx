@@ -5,7 +5,7 @@
  * Supports both interactive TUI instances and background tasks.
  */
 
-import { systemLog } from '../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../core/services/diagnostics/SystemDiagnosticsService.js';
 
 // Check if ZeroMQ is available (graceful degradation)
 let ZeroMQAvailable = true;
@@ -19,7 +19,7 @@ try {
   ZeroMQAvailable = false;
   ZeroMQLoadError = err as Error;
 
-  systemLog(
+  systemDiagnosticsService.systemLog(
     'ipc',
     'ZeroMQ not available. Multi-agent features disabled.',
     undefined,
@@ -63,7 +63,7 @@ export const isMultiAgentAvailable = ZeroMQAvailable;
  *
  * @example
  * if (!isMultiAgentAvailable) {
- *   systemLog('ipc', 'ZeroMQ load error:', { error: multiAgentLoadError?.message }, 'error');
+ *   systemDiagnosticsService.systemLog('ipc', 'ZeroMQ load error:', { error: multiAgentLoadError?.message }, 'error');
  * }
  */
 export const multiAgentLoadError = ZeroMQLoadError;
@@ -100,7 +100,12 @@ export function checkMultiAgentAvailability(): boolean {
       '╚══════════════════════════════════════════════════════════════╝',
     ].join('\n');
 
-    systemLog('ipc', warningMessage, undefined, 'warn');
+    systemDiagnosticsService.systemLog(
+      'ipc',
+      warningMessage,
+      undefined,
+      'warn'
+    );
 
     return false;
   }

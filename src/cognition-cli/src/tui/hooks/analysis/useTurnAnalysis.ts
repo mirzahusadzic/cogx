@@ -58,19 +58,19 @@
  *
  * // Before compressing, ensure all analyses complete
  * await waitForCompressionReady(60000, (elapsed, status) => {
- *   systemLog('tui', `Waiting for analysis: ${status.queueLength} pending`);
+ *   systemDiagnosticsService.systemLog('tui', `Waiting for analysis: ${status.queueLength} pending`);
  * });
  *
  * // Check for missed messages
  * const unanalyzed = getUnanalyzedMessages(allMessages);
  * if (unanalyzed.length > 0) {
- *   systemLog('tui', `${unanalyzed.length} messages not analyzed`, { unanalyzed }, 'warn');
+ *   systemDiagnosticsService.systemLog('tui', `${unanalyzed.length} messages not analyzed`, { unanalyzed }, 'warn');
  * }
  */
 
 import { useRef, useCallback, useEffect, useState, useMemo } from 'react';
 import { AnalysisQueue } from './AnalysisQueue.js';
-import { systemLog } from '../../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../../core/services/diagnostics/SystemDiagnosticsService.js';
 import type { EmbeddingService } from '../../../core/services/embedding.js';
 import type { OverlayRegistry } from '../../../core/algebra/overlay-registry.js';
 import type { ConversationOverlayRegistry } from '../../../sigma/conversation-registry.js';
@@ -255,13 +255,13 @@ export function useTurnAnalysis(
       },
       onError: (error: Error, task: AnalysisTask) => {
         if (debug) {
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'tui',
             `[AnalysisQueue] Error analyzing turn: ${error}`,
             undefined,
             'error'
           );
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'tui',
             `[AnalysisQueue] Task: ${JSON.stringify(task)}`,
             undefined,
@@ -414,7 +414,7 @@ async function populateOverlays(
   try {
     // Defensive check: ensure registry is valid and has expected methods
     if (!registry || typeof registry.get !== 'function') {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'tui',
         '[useTurnAnalysis] Skipping overlay population: invalid registry',
         {
@@ -433,6 +433,9 @@ async function populateOverlays(
     // Note: Periodic flushing is handled by the caller (useClaudeAgent)
     // We just populate overlays here
   } catch (error) {
-    systemLog('tui', `[useTurnAnalysis] Failed to populate overlays: ${error}`);
+    systemDiagnosticsService.systemLog(
+      'tui',
+      `[useTurnAnalysis] Failed to populate overlays: ${error}`
+    );
   }
 }

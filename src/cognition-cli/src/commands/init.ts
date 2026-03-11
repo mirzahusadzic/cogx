@@ -51,7 +51,7 @@ import {
   text,
 } from '@clack/prompts';
 import chalk from 'chalk';
-import { isInteractive } from '../utils/terminal-capabilities.js';
+import { environmentService } from '../core/services/environment/EnvironmentService.js';
 import {
   detectSources,
   getSelectedPaths,
@@ -181,7 +181,7 @@ export async function initCommand(options: {
   }
 
   // Interactive mode - allow user to confirm or edit selections
-  if (isInteractive() && !options.force) {
+  if (environmentService.isInteractive() && !options.force) {
     // Check if there are detected sources to confirm
     if (detected.code.length > 0 || detected.docs.length > 0) {
       const action = await confirm({
@@ -273,7 +273,7 @@ export async function initCommand(options: {
     );
     console.log('');
 
-    if (isInteractive()) {
+    if (environmentService.isInteractive()) {
       const shouldContinue = await confirm({
         message:
           'Reinitialize existing workspace? (This may affect existing data)',

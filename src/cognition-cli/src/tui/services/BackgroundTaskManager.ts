@@ -7,7 +7,7 @@
  *
  * @example
  * const manager = new BackgroundTaskManager('/path/to/project');
- * manager.onTaskUpdate((task) => systemLog('tui', `Update: ${task}`));
+ * manager.onTaskUpdate((task) => systemDiagnosticsService.systemLog('tui', `Update: ${task}`));
  * await manager.startGenesis(['src']);
  */
 
@@ -21,7 +21,7 @@ import {
   isErrorEvent,
   isWarningEvent,
 } from '../../utils/progress-protocol.js';
-import { systemLog } from '../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../core/services/diagnostics/SystemDiagnosticsService.js';
 
 /**
  * Represents a background task (genesis or overlay generation)
@@ -326,7 +326,12 @@ export class BackgroundTaskManager {
       // Log stderr but don't treat as fatal
       const message = chunk.toString().trim();
       if (message) {
-        systemLog('tui', `[${taskId}] stderr: ${message}`, undefined, 'error');
+        systemDiagnosticsService.systemLog(
+          'tui',
+          `[${taskId}] stderr: ${message}`,
+          undefined,
+          'error'
+        );
       }
     });
 
@@ -461,7 +466,7 @@ export class BackgroundTaskManager {
       try {
         callback(task);
       } catch (error) {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'tui',
           'Error in task update callback:',
           {
@@ -481,7 +486,7 @@ export class BackgroundTaskManager {
       try {
         callback(task);
       } catch (error) {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'tui',
           'Error in task complete callback:',
           {

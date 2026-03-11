@@ -53,7 +53,7 @@ process.env.OPENAI_AGENTS_DONT_LOG_MODEL_DATA = '1';
 process.env.OPENAI_AGENTS_DONT_LOG_TOOL_DATA = '1';
 process.env.DEBUG = ''; // Disable debug package output
 
-import { systemLog } from '../../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../../core/services/diagnostics/SystemDiagnosticsService.js';
 import OpenAI from 'openai';
 import { Agent, run, setDefaultOpenAIClient, tool } from '@openai/agents';
 import {
@@ -380,7 +380,7 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
       );
     };
 
-    systemLog(
+    systemDiagnosticsService.systemLog(
       'openai',
       'Initialized OpenAI Agent Provider',
       {
@@ -439,7 +439,12 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
   private async createConversation(): Promise<string> {
     const url = `${this.getConversationsBaseUrl()}/conversations`;
 
-    systemLog('openai', 'Creating new conversation', { url }, 'debug');
+    systemDiagnosticsService.systemLog(
+      'openai',
+      'Creating new conversation',
+      { url },
+      'debug'
+    );
 
     const response = await fetch(url, {
       method: 'POST',
@@ -447,7 +452,7 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
     });
 
     if (!response.ok) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'openai',
         'Failed to create conversation',
         { status: response.status },
@@ -457,7 +462,7 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
     }
 
     const data = (await response.json()) as ConversationResponse;
-    systemLog(
+    systemDiagnosticsService.systemLog(
       'openai',
       'Created conversation',
       { conversationId: data.id },
@@ -476,7 +481,12 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
   ): Promise<ConversationResponse | null> {
     const url = `${this.getConversationsBaseUrl()}/conversations/${conversationId}`;
 
-    systemLog('openai', 'Retrieving conversation', { conversationId }, 'debug');
+    systemDiagnosticsService.systemLog(
+      'openai',
+      'Retrieving conversation',
+      { conversationId },
+      'debug'
+    );
 
     const response = await fetch(url, {
       headers: {
@@ -485,7 +495,7 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
     });
 
     if (response.status === 404) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'openai',
         'Conversation not found',
         { conversationId },
@@ -495,7 +505,7 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
     }
 
     if (!response.ok) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'openai',
         'Failed to get conversation',
         { conversationId, status: response.status },
@@ -505,7 +515,7 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
     }
 
     const data = (await response.json()) as ConversationResponse;
-    systemLog(
+    systemDiagnosticsService.systemLog(
       'openai',
       'Retrieved conversation',
       { conversationId: data.id },
@@ -527,7 +537,7 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
   ): Promise<ConversationItemResponse[]> {
     const url = `${this.getConversationsBaseUrl()}/conversations/${conversationId}/items?limit=${limit}&order=${order}`;
 
-    systemLog(
+    systemDiagnosticsService.systemLog(
       'openai',
       'Retrieving conversation items',
       { conversationId, limit, order },
@@ -541,7 +551,7 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
     });
 
     if (!response.ok) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'openai',
         'Failed to get conversation items',
         { conversationId, status: response.status },
@@ -553,7 +563,7 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
     const data = (await response.json()) as {
       data: ConversationItemResponse[];
     };
-    systemLog(
+    systemDiagnosticsService.systemLog(
       'openai',
       'Retrieved conversation items',
       { conversationId, count: data.data.length },
@@ -578,7 +588,7 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
   ): Promise<ConversationItemResponse[]> {
     const url = `${this.getConversationsBaseUrl()}/conversations/${conversationId}/items`;
 
-    systemLog(
+    systemDiagnosticsService.systemLog(
       'openai',
       'Adding items to conversation',
       { conversationId, count: items.length },
@@ -595,7 +605,7 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
     });
 
     if (!response.ok) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'openai',
         'Failed to add conversation items',
         { conversationId, status: response.status },
@@ -607,7 +617,7 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
     const data = (await response.json()) as {
       data: ConversationItemResponse[];
     };
-    systemLog(
+    systemDiagnosticsService.systemLog(
       'openai',
       'Added items to conversation',
       { conversationId, count: data.data.length },
@@ -627,7 +637,7 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
   ): Promise<void> {
     const url = `${this.getConversationsBaseUrl()}/conversations/${conversationId}/items/${itemId}`;
 
-    systemLog(
+    systemDiagnosticsService.systemLog(
       'openai',
       'Deleting conversation item',
       { conversationId, itemId },
@@ -640,7 +650,7 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
     });
 
     if (!response.ok) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'openai',
         'Failed to delete conversation item',
         { conversationId, itemId, status: response.status },
@@ -649,7 +659,7 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
       throw new Error(`Failed to delete conversation item: ${response.status}`);
     }
 
-    systemLog(
+    systemDiagnosticsService.systemLog(
       'openai',
       'Deleted conversation item',
       { conversationId, itemId },
@@ -691,7 +701,7 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
         try {
           await this.deleteConversationItem(conversationId, item.id);
         } catch (err) {
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'openai',
             'Failed to delete item during rolling prune',
             { itemId: item.id, error: String(err) },
@@ -707,12 +717,12 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
         evictedLogs,
       });
 
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'sigma',
         `Rolling prune: Evicted ${toPruneCount} oldest tool logs for task ${taskId} (threshold: ${threshold}) (OpenAI).`
       );
     } catch (err) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'sigma',
         `Failed rolling prune for task ${taskId} (OpenAI)`,
         { error: err instanceof Error ? err.message : String(err) },
@@ -803,7 +813,7 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
           try {
             await this.deleteConversationItem(conversationId, item.id);
           } catch (err) {
-            systemLog(
+            systemDiagnosticsService.systemLog(
               'openai',
               'Failed to delete item from server session',
               { itemId: item.id, error: String(err) },
@@ -822,12 +832,12 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
           result_summary,
         });
 
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'sigma',
           `Evicted ${evictedCount} log messages (Turn-Range + Surgical) for task ${taskId} (OpenAI). ${process.env.DEBUG_ARCHIVE ? 'Archived to disk.' : ''}`
         );
       } else {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'sigma',
           `No logs found for eviction for task ${taskId} (OpenAI). (items=${items.length}, startIndex=${startIndex})`,
           { taskId, conversationId, startIndex },
@@ -835,7 +845,7 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
         );
       }
     } catch (err) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'sigma',
         `Failed to prune task logs for ${taskId} (OpenAI)`,
         { error: err instanceof Error ? err.message : String(err) },
@@ -877,7 +887,7 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
     const modelId = request.model || this.defaultModel;
     const { sessionId, systemPrompt, thinkingBudget } = context;
 
-    systemLog(
+    systemDiagnosticsService.systemLog(
       'openai',
       'Executing agent query (refactored)',
       {
@@ -1056,7 +1066,7 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
       ]);
     } catch (err) {
       // Non-fatal, silently ignore in TUI context
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'openai',
         'Failed to add conversation items',
         { error: String(err) },
@@ -1128,10 +1138,15 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
     try {
       // Try a simple models list call
       await this.client.models.list();
-      systemLog('openai', 'OpenAI API is available', undefined, 'debug');
+      systemDiagnosticsService.systemLog(
+        'openai',
+        'OpenAI API is available',
+        undefined,
+        'debug'
+      );
       return true;
     } catch (error) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'openai',
         'OpenAI API check failed',
         { error: String(error) },
@@ -1142,7 +1157,7 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
         try {
           const response = await fetch(`${process.env.OPENAI_BASE_URL}/models`);
           const ok = response.ok;
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'openai',
             'Custom base URL availability check',
             { url: process.env.OPENAI_BASE_URL, ok },
@@ -1150,7 +1165,7 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
           );
           return ok;
         } catch (fetchError) {
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'openai',
             'Custom base URL fetch failed',
             { error: String(fetchError) },

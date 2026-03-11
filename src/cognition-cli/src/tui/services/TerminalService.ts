@@ -5,7 +5,7 @@
  * mouse tracking, and clean process exit handling.
  */
 
-import { systemLog } from '../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../core/services/diagnostics/SystemDiagnosticsService.js';
 
 export enum TerminalStatus {
   READY = 'Ready',
@@ -57,7 +57,10 @@ export class TerminalService {
       process.stdout.write('\x1b[?1049h');
       this.isAlternateScreenEnabled = true;
     } catch (e) {
-      systemLog('tui', `Failed to enter alternate screen: ${e}`);
+      systemDiagnosticsService.systemLog(
+        'tui',
+        `Failed to enter alternate screen: ${e}`
+      );
     }
   }
 
@@ -75,7 +78,10 @@ export class TerminalService {
       process.stdout.write('\x1b[?1049l');
       this.isAlternateScreenEnabled = false;
     } catch (e) {
-      systemLog('tui', `Failed to exit alternate screen: ${e}`);
+      systemDiagnosticsService.systemLog(
+        'tui',
+        `Failed to exit alternate screen: ${e}`
+      );
     }
   }
 
@@ -90,7 +96,10 @@ export class TerminalService {
       // Format: \x1b]11;#RRGGBB\x07
       process.stdout.write(`\x1b]11;${hexColor}\x07`);
     } catch (e) {
-      systemLog('tui', `Failed to set terminal background color: ${e}`);
+      systemDiagnosticsService.systemLog(
+        'tui',
+        `Failed to set terminal background color: ${e}`
+      );
     }
   }
 
@@ -103,7 +112,10 @@ export class TerminalService {
       // OSC 111 resets the default background color
       process.stdout.write('\x1b]111\x07');
     } catch (e) {
-      systemLog('tui', `Failed to reset terminal background color: ${e}`);
+      systemDiagnosticsService.systemLog(
+        'tui',
+        `Failed to reset terminal background color: ${e}`
+      );
     }
   }
 
@@ -134,7 +146,10 @@ export class TerminalService {
       }
       this.isBracketedPasteEnabled = enabled;
     } catch (e) {
-      systemLog('tui', `Failed to set bracketed paste: ${e}`);
+      systemDiagnosticsService.systemLog(
+        'tui',
+        `Failed to set bracketed paste: ${e}`
+      );
     }
   }
 
@@ -156,7 +171,10 @@ export class TerminalService {
       }
       this.isMouseTrackingEnabled = enabled;
     } catch (e) {
-      systemLog('tui', `Failed to set mouse tracking: ${e}`);
+      systemDiagnosticsService.systemLog(
+        'tui',
+        `Failed to set mouse tracking: ${e}`
+      );
     }
   }
 
@@ -176,7 +194,10 @@ export class TerminalService {
       }
       this.isCursorHidden = hidden;
     } catch (e) {
-      systemLog('tui', `Failed to set cursor visibility: ${e}`);
+      systemDiagnosticsService.systemLog(
+        'tui',
+        `Failed to set cursor visibility: ${e}`
+      );
     }
   }
 
@@ -201,7 +222,10 @@ export class TerminalService {
       // 4. Linux / urxvt style (OSC 777 ; notify ; title ; message \x07)
       process.stdout.write('\x1b]777;notify;Cognition Σ;Task Complete\x07');
     } catch (e) {
-      systemLog('tui', `Failed to trigger terminal bell: ${e}`);
+      systemDiagnosticsService.systemLog(
+        'tui',
+        `Failed to trigger terminal bell: ${e}`
+      );
     }
   }
 
@@ -218,7 +242,10 @@ export class TerminalService {
       // OSC 2 sets window title specifically
       process.stdout.write(`\x1b]2;${title}\x07`);
     } catch (e) {
-      systemLog('tui', `Failed to set terminal title: ${e}`);
+      systemDiagnosticsService.systemLog(
+        'tui',
+        `Failed to set terminal title: ${e}`
+      );
     }
   }
 

@@ -53,9 +53,7 @@
  */
 
 import chalk from 'chalk';
-import { cleanAnsi as stripAnsi } from './string-utils.js';
-import { useColor, getBoxChars, isPlainMode } from './terminal-capabilities.js';
-
+import { terminalFormatter } from '../core/services/terminal-formatter/TerminalFormatterService.js';
 // ========================================
 // CONDITIONAL CHALK (Accessibility-Aware)
 // ========================================
@@ -65,7 +63,7 @@ import { useColor, getBoxChars, isPlainMode } from './terminal-capabilities.js';
  * Returns identity functions when colors are disabled
  */
 function createConditionalChalk() {
-  if (useColor()) {
+  if (terminalFormatter.useColor()) {
     return chalk;
   }
   // No-op functions when colors disabled
@@ -403,7 +401,7 @@ export function formatId(id: string): string {
  * @returns Array of wrapped lines (preserving ANSI codes)
  */
 function wrapLine(line: string, maxWidth: number): string[] {
-  const stripped = stripAnsi(line);
+  const stripped = terminalFormatter.cleanAnsi(line);
   if (stripped.length <= maxWidth) {
     return [line];
   }
@@ -414,7 +412,7 @@ function wrapLine(line: string, maxWidth: number): string[] {
   let currentStripped = '';
 
   for (const word of words) {
-    const wordStripped = stripAnsi(word);
+    const wordStripped = terminalFormatter.cleanAnsi(word);
     const testLine = currentLine ? `${currentLine} ${word}` : word;
     const testStripped = currentStripped
       ? `${currentStripped} ${wordStripped}`
@@ -485,7 +483,7 @@ function wrapLine(line: string, maxWidth: number): string[] {
  */
 export function createBox(content: string[], title?: string): string {
   // Plain mode: simple text without box
-  if (isPlainMode()) {
+  if (terminalFormatter.isPlainMode()) {
     const lines: string[] = [];
     if (title) {
       lines.push(`=== ${title} ===`);
@@ -499,7 +497,7 @@ export function createBox(content: string[], title?: string): string {
 
   const maxBoxWidth = 80;
   const maxContentWidth = maxBoxWidth - 4; // Account for "│ " and " │"
-  const chars = getBoxChars();
+  const chars = terminalFormatter.getBoxChars();
 
   // Wrap content lines that are too long
   const wrappedContent: string[] = [];
@@ -509,18 +507,18 @@ export function createBox(content: string[], title?: string): string {
   }
 
   const maxWidth = Math.max(
-    ...wrappedContent.map((line) => stripAnsi(line).length),
-    title ? stripAnsi(title).length + 4 : 0
+    ...wrappedContent.map((line) => terminalFormatter.cleanAnsi(line).length),
+    title ? terminalFormatter.cleanAnsi(title).length + 4 : 0
   );
   const width = Math.min(maxWidth + 4, maxBoxWidth);
 
   const top = title
-    ? `${chars.topLeft}${chars.horizontal} ${c.bold(title)} ${chars.horizontal.repeat(Math.max(0, width - stripAnsi(title).length - 5))}${chars.topRight}`
+    ? `${chars.topLeft}${chars.horizontal} ${c.bold(title)} ${chars.horizontal.repeat(Math.max(0, width - terminalFormatter.cleanAnsi(title).length - 5))}${chars.topRight}`
     : `${chars.topLeft}${chars.horizontal.repeat(width - 2)}${chars.topRight}`;
   const bottom = `${chars.bottomLeft}${chars.horizontal.repeat(width - 2)}${chars.bottomRight}`;
 
   const lines = wrappedContent.map((line) => {
-    const stripped = stripAnsi(line);
+    const stripped = terminalFormatter.cleanAnsi(line);
     const padding = ' '.repeat(Math.max(0, width - stripped.length - 4));
     return `${chars.vertical} ${line}${padding} ${chars.vertical}`;
   });
@@ -543,7 +541,7 @@ export function createBox(content: string[], title?: string): string {
  * separator('=', 40) // ======== (40 chars, dimmed)
  */
 export function separator(char: string = '─', length: number = 60): string {
-  const chars = getBoxChars();
+  const chars = terminalFormatter.getBoxChars();
   const separatorChar = char === '─' ? chars.horizontal : char;
   return c.dim(separatorChar.repeat(length));
 }
@@ -589,7 +587,7 @@ export function formatKeyValue(
  * // "ID  │  Type  │  Severity" (bold)
  */
 export function tableHeader(columns: string[]): string {
-  const chars = getBoxChars();
+  const chars = terminalFormatter.getBoxChars();
   return c.bold(columns.join(`  ${chars.vertical}  `));
 }
 
@@ -611,6 +609,6 @@ export function tableHeader(columns: string[]): string {
  * // "abc123de [O2]  │  threat_model  │  critical"
  */
 export function tableRow(values: string[]): string {
-  const chars = getBoxChars();
+  const chars = terminalFormatter.getBoxChars();
   return values.join(`  ${chars.vertical}  `);
 }

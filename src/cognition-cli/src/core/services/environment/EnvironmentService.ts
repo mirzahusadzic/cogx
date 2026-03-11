@@ -78,6 +78,13 @@ export class EnvironmentService {
   }
 
   /**
+   * Resolve the message queue directory path for the current project.
+   */
+  public resolveMessageQueueDir(projectRoot?: string): string {
+    return path.join(this.resolveSigmaDir(projectRoot), 'message_queue');
+  }
+
+  /**
    * Find PGC root by walking up directory tree.
    *
    * Searches for .open_cognition directory starting from startDir

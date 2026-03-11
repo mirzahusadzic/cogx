@@ -7,14 +7,10 @@ import {
   measureElement,
   DOMElement,
 } from 'ink';
-import { cleanAnsi as stripAnsi } from '../../utils/string-utils.js';
-import { systemLog } from '../../utils/debug-logger.js';
+// Use terminalFormatter.cleanAnsi instead of deprecated utility
+import { systemDiagnosticsService } from '../../core/services/diagnostics/SystemDiagnosticsService.js';
 import { useTUI } from '../context/TUIContext.js';
-import {
-  stripCursorSequences,
-  getStyleAnsi,
-  ANSI_RESET,
-} from '../utils/ansi-utils.js';
+import { terminalFormatter } from '../../core/services/terminal-formatter/TerminalFormatterService.js';
 import {
   markdownToLines,
   type StyledLine,
@@ -196,7 +192,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
         processedContent = processedContent
           .split('\n')
           .map((line) => {
-            const clean = stripAnsi(line);
+            const clean = terminalFormatter.cleanAnsi(line);
             return clean.startsWith(' ') ? '\u200D' + line : line;
           })
           .join('  \n');
@@ -249,8 +245,10 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
           bg = TUITheme.messages.assistant.bg;
 
           if (
-            stripAnsi(processedContent).includes('📋 Tasks:') ||
-            stripAnsi(processedContent).includes('> Tasks:')
+            terminalFormatter
+              .cleanAnsi(processedContent)
+              .includes('📋 Tasks:') ||
+            terminalFormatter.cleanAnsi(processedContent).includes('> Tasks:')
           ) {
             baseColor = TUITheme.roles.tool; // Consistent green for Tasks
           } else if (
@@ -269,13 +267,14 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
             const details = toolMatch[2];
 
             // Normalize tool name for robust detection (remove icon, colons, and spaces)
-            const cleanToolName = stripAnsi(toolName)
+            const cleanToolName = terminalFormatter
+              .cleanAnsi(toolName)
               .replace(/[>📋📄🧠🔍🌐🛑📊🤖📨📢📬✅✨🚀↪:\s]/gu, '')
               .toLowerCase();
 
             let finalDetails = details;
             // Create a clean version for detection logic
-            const cleanDetails = stripAnsi(details);
+            const cleanDetails = terminalFormatter.cleanAnsi(details);
 
             const isEdit = cleanToolName === 'edit';
             const isTasks = cleanToolName === 'tasks';
@@ -426,7 +425,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
                 isQuery ||
                 isList ||
                 isEdit) &&
-              !stripAnsi(effectiveDetails).startsWith('\n') &&
+              !terminalFormatter.cleanAnsi(effectiveDetails).startsWith('\n') &&
               effectiveDetails.length > 0
             ) {
               effectiveDetails = '\n' + effectiveDetails;
@@ -435,8 +434,9 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
             // If we have multiple leading newlines, collapse them to one
             effectiveDetails = effectiveDetails.replace(/^(\n)+/, '\n');
 
-            const startsWithNewline =
-              stripAnsi(effectiveDetails).startsWith('\n');
+            const startsWithNewline = terminalFormatter
+              .cleanAnsi(effectiveDetails)
+              .startsWith('\n');
             // Layer 13: Dynamic Code Block Wrapping (The "Markdown Escape" Fix)
             const maxBackticks = (effectiveDetails.match(/`+/g) || []).reduce(
               (max, match) => Math.max(max, match.length),
@@ -458,7 +458,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
             // so we don't need to subtract the tool name length.
             const detailsWidthReduction = startsWithNewline
               ? 0
-              : stripAnsi(toolName).length + 1;
+              : terminalFormatter.cleanAnsi(toolName).length + 1;
 
             // Regression Fix: Use a tighter safety margin (-4) to allow more content
             // to fit on narrow terminals (e.g. when sidebar is open), preventing
@@ -530,14 +530,16 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
                 // to align with the start of the tool header (prefix length).
                 const indentSize = startsWithNewline
                   ? prefix.length
-                  : prefix.length + stripAnsi(toolName).length + 1;
+                  : prefix.length +
+                    terminalFormatter.cleanAnsi(toolName).length +
+                    1;
                 const indent = ' '.repeat(indentSize);
 
                 // Clone the line and chunks to prevent mutation bugs during re-renders
                 // Regression Fix: Don't add indentation to completely empty lines to avoid
                 // trailing whitespace and visual artifacts.
                 const hasContent = detailLines[i].chunks.some(
-                  (c) => stripAnsi(c.text).trim().length > 0
+                  (c) => terminalFormatter.cleanAnsi(c.text).trim().length > 0
                 );
                 const newLine = {
                   ...detailLines[i],
@@ -560,7 +562,9 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
               if (isStreaming && detailLines.length < STABILIZED_HEIGHT) {
                 const indentSize = startsWithNewline
                   ? prefix.length
-                  : prefix.length + stripAnsi(toolName).length + 1;
+                  : prefix.length +
+                    terminalFormatter.cleanAnsi(toolName).length +
+                    1;
                 const indent = ' '.repeat(indentSize);
 
                 for (let i = detailLines.length; i < STABILIZED_HEIGHT; i++) {
@@ -765,13 +769,17 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
       );
 
       if (newHeight !== availableHeight) {
-        systemLog('tui', '[ClaudePanelAgent] New dimensions measured', {
-          height: dimensions.height,
-          availableHeight: newHeight,
-          totalLines: allLines.length,
-          messagesCount: messages.length,
-          layoutVersion,
-        });
+        systemDiagnosticsService.systemLog(
+          'tui',
+          '[ClaudePanelAgent] New dimensions measured',
+          {
+            height: dimensions.height,
+            availableHeight: newHeight,
+            totalLines: allLines.length,
+            messagesCount: messages.length,
+            layoutVersion,
+          }
+        );
         setAvailableHeight(newHeight);
       }
     }
@@ -814,7 +822,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
 
       if (process.env.DEBUG_INPUT) {
         if (isPageUp || isPageDown || isHome || isEnd) {
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'tui',
             `INPUT DEBUG [ClaudePanelAgent]: ${JSON.stringify({
               input,
@@ -828,7 +836,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
         }
 
         if (isPageUp || isPageDown) {
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'tui',
             `[ClaudePanelAgent] Received ${isPageUp ? 'PageUp' : 'PageDown'} action`,
             {
@@ -922,8 +930,9 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
               {line.chunks.length === 0
                 ? ' '
                 : line.chunks.map((chunk, cIdx) => {
-                    const hasAnsi = stripAnsi(chunk.text) !== chunk.text;
-                    const styleAnsi = getStyleAnsi({
+                    const hasAnsi =
+                      terminalFormatter.cleanAnsi(chunk.text) !== chunk.text;
+                    const styleAnsi = terminalFormatter.getStyleAnsi({
                       color: chunk.color,
                       bg: chunk.bg,
                       bold: chunk.bold,
@@ -936,11 +945,13 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
                     // by replacing \x1b[0m with \x1b[0m + parent's style codes.
                     // We also append the style at the end to ensure it persists if Ink wraps.
                     const content = hasAnsi
-                      ? stripCursorSequences(chunk.text).replace(
-                          /\x1b\[0m/g,
-                          ANSI_RESET + styleAnsi
-                        ) +
-                        ANSI_RESET +
+                      ? terminalFormatter
+                          .stripCursorSequences(chunk.text)
+                          .replace(
+                            /\x1b\[0m/g,
+                            terminalFormatter.ANSI_RESET + styleAnsi
+                          ) +
+                        terminalFormatter.ANSI_RESET +
                         styleAnsi
                       : chunk.text;
 

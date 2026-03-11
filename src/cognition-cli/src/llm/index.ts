@@ -34,7 +34,7 @@ import { registry } from './core/provider-registry.js';
 import { GeminiAgentProvider } from './providers/gemini/agent-provider.js';
 import { OpenAIAgentProvider } from './providers/openai/agent-provider.js';
 import { MinimaxAgentProvider } from './providers/minimax/agent-provider.js';
-import { systemLog } from '../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../core/services/diagnostics/SystemDiagnosticsService.js';
 
 // Re-export core types and classes
 export { registry } from './core/provider-registry.js';
@@ -179,7 +179,7 @@ export async function initializeProviders(
         ) {
           // SDK not installed - this is OK
         } else {
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'llm',
             'Failed to load Claude provider due to dynamic import error',
             {
@@ -208,7 +208,7 @@ export async function initializeProviders(
       registered.push('gemini');
     } catch (error) {
       if (skipMissingProviders) {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'llm',
           'Skipping Gemini provider',
           { error: error instanceof Error ? error.message : String(error) },
@@ -236,7 +236,7 @@ export async function initializeProviders(
       registered.push('openai');
     } catch (error) {
       if (skipMissingProviders) {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'llm',
           'Skipping OpenAI provider',
           { error: error instanceof Error ? error.message : String(error) },
@@ -261,7 +261,7 @@ export async function initializeProviders(
       registered.push('minimax');
     } catch (error) {
       if (skipMissingProviders) {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'llm',
           'Skipping Minimax provider',
           { error: error instanceof Error ? error.message : String(error) },
@@ -281,7 +281,7 @@ export async function initializeProviders(
   } else if (registered.length > 0) {
     // Fallback to first registered provider
     registry.setDefault(registered[0]);
-    systemLog(
+    systemDiagnosticsService.systemLog(
       'llm',
       `Default provider '${defaultProvider}' not available, using '${registered[0]}' instead`,
       undefined,

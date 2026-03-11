@@ -1,8 +1,8 @@
+import { environmentService } from '../core/services/environment/EnvironmentService.js';
 import fs from 'fs-extra';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { EventEmitter } from 'events';
-import { getSigmaDirectory } from './sigma-directory.js';
 
 /**
  * Represents the status of a message in the queue.
@@ -91,7 +91,7 @@ export class MessageQueue {
    */
   constructor(
     private agentId: string,
-    private sigmaDir: string = getSigmaDirectory()
+    private sigmaDir: string = environmentService.resolveSigmaDir()
   ) {
     this.queueDir = path.join(sigmaDir, 'message_queue', agentId);
     this.indexPath = path.join(this.queueDir, 'queue-index.json');

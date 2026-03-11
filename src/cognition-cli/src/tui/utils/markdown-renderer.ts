@@ -1,6 +1,6 @@
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
-import { cleanAnsi as stripAnsi } from '../../utils/string-utils.js';
+import { terminalFormatter } from '../../core/services/terminal-formatter/TerminalFormatterService.js';
 import stringWidth from 'string-width';
 import type {
   Root,
@@ -476,7 +476,7 @@ export class MarkdownRenderer {
             (() => {
               const samples = codeLines.slice(0, 20);
               const hasStrongIndicator = samples.some((l) => {
-                const clean = stripAnsi(l).trimStart();
+                const clean = terminalFormatter.cleanAnsi(l).trimStart();
                 return (
                   (clean.startsWith('--- ') && !clean.endsWith(' ---')) ||
                   (clean.startsWith('+++ ') && !clean.endsWith(' +++')) ||
@@ -485,10 +485,10 @@ export class MarkdownRenderer {
                 );
               });
               const numberedLines = samples.filter((l) =>
-                /^\s*([+-]\s*)?\d+\s*[│|]/.test(stripAnsi(l))
+                /^\s*([+-]\s*)?\d+\s*[│|]/.test(terminalFormatter.cleanAnsi(l))
               );
               const numberedDiffCount = numberedLines.filter((l) => {
-                const clean = stripAnsi(l);
+                const clean = terminalFormatter.cleanAnsi(l);
                 return (
                   /^\s*\d+\s*[│|]\s*[+-]/.test(clean) || // [+-] after line number
                   /^[+-]\s*\d+\s*[│|]/.test(clean) // [+-] before line number (Edit tool)
@@ -506,7 +506,7 @@ export class MarkdownRenderer {
 
               // Check for git log/commit output - should not be treated as a diff unless it has strong markers
               const looksLikeGitOutput = samples.some((l) => {
-                const clean = stripAnsi(l).trim();
+                const clean = terminalFormatter.cleanAnsi(l).trim();
                 return (
                   clean.startsWith('commit ') ||
                   clean.startsWith('Author: ') ||
@@ -532,7 +532,7 @@ export class MarkdownRenderer {
               // We are more strict here: lines must start with +/- (not indented)
               // to avoid false positives with commit messages or lists.
               const plusCount = samples.filter((l) => {
-                const clean = stripAnsi(l).trim();
+                const clean = terminalFormatter.cleanAnsi(l).trim();
                 return (
                   clean.startsWith('+') &&
                   !/^\+{3,}.*\+{3,}$/.test(clean) &&
@@ -540,7 +540,7 @@ export class MarkdownRenderer {
                 );
               }).length;
               const minusCount = samples.filter((l) => {
-                const clean = stripAnsi(l).trim();
+                const clean = terminalFormatter.cleanAnsi(l).trim();
                 return (
                   clean.startsWith('-') &&
                   !/^-{3,}.*-{3,}$/.test(clean) &&
@@ -577,7 +577,9 @@ export class MarkdownRenderer {
           if (isDiffBlock) {
             // Calculate baseline indentation once per block
             if (baselineIndent === -1) {
-              const cleanLines = codeLines.map((l) => stripAnsi(l));
+              const cleanLines = codeLines.map((l) =>
+                terminalFormatter.cleanAnsi(l)
+              );
               const headerLine = cleanLines.find((l) => {
                 const t = l.trimStart();
                 return (
@@ -605,7 +607,7 @@ export class MarkdownRenderer {
               }
             }
 
-            const cleanLine = stripAnsi(line);
+            const cleanLine = terminalFormatter.cleanAnsi(line);
             const lineIndent = cleanLine.match(/^\s*/)?.[0].length || 0;
             const trimmedLine = cleanLine.trimStart();
 

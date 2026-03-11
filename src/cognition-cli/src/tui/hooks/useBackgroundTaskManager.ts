@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { systemLog } from '../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../core/services/diagnostics/SystemDiagnosticsService.js';
 import {
   BackgroundTaskManager,
   getBackgroundTaskManager,
@@ -71,7 +71,7 @@ export interface UseBackgroundTaskManagerResult {
  *
  * // Check active task
  * if (activeTask) {
- *   systemLog('tui', `${activeTask.type}: ${activeTask.progress}%`);
+ *   systemDiagnosticsService.systemLog('tui', `${activeTask.type}: ${activeTask.progress}%`);
  * }
  */
 export function useBackgroundTaskManager(
@@ -102,7 +102,7 @@ export function useBackgroundTaskManager(
       // Subscribe to updates
       const unsubUpdate = managerRef.current.onTaskUpdate((task) => {
         if (debug) {
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'tui',
             `[BackgroundTaskManager] Task update: ${task.id} ${task.status}`
           );
@@ -113,7 +113,7 @@ export function useBackgroundTaskManager(
 
       const unsubComplete = managerRef.current.onTaskComplete((task) => {
         if (debug) {
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'tui',
             `[BackgroundTaskManager] Task complete: ${task.id} ${task.status}`
           );
@@ -130,7 +130,7 @@ export function useBackgroundTaskManager(
       };
     } catch (err) {
       if (debug) {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'tui',
           `[BackgroundTaskManager] Init error: ${err}`,
           {},

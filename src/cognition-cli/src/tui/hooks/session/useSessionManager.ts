@@ -36,14 +36,14 @@
  *   sessionIdProp: cliArgs.sessionId,
  *   cwd: process.cwd(),
  *   debug: true,
- *   onSessionLoaded: (msg) => systemLog('tui', `Session loaded: ${msg}`),
- *   onSDKSessionChanged: (evt) => systemLog('tui', `SDK Session changed: ${evt.reason}`)
+ *   onSessionLoaded: (msg) => systemDiagnosticsService.systemLog('tui', `Session loaded: ${msg}`),
+ *   onSDKSessionChanged: (evt) => systemDiagnosticsService.systemLog('tui', `SDK Session changed: ${evt.reason}`)
  * });
  *
  * // Access session state
- * systemLog('tui', `Anchor: ${sessionManager.state.anchorId}`);
- * systemLog('tui', `Current: ${sessionManager.state.currentSessionId}`);
- * systemLog('tui', `Resume: ${sessionManager.state.resumeSessionId}`);
+ * systemDiagnosticsService.systemLog('tui', `Anchor: ${sessionManager.state.anchorId}`);
+ * systemDiagnosticsService.systemLog('tui', `Current: ${sessionManager.state.currentSessionId}`);
+ * systemDiagnosticsService.systemLog('tui', `Resume: ${sessionManager.state.resumeSessionId}`);
  *
  * @example
  * // Update SDK session after compression
@@ -56,7 +56,7 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { SessionStateStore } from './SessionStateStore.js';
-import { systemLog } from '../../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../../core/services/diagnostics/SystemDiagnosticsService.js';
 import type {
   SessionOptions,
   SessionState,
@@ -289,7 +289,7 @@ export interface UseSessionManagerResult {
  *     if (message) showUserMessage(message);
  *   },
  *   onSDKSessionChanged: (event) => {
- *     systemLog('tui', `Session changed: ${event.reason}`);
+ *     systemDiagnosticsService.systemLog('tui', `Session changed: ${event.reason}`);
  *   }
  * });
  *
@@ -384,7 +384,7 @@ export function useSessionManager(
       if (result.restoredTokens) {
         onTokensRestored?.(result.restoredTokens);
         if (debug) {
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'tui',
             `[useSessionManager] Restored tokens: ${result.restoredTokens.total}`
           );
@@ -394,7 +394,7 @@ export function useSessionManager(
       if (result.restoredSessionTokens) {
         onSessionTokensRestored?.(result.restoredSessionTokens);
         if (debug) {
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'tui',
             `[useSessionManager] Restored cumulative tokens: ${result.restoredSessionTokens.total}`
           );
@@ -404,7 +404,7 @@ export function useSessionManager(
       if (result.todos && result.todos.length > 0) {
         onTasksRestored?.(result.todos);
         if (debug) {
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'tui',
             `[useSessionManager] Restored ${result.todos.length} tasks`
           );
@@ -412,7 +412,7 @@ export function useSessionManager(
       }
 
       if (debug) {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'tui',
           `[useSessionManager] Loaded session: ${result.currentSessionId}, resume: ${result.resumeSessionId || 'none'}`
         );
@@ -447,7 +447,10 @@ export function useSessionManager(
         // Check if session actually changed
         if (previousSessionId === newSessionId) {
           if (debug) {
-            systemLog('tui', '[useSessionManager] SDK session unchanged');
+            systemDiagnosticsService.systemLog(
+              'tui',
+              '[useSessionManager] SDK session unchanged'
+            );
           }
           return prev; // No change
         }
@@ -459,7 +462,7 @@ export function useSessionManager(
           // No state file exists - create initial state (with provider/model for resume)
           store.create(newSessionId, provider, model);
           if (debug) {
-            systemLog(
+            systemDiagnosticsService.systemLog(
               'tui',
               `[useSessionManager] Created initial state: ${anchorId} → ${newSessionId} (${provider}/${model})`
             );
@@ -479,7 +482,7 @@ export function useSessionManager(
           store.update(event);
 
           if (debug) {
-            systemLog(
+            systemDiagnosticsService.systemLog(
               'tui',
               `[useSessionManager] Preserved state on restart: ${anchorId} → ${newSessionId} (${sessionState.compression_history.length} sessions in history)`
             );
@@ -491,7 +494,7 @@ export function useSessionManager(
           // State exists but has only initial entry - recreate it (with provider/model for resume)
           store.create(newSessionId, provider, model);
           if (debug) {
-            systemLog(
+            systemDiagnosticsService.systemLog(
               'tui',
               `[useSessionManager] Recreated initial state: ${anchorId} → ${newSessionId} (${provider}/${model})`
             );
@@ -511,7 +514,7 @@ export function useSessionManager(
         }
 
         if (debug) {
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'tui',
             `[useSessionManager] SDK session updated: ${previousSessionId} → ${newSessionId} (${reason})`
           );
@@ -521,7 +524,7 @@ export function useSessionManager(
         // Clear forceNewSession flag (both ref and state) when session changes
         // This allows resumeSessionId to be used for subsequent messages
         if (debug) {
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'tui',
             `[useSessionManager.updateSDKSession] Clearing forceNewSession flag (was ${forceNewSessionRef.current})`
           );
@@ -568,7 +571,7 @@ export function useSessionManager(
       storeRef.current.updateStats(stats);
 
       if (debug) {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'tui',
           `[useSessionManager] Stats updated: ${JSON.stringify(stats)}`
         );
@@ -589,7 +592,7 @@ export function useSessionManager(
     }));
 
     if (debug) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'tui',
         '[useSessionManager] Resume session reset (forceNewSession=true, ref set)'
       );
@@ -605,7 +608,7 @@ export function useSessionManager(
     if (forceNewSessionRef.current) {
       if (debug) {
         // Reduced frequency logging to avoid render loops
-        // systemLog(
+        // systemDiagnosticsService.systemLog(
         //   'tui',
         //   '[useSessionManager.getResumeSessionId] Returning undefined (force new session)'
         // );
@@ -615,7 +618,7 @@ export function useSessionManager(
 
     if (debug) {
       // Reduced frequency logging to avoid render loops
-      // systemLog(
+      // systemDiagnosticsService.systemLog(
       //   'tui',
       //   `[useSessionManager.getResumeSessionId] Returning ${state.resumeSessionId}`
       // );
@@ -628,7 +631,10 @@ export function useSessionManager(
     (tokens: SessionTokens) => {
       storeRef.current.updateTokens(tokens);
       if (debug) {
-        systemLog('tui', `[useSessionManager] Saved tokens: ${tokens.total}`);
+        systemDiagnosticsService.systemLog(
+          'tui',
+          `[useSessionManager] Saved tokens: ${tokens.total}`
+        );
       }
     },
     [debug]
@@ -639,7 +645,7 @@ export function useSessionManager(
     (tokens: SessionTokens) => {
       storeRef.current.updateSessionTokens(tokens);
       if (debug) {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'tui',
           `[useSessionManager] Saved cumulative tokens: ${tokens.total}`
         );
@@ -653,7 +659,10 @@ export function useSessionManager(
     (tasks: SigmaTask[]) => {
       storeRef.current.updateTasks(tasks);
       if (debug) {
-        systemLog('tui', `[useSessionManager] Saved ${tasks.length} tasks`);
+        systemDiagnosticsService.systemLog(
+          'tui',
+          `[useSessionManager] Saved ${tasks.length} tasks`
+        );
       }
     },
     [debug]

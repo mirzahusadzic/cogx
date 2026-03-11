@@ -56,7 +56,7 @@
  *   tokenThreshold: 120000,
  *   minTurns: 5,
  *   onCompressionTriggered: (tokens, turns) => {
- *     systemLog('tui', `Compressing at ${tokens} tokens, ${turns} turns`);
+ *     systemDiagnosticsService.systemLog('tui', `Compressing at ${tokens} tokens, ${turns} turns`);
  *     performCompression();
  *   }
  * });
@@ -82,7 +82,7 @@
  */
 
 import { useRef, useCallback, useEffect, useMemo, useState } from 'react';
-import { systemLog } from '../../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../../core/services/diagnostics/SystemDiagnosticsService.js';
 import { CompressionTrigger } from './CompressionTrigger.js';
 import type { CompressionOptions, CompressionState } from './types.js';
 
@@ -247,7 +247,7 @@ export interface UseCompressionResult {
  *   tokenThreshold: 120000,
  *   minTurns: 5,
  *   onCompressionTriggered: (tokens, turns) => {
- *     systemLog('tui', `Compressing ${tokens} tokens`);
+ *     systemDiagnosticsService.systemLog('tui', `Compressing ${tokens} tokens`);
  *     performCompression();
  *   }
  * });
@@ -315,7 +315,7 @@ export function useCompression(
   //
   //   if (result.shouldTrigger) {
   //     if (debug) {
-  //       systemLog('tui', `Triggering compression: ${result.reason}`, undefined, 'debug');
+  //       systemDiagnosticsService.systemLog('tui', `Triggering compression: ${result.reason}`, undefined, 'debug');
   //     }
   //
   //     // Mark as triggered
@@ -338,7 +338,10 @@ export function useCompression(
    */
   const reset = useCallback(() => {
     if (debug) {
-      systemLog('sigma', 'Resetting compression state');
+      systemDiagnosticsService.systemLog(
+        'sigma',
+        'Resetting compression state'
+      );
     }
 
     triggerRef.current.reset();
@@ -367,7 +370,7 @@ export function useCompression(
   const triggerCompression = useCallback(
     async (isSemanticEvent: boolean = false): Promise<boolean> => {
       if (debug) {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'sigma',
           `Manual compression trigger (semantic: ${isSemanticEvent})`
         );
@@ -392,7 +395,7 @@ export function useCompression(
       // In this case we reset the trigger state to allow retry on next message
       if (result === false) {
         if (debug) {
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'sigma',
             'Compression failed/postponed, resetting trigger state for retry'
           );

@@ -1,3 +1,5 @@
+import { terminalFormatter } from '../core/services/terminal-formatter/TerminalFormatterService.js';
+
 /**
  * JSON Output Utilities
  *
@@ -141,7 +143,7 @@ export function formatPaginatedJsonOutput<T>(
  * @returns true if --json flag was passed
  */
 export function isJsonMode(): boolean {
-  return process.env.COGNITION_FORMAT === 'json';
+  return terminalFormatter.isJsonMode();
 }
 
 /**

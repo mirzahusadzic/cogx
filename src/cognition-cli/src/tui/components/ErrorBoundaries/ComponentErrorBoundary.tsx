@@ -1,6 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { Box, Text } from 'ink';
-import { systemLog } from '../../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../../core/services/diagnostics/SystemDiagnosticsService.js';
 import { TUITheme } from '../../theme.js';
 
 interface Props {
@@ -24,7 +24,7 @@ export class ComponentErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    systemLog(
+    systemDiagnosticsService.systemLog(
       'tui',
       `Error in ${this.props.componentName || 'component'}: ${error.message}`,
       { error: error.stack, errorInfo },

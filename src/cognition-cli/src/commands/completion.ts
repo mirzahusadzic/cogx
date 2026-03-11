@@ -28,7 +28,7 @@
  */
 
 import { Command } from 'commander';
-import { getHomeDir } from '../utils/home-dir.js';
+import { environmentService } from '../core/services/environment/EnvironmentService.js';
 
 /**
  * Create the completion command
@@ -130,7 +130,7 @@ async function installCompletion(
 ): Promise<{ isOhMyZsh?: boolean }> {
   const fs = await import('fs');
   const path = await import('path');
-  const homeDir = getHomeDir();
+  const homeDir = environmentService.getHomeDir();
   const completionScript = generateCompletionScript(shell);
 
   let installPath: string;
@@ -210,7 +210,7 @@ async function installCompletion(
 async function uninstallCompletion(shell: string): Promise<void> {
   const fs = await import('fs');
   const path = await import('path');
-  const homeDir = getHomeDir();
+  const homeDir = environmentService.getHomeDir();
   let installPath: string;
   let rcFile: string;
 

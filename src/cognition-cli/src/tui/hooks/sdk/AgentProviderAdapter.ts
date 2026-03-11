@@ -21,7 +21,7 @@
  * for await (const response of adapter.query("Analyze this code")) {
  *   // response.messages contains conversation history
  *   // response.sessionId is current session ID
- *   systemLog('tui', JSON.stringify(response.messages));
+ *   systemDiagnosticsService.systemLog('tui', JSON.stringify(response.messages));
  * }
  * ```
  */
@@ -32,7 +32,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { registry } from '../../../llm/index.js';
 import { DELEGATION_PROTOCOL_PROMPT } from '../../../sigma/prompts/delegation-protocol.js';
-import { systemLog } from '../../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../../core/services/diagnostics/SystemDiagnosticsService.js';
 import type {
   AgentRequest,
   AgentResponse,
@@ -150,8 +150,8 @@ export class AgentProviderAdapter {
    * @example
    * ```typescript
    * for await (const response of adapter.query("Review this code")) {
-   *   systemLog('tui', `${response.messages.length} messages`);
-   *   systemLog('tui', `Session: ${response.sessionId}`);
+   *   systemDiagnosticsService.systemLog('tui', `${response.messages.length} messages`);
+   *   systemDiagnosticsService.systemLog('tui', `Session: ${response.sessionId}`);
    * }
    * ```
    */
@@ -252,7 +252,7 @@ export class AgentProviderAdapter {
     };
 
     if (this.options.debug) {
-      systemLog('tui', '[AgentAdapter] Query:', {
+      systemDiagnosticsService.systemLog('tui', '[AgentAdapter] Query:', {
         provider: this.providerName,
         model: this.model,
         prompt: prompt.substring(0, 100) + '...',
@@ -263,11 +263,15 @@ export class AgentProviderAdapter {
     try {
       for await (const response of this.provider.executeAgent(request)) {
         if (this.options.debug) {
-          systemLog('tui', '[AgentAdapter] Response:', {
-            messageCount: response.messages.length,
-            sessionId: response.sessionId,
-            tokens: response.tokens.total,
-          });
+          systemDiagnosticsService.systemLog(
+            'tui',
+            '[AgentAdapter] Response:',
+            {
+              messageCount: response.messages.length,
+              sessionId: response.sessionId,
+              tokens: response.tokens.total,
+            }
+          );
         }
         yield response;
       }
@@ -276,7 +280,7 @@ export class AgentProviderAdapter {
       const errorMsg = error instanceof Error ? error.message : String(error);
 
       if (this.options.debug) {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'tui',
           `[AgentAdapter] Error: ${errorMsg}`,
           undefined,

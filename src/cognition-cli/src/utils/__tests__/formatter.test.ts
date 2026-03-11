@@ -11,19 +11,30 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// Mock terminal-capabilities before importing formatter
-vi.mock('../terminal-capabilities.js', () => ({
-  useColor: vi.fn().mockReturnValue(true),
-  getBoxChars: vi.fn().mockReturnValue({
-    topLeft: '┌',
-    topRight: '┐',
-    bottomLeft: '└',
-    bottomRight: '┘',
-    horizontal: '─',
-    vertical: '│',
-  }),
-  isPlainMode: vi.fn().mockReturnValue(false),
-}));
+// Mock terminalFormatter before importing formatter
+vi.mock(
+  '../../core/services/terminal-formatter/TerminalFormatterService.js',
+  () => ({
+    terminalFormatter: {
+      useColor: vi.fn().mockReturnValue(true),
+      getBoxChars: vi.fn().mockReturnValue({
+        topLeft: '┌',
+        topRight: '┐',
+        bottomLeft: '└',
+        bottomRight: '┘',
+        horizontal: '─',
+        vertical: '│',
+        leftT: '├',
+        rightT: '┤',
+        topT: '┬',
+        bottomT: '┴',
+        cross: '┼',
+      }),
+      isPlainMode: vi.fn().mockReturnValue(false),
+      cleanAnsi: vi.fn().mockImplementation((s) => s),
+    },
+  })
+);
 
 import {
   truncateHash,
@@ -40,7 +51,8 @@ import {
   tableHeader,
   tableRow,
 } from '../formatter.js';
-import { isPlainMode } from '../terminal-capabilities.js';
+import { terminalFormatter } from '../../core/services/terminal-formatter/TerminalFormatterService.js';
+const { isPlainMode } = terminalFormatter;
 
 describe('Hash and ID Formatting', () => {
   describe('truncateHash()', () => {
@@ -357,18 +369,29 @@ describe('Box and Table Formatting', () => {
     it('should use simple text format in plain mode', async () => {
       // Re-import to pick up mock change
       vi.resetModules();
-      vi.doMock('../terminal-capabilities.js', () => ({
-        useColor: vi.fn().mockReturnValue(false),
-        getBoxChars: vi.fn().mockReturnValue({
-          topLeft: '+',
-          topRight: '+',
-          bottomLeft: '+',
-          bottomRight: '+',
-          horizontal: '-',
-          vertical: '|',
-        }),
-        isPlainMode: vi.fn().mockReturnValue(true),
-      }));
+      vi.doMock(
+        '../../core/services/terminal-formatter/TerminalFormatterService.js',
+        () => ({
+          terminalFormatter: {
+            useColor: vi.fn().mockReturnValue(false),
+            getBoxChars: vi.fn().mockReturnValue({
+              topLeft: '+',
+              topRight: '+',
+              bottomLeft: '+',
+              bottomRight: '+',
+              horizontal: '-',
+              vertical: '|',
+              leftT: '+',
+              rightT: '+',
+              topT: '+',
+              bottomT: '+',
+              cross: '+',
+            }),
+            isPlainMode: vi.fn().mockReturnValue(true),
+            cleanAnsi: vi.fn().mockImplementation((s) => s),
+          },
+        })
+      );
 
       const { createBox: plainCreateBox } = await import('../formatter.js');
       const box = plainCreateBox(['Content'], 'Title');

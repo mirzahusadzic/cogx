@@ -45,7 +45,7 @@ import { ThinkingLevel } from '@google/genai';
 
 import { getActiveTaskId } from '../../../sigma/session-state.js';
 
-import { systemLog } from '../../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../../core/services/diagnostics/SystemDiagnosticsService.js';
 import { archiveTaskLogs } from '../../core/utils/eviction-utils.js';
 import type { AgentRequest } from '../../core/interfaces/agent-provider.js';
 import type {
@@ -316,12 +316,12 @@ export class GeminiAgentProvider extends BaseAgentProvider {
         ];
       }
 
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'sigma',
         `Rolling prune: Evicted ${toPruneCount} oldest tool logs for task ${taskId} (threshold: ${threshold}). ${process.env.DEBUG_ARCHIVE ? 'Archived to disk.' : ''}`
       );
     } catch (err) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'sigma',
         `Failed rolling prune for task ${taskId}`,
         { error: err instanceof Error ? err.message : String(err) },
@@ -533,13 +533,13 @@ export class GeminiAgentProvider extends BaseAgentProvider {
             [...newEvents];
         }
 
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'sigma',
           `Evicted ${evictedCount} log messages (Turn-Range + Surgical) for task ${taskId}. ${process.env.DEBUG_ARCHIVE ? 'Archived to disk.' : ''}`
         );
       } else {
         // Fallback logging: Why did we not evict anything?
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'sigma',
           `No logs found for eviction for task ${taskId}. (startIndex=${startIndex}, events=${events.length})`,
           { taskId, sessionId, startIndex },
@@ -547,7 +547,7 @@ export class GeminiAgentProvider extends BaseAgentProvider {
         );
       }
     } catch (err) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'sigma',
         `Failed to prune task logs for ${taskId}`,
         { error: err instanceof Error ? err.message : String(err) },

@@ -52,6 +52,3 @@ export {
   addSemanticEdges,
   getLatticeStats,
 } from './compressor.js';
-
-// Reconstructor
-export { reconstructContext, getReconstructionStats } from './reconstructor.js';

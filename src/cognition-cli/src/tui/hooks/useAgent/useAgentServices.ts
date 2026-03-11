@@ -13,7 +13,7 @@ import { createSigmaTaskUpdateMcpServer } from '../../tools/sigma-task-update-to
 import { OverlayRegistry } from '../../../core/algebra/overlay-registry.js';
 import { checkWorkbenchHealthDetailed } from '../../../utils/workbench-detect.js';
 import { loadCommands } from '../../commands/loader.js';
-import { systemLog } from '../../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../../core/services/diagnostics/SystemDiagnosticsService.js';
 import { useAgentBaseContext } from '../../contexts/AgentContext.js';
 
 export function useAgentServices() {
@@ -48,13 +48,13 @@ export function useAgentServices() {
         await initializeProviders();
         if (debugFlag) {
           const { registry } = await import('../../../llm/index.js');
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'tui',
             `${chalk.dim('[Σ] LLM providers initialized:')} ${registry.list().join(', ')}`
           );
         }
       } catch (error) {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'tui',
           `Failed to initialize LLM providers: ${error instanceof Error ? error.message : String(error)}`
         );
@@ -172,20 +172,23 @@ export function useAgentServices() {
       .then((result) => {
         setCommandsCache(result.commands);
         if (result.errors.length > 0 && debugFlag) {
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'tui',
             `Command loading errors: ${JSON.stringify(result.errors)}`
           );
         }
         if (result.warnings.length > 0 && debugFlag) {
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'tui',
             `Command loading warnings: ${JSON.stringify(result.warnings)}`
           );
         }
       })
       .catch((error) => {
-        systemLog('tui', `Failed to load commands: ${error}`);
+        systemDiagnosticsService.systemLog(
+          'tui',
+          `Failed to load commands: ${error}`
+        );
       });
   }, [cwd, debugFlag, setCommandsCache]);
 }

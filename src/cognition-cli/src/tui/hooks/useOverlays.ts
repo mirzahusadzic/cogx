@@ -32,7 +32,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { OverlayRegistry } from '../../core/algebra/overlay-registry.js';
 import { OverlayInfo } from '../types.js';
-import { systemLog } from '../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../core/services/diagnostics/SystemDiagnosticsService.js';
 
 /**
  * Configuration options for useOverlays hook
@@ -142,7 +142,7 @@ export function useOverlays(options: UseOverlaysOptions) {
 
         setOverlays(overlaysWithStatus);
       } catch (err) {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'tui',
           'Failed to load overlays:',
           {

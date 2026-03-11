@@ -37,12 +37,7 @@ import { GenesisOrchestrator } from '../core/orchestrators/genesis.js';
 import { GenesisOracle } from '../core/pgc/oracles/genesis.js';
 import { LineagePatternsManager } from '../core/overlays/lineage/manager.js';
 import { LanceVectorStore } from '../core/overlays/vector-db/lance-store.js';
-import {
-  debugLog,
-  debugError,
-  debugTimer,
-  getDebugLogPath,
-} from '../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../core/services/diagnostics/SystemDiagnosticsService.js';
 import { LANGUAGE_MAP } from '../config.js';
 import {
   shouldUseJsonProgress,
@@ -283,8 +278,8 @@ export async function genesisCommand(options: GenesisOptions) {
     intro(chalk.bold('Genesis: Building the Verifiable Skeleton'));
   }
 
-  const genesisTimer = debugTimer('Genesis total');
-  debugLog('Genesis started', {
+  const genesisTimer = systemDiagnosticsService.debugTimer('Genesis total');
+  systemDiagnosticsService.debugLog('Genesis started', {
     sources: options.sources,
     projectRoot: options.projectRoot,
     workbench: options.workbench,
@@ -306,16 +301,16 @@ export async function genesisCommand(options: GenesisOptions) {
     if (!useJson) {
       s!.start('Validating PGC initialization');
     }
-    debugLog('Validating PGC initialization');
+    systemDiagnosticsService.debugLog('Validating PGC initialization');
     await validatePgcInitialized(options.projectRoot);
     if (!useJson) {
       s!.stop('PGC validated');
     }
-    debugLog('PGC validation complete');
+    systemDiagnosticsService.debugLog('PGC validation complete');
 
     // Handle dry-run mode
     if (options.dryRun) {
-      debugLog('Executing dry-run mode');
+      systemDiagnosticsService.debugLog('Executing dry-run mode');
       await executeDryRun(options.sources, options.projectRoot);
       return;
     }
@@ -339,7 +334,7 @@ export async function genesisCommand(options: GenesisOptions) {
             )
           );
         }
-        debugLog('Resuming from progress', {
+        systemDiagnosticsService.debugLog('Resuming from progress', {
           startedAt: previousProgress.startedAt,
           sourcePaths: previousProgress.sourcePaths,
         });
@@ -347,7 +342,7 @@ export async function genesisCommand(options: GenesisOptions) {
         if (!useJson) {
           log.info(chalk.dim('No previous progress found, starting fresh'));
         }
-        debugLog('No progress file found');
+        systemDiagnosticsService.debugLog('No progress file found');
       }
     } else {
       // Warn if progress file exists but --resume wasn't used
@@ -368,9 +363,12 @@ export async function genesisCommand(options: GenesisOptions) {
             message: `Previous genesis was interrupted (started ${previousProgress.startedAt}). Use --resume to continue.`,
           });
         }
-        debugLog('Previous progress found but not resuming', {
-          startedAt: previousProgress.startedAt,
-        });
+        systemDiagnosticsService.debugLog(
+          'Previous progress found but not resuming',
+          {
+            startedAt: previousProgress.startedAt,
+          }
+        );
       }
       // Clear any stale progress if not resuming
       await clearProgress(options.projectRoot);
@@ -380,32 +378,43 @@ export async function genesisCommand(options: GenesisOptions) {
     if (!useJson) {
       s!.start('Initializing PGC and workbench connection');
     }
-    const initTimer = debugTimer('Initialize PGC and workbench');
+    const initTimer = systemDiagnosticsService.debugTimer(
+      'Initialize PGC and workbench'
+    );
     const pgc = new PGCManager(options.projectRoot);
-    debugLog('PGCManager initialized', { pgcRoot: pgc.pgcRoot });
+    systemDiagnosticsService.debugLog('PGCManager initialized', {
+      pgcRoot: pgc.pgcRoot,
+    });
 
     const workbenchUrl = process.env.WORKBENCH_URL || 'http://localhost:8000';
     const workbench = new WorkbenchClient(workbenchUrl);
-    debugLog('WorkbenchClient created', { url: workbenchUrl });
+    systemDiagnosticsService.debugLog('WorkbenchClient created', {
+      url: workbenchUrl,
+    });
 
     // Initialize LanceVectorStore and LineagePatternsManager to set up embedding handler
     const vectorDB = new LanceVectorStore(pgc.pgcRoot);
     lineageManager = new LineagePatternsManager(pgc, vectorDB, workbench);
     // Dummy call to satisfy linter, as its constructor has side effects
     lineageManager.getEmbeddingStats();
-    debugLog('LanceVectorStore and LineagePatternsManager initialized');
+    systemDiagnosticsService.debugLog(
+      'LanceVectorStore and LineagePatternsManager initialized'
+    );
 
     try {
-      debugLog('Checking workbench health');
+      systemDiagnosticsService.debugLog('Checking workbench health');
       await workbench.health();
       if (!useJson) {
         s!.stop();
         log.info('Connected to egemma workbench');
         s = undefined; // Prevent finally block from stopping spinner again
       }
-      debugLog('Workbench health check passed');
+      systemDiagnosticsService.debugLog('Workbench health check passed');
     } catch (error) {
-      debugError('Workbench health check failed', error);
+      systemDiagnosticsService.debugError(
+        'Workbench health check failed',
+        error
+      );
       if (useJson) {
         progress!.error({
           message:
@@ -429,10 +438,10 @@ export async function genesisCommand(options: GenesisOptions) {
 
     // Initialize structural miner with three-layer pipeline
     const miner = new StructuralMiner(workbench);
-    debugLog('StructuralMiner initialized');
+    systemDiagnosticsService.debugLog('StructuralMiner initialized');
 
     const genesisOracle = new GenesisOracle(pgc);
-    debugLog('GenesisOracle initialized');
+    systemDiagnosticsService.debugLog('GenesisOracle initialized');
 
     // Create genesis orchestrator
     const orchestrator = new GenesisOrchestrator(
@@ -442,7 +451,7 @@ export async function genesisCommand(options: GenesisOptions) {
       genesisOracle,
       options.projectRoot
     );
-    debugLog('GenesisOrchestrator created');
+    systemDiagnosticsService.debugLog('GenesisOrchestrator created');
 
     // Initialize or update progress tracking
     const genesisProgressData: GenesisProgress = existingProgress || {
@@ -452,16 +461,22 @@ export async function genesisCommand(options: GenesisOptions) {
 
     // Save initial progress (marks genesis as "in progress")
     await saveProgress(options.projectRoot, genesisProgressData);
-    debugLog('Progress saved', { progress: genesisProgressData });
+    systemDiagnosticsService.debugLog('Progress saved', {
+      progress: genesisProgressData,
+    });
 
     // Phase I: Bottom-Up Aggregation
     if (!useJson) {
       log.info('Phase I: Structural Mining (Bottom-Up)');
     }
-    debugLog('Starting Phase I: Bottom-Up Aggregation', {
-      sources: options.sources,
-    });
-    const miningTimer = debugTimer('Structural mining');
+    systemDiagnosticsService.debugLog(
+      'Starting Phase I: Bottom-Up Aggregation',
+      {
+        sources: options.sources,
+      }
+    );
+    const miningTimer =
+      systemDiagnosticsService.debugTimer('Structural mining');
 
     // Create progress callback for orchestrator if in JSON mode
     const onProgress = useJson
@@ -478,11 +493,11 @@ export async function genesisCommand(options: GenesisOptions) {
 
     await orchestrator.executeBottomUpAggregation(options.sources, onProgress);
     miningTimer();
-    debugLog('Phase I complete');
+    systemDiagnosticsService.debugLog('Phase I complete');
 
     // Clear progress on successful completion
     await clearProgress(options.projectRoot);
-    debugLog('Progress cleared (genesis complete)');
+    systemDiagnosticsService.debugLog('Progress cleared (genesis complete)');
 
     if (useJson) {
       progress!.complete({
@@ -496,7 +511,7 @@ export async function genesisCommand(options: GenesisOptions) {
       genesisTimer();
 
       // Show debug log path if enabled
-      const debugPath = getDebugLogPath();
+      const debugPath = systemDiagnosticsService.getDebugLogPath();
       if (debugPath) {
         console.log('');
         console.log(chalk.dim(`Debug log: ${debugPath}`));
@@ -520,7 +535,7 @@ export async function genesisCommand(options: GenesisOptions) {
       console.log('');
     }
   } catch (error) {
-    debugError('Genesis failed', error);
+    systemDiagnosticsService.debugError('Genesis failed', error);
     if (useJson) {
       progress!.error({
         message: (error as Error).message,
@@ -543,7 +558,7 @@ export async function genesisCommand(options: GenesisOptions) {
     }
     // Ensure lineageManager is shut down
     if (lineageManager) {
-      debugLog('Shutting down LineagePatternsManager');
+      systemDiagnosticsService.debugLog('Shutting down LineagePatternsManager');
       await lineageManager.shutdown();
     }
   }

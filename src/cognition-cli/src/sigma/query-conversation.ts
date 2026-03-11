@@ -9,7 +9,7 @@ import { WorkbenchClient } from '../core/executors/workbench-client.js';
 import type { ConversationOverlayRegistry } from './conversation-registry.js';
 import type { SummarizeRequest } from '../core/types/workbench.js';
 import type { OverlayMetadata } from '../core/algebra/overlay-algebra.js';
-import { systemLog } from '../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../core/services/diagnostics/SystemDiagnosticsService.js';
 import {
   DEFAULT_SLM_MODEL_NAME,
   MEMORY_RECALL_MAX_TOKENS,
@@ -70,7 +70,7 @@ export async function queryConversationLattice(
 
   // STEP 1: Query Deconstruction (SLM)
   if (verbose) {
-    systemLog('sigma', 'Deconstructing query intent');
+    systemDiagnosticsService.systemLog('sigma', 'Deconstructing query intent');
   }
 
   const deconstructRequest: SummarizeRequest = {
@@ -102,7 +102,7 @@ export async function queryConversationLattice(
   const queryIntent: QueryIntent = JSON.parse(jsonMatch[1]);
 
   if (verbose) {
-    systemLog('sigma', 'Query intent deconstructed', {
+    systemDiagnosticsService.systemLog('sigma', 'Query intent deconstructed', {
       intent: queryIntent.intent,
       refined: queryIntent.refined_query,
     });
@@ -110,7 +110,10 @@ export async function queryConversationLattice(
 
   // STEP 2: Multi-Overlay Semantic Search
   if (verbose) {
-    systemLog('sigma', 'Searching conversation overlays');
+    systemDiagnosticsService.systemLog(
+      'sigma',
+      'Searching conversation overlays'
+    );
   }
 
   const overlayIds = ['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7'] as const;
@@ -133,7 +136,7 @@ export async function queryConversationLattice(
     } catch (error) {
       // Overlay might be empty, skip
       if (verbose) {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'sigma',
           `No data found for overlay ${overlayId}`,
           { error: error instanceof Error ? error.message : String(error) },
@@ -160,7 +163,7 @@ export async function queryConversationLattice(
   });
 
   if (verbose) {
-    systemLog('sigma', 'Found relevant turns', {
+    systemDiagnosticsService.systemLog('sigma', 'Found relevant turns', {
       count: topResults.length,
       topMatches: topResults.map((item) => ({
         sim: (item.similarity * 100).toFixed(1) + '%',
@@ -172,7 +175,7 @@ export async function queryConversationLattice(
 
   // STEP 3: Answer Synthesis (LLM with improved context)
   if (verbose) {
-    systemLog('sigma', 'Synthesizing answer');
+    systemDiagnosticsService.systemLog('sigma', 'Synthesizing answer');
   }
 
   // Build richer context with metadata

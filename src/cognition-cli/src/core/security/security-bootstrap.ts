@@ -45,7 +45,7 @@ import path from 'path';
 import os from 'os';
 import { createInterface } from 'readline';
 import { WorkspaceManager } from '../workspace-manager.js';
-import { getHomeDir } from '../../utils/home-dir.js';
+import { environmentService } from '../services/environment/EnvironmentService.js';
 
 /**
  * Global settings stored in ~/.cognition-cli/settings.json
@@ -97,7 +97,10 @@ export class SecurityBootstrap {
    */
   constructor(startDir: string = process.cwd()) {
     // Global settings in ~/.cognition-cli/
-    this.settingsDir = path.join(getHomeDir(), '.cognition-cli');
+    this.settingsDir = path.join(
+      environmentService.getHomeDir(),
+      '.cognition-cli'
+    );
     this.settingsPath = path.join(this.settingsDir, 'settings.json');
 
     // Per-project security/transparency logs - use walk-up to find workspace
@@ -358,7 +361,11 @@ export async function bootstrapSecurity(projectRoot?: string): Promise<void> {
  * Get settings file path
  */
 export function getSettingsPath(): string {
-  return path.join(getHomeDir(), '.cognition-cli', 'settings.json');
+  return path.join(
+    environmentService.getHomeDir(),
+    '.cognition-cli',
+    'settings.json'
+  );
 }
 
 /**
@@ -383,7 +390,10 @@ export function loadSettings(): Settings {
  * Save settings to ~/.cognition-cli/settings.json
  */
 export function saveSettings(settings: Settings): void {
-  const settingsDir = path.join(getHomeDir(), '.cognition-cli');
+  const settingsDir = path.join(
+    environmentService.getHomeDir(),
+    '.cognition-cli'
+  );
   const settingsPath = getSettingsPath();
 
   // Ensure directory exists

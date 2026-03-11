@@ -7,8 +7,8 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { environmentService } from '../core/services/environment/EnvironmentService.js';
 import type { AgentInfo } from './agent-messaging-formatters.js';
-import { getMessageQueueDirectory } from './sigma-directory.js';
 
 // Re-export AgentInfo for convenience
 export type { AgentInfo } from './agent-messaging-formatters.js';
@@ -42,7 +42,7 @@ export function getActiveAgents(
 ): AgentInfo[] {
   const queueDir = sigmaDirOverride
     ? path.join(sigmaDirOverride, 'message_queue')
-    : getMessageQueueDirectory(projectRoot);
+    : environmentService.resolveMessageQueueDir(projectRoot);
 
   if (!fs.existsSync(queueDir)) {
     return [];
@@ -99,7 +99,7 @@ export function resolveAgentId(
 ): string | null {
   const queueDir = sigmaDirOverride
     ? path.join(sigmaDirOverride, 'message_queue')
-    : getMessageQueueDirectory(projectRoot);
+    : environmentService.resolveMessageQueueDir(projectRoot);
 
   if (!fs.existsSync(queueDir)) {
     return null;

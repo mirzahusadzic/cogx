@@ -16,7 +16,7 @@
  */
 
 import chalk from 'chalk';
-import { useColor } from './terminal-capabilities.js';
+import { terminalFormatter } from '../core/services/terminal-formatter/TerminalFormatterService.js';
 
 /**
  * Example command entry
@@ -43,7 +43,7 @@ export interface CommandExample {
  * ]));
  */
 export function addExamples(examples: CommandExample[]): string {
-  const c = useColor()
+  const c = terminalFormatter.useColor()
     ? chalk
     : { cyan: (s: string) => s, dim: (s: string) => s };
 
@@ -74,7 +74,7 @@ export function addExamples(examples: CommandExample[]): string {
  * ]));
  */
 export function addNextSteps(steps: string[]): string {
-  const c = useColor()
+  const c = terminalFormatter.useColor()
     ? chalk
     : { cyan: (s: string) => s, dim: (s: string) => s };
 
@@ -105,7 +105,7 @@ export function addNextSteps(steps: string[]): string {
 export function addEnvVars(
   envVars: Array<{ name: string; desc: string }>
 ): string {
-  const c = useColor()
+  const c = terminalFormatter.useColor()
     ? chalk
     : { cyan: (s: string) => s, dim: (s: string) => s };
 
@@ -127,7 +127,7 @@ export function addEnvVars(
  * @returns Formatted string for addHelpText('after', ...)
  */
 export function addLearnMore(links: string[]): string {
-  const c = useColor()
+  const c = terminalFormatter.useColor()
     ? chalk
     : { cyan: (s: string) => s, dim: (s: string) => s };
 
@@ -262,7 +262,7 @@ export interface CommandGroup {
  * @returns Formatted string for help output
  */
 export function formatGroupedCommands(groups: CommandGroup[]): string {
-  const c = useColor()
+  const c = terminalFormatter.useColor()
     ? chalk
     : { cyan: (s: string) => s, dim: (s: string) => s, bold: (s: string) => s };
 
@@ -377,7 +377,7 @@ export const COMMAND_GROUPS: CommandGroup[] = [
  * @returns Formatted string for addHelpText('after', ...)
  */
 export function addAllEnvVars(): string {
-  const c = useColor()
+  const c = terminalFormatter.useColor()
     ? chalk
     : { cyan: (s: string) => s, dim: (s: string) => s, bold: (s: string) => s };
 
@@ -416,7 +416,7 @@ export function addAllEnvVars(): string {
  * @returns Formatted string for addHelpText('after', ...)
  */
 export function addGlobalExamples(): string {
-  const c = useColor()
+  const c = terminalFormatter.useColor()
     ? chalk
     : { cyan: (s: string) => s, dim: (s: string) => s };
 

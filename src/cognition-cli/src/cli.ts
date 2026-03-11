@@ -98,12 +98,7 @@ import {
   formatGroupedCommands,
   COMMAND_GROUPS,
 } from './utils/help-formatter.js';
-import {
-  initDebugLog,
-  debugLog,
-  finalizeDebugLog,
-  getDebugLogPath,
-} from './utils/debug-logger.js';
+import { systemDiagnosticsService } from './core/services/diagnostics/SystemDiagnosticsService.js';
 import { getVerboseState } from './utils/verbose.js';
 import dotenv from 'dotenv';
 
@@ -170,8 +165,8 @@ program
     // Initialize debug logging if --debug flag is set
     if (opts.debug) {
       const projectRoot = opts.projectRoot || process.cwd();
-      initDebugLog(projectRoot);
-      debugLog('Command started', {
+      systemDiagnosticsService.initDebugLog(projectRoot);
+      systemDiagnosticsService.debugLog('Command started', {
         command: thisCommand.name(),
         args: thisCommand.args,
         options: opts,
@@ -1270,11 +1265,14 @@ import { formatError, formatGenericError } from './utils/error-formatter.js';
 
 process.on('uncaughtException', (error) => {
   const verbose = getVerboseState({});
-  const debugPath = getDebugLogPath();
+  const debugPath = systemDiagnosticsService.getDebugLogPath();
 
   if (error instanceof CognitionError) {
-    debugLog('CognitionError', { code: error.code, message: error.message });
-    finalizeDebugLog(false, getExitCode(error));
+    systemDiagnosticsService.debugLog('CognitionError', {
+      code: error.code,
+      message: error.message,
+    });
+    systemDiagnosticsService.finalizeDebugLog(false, getExitCode(error));
     console.error(formatError(error, verbose));
     if (debugPath) {
       console.error(`\nDebug log: ${debugPath}`);
@@ -1283,8 +1281,10 @@ process.on('uncaughtException', (error) => {
   }
 
   // Unknown error - show stack and ask for bug report
-  debugLog('Uncaught exception', { message: String(error) });
-  finalizeDebugLog(false, 1);
+  systemDiagnosticsService.debugLog('Uncaught exception', {
+    message: String(error),
+  });
+  systemDiagnosticsService.finalizeDebugLog(false, 1);
   console.error(formatGenericError(error, verbose));
   if (debugPath) {
     console.error(`\nDebug log: ${debugPath}`);
@@ -1294,14 +1294,14 @@ process.on('uncaughtException', (error) => {
 
 process.on('unhandledRejection', (reason) => {
   const verbose = getVerboseState({});
-  const debugPath = getDebugLogPath();
+  const debugPath = systemDiagnosticsService.getDebugLogPath();
 
   if (reason instanceof CognitionError) {
-    debugLog('CognitionError (rejection)', {
+    systemDiagnosticsService.debugLog('CognitionError (rejection)', {
       code: reason.code,
       message: reason.message,
     });
-    finalizeDebugLog(false, getExitCode(reason));
+    systemDiagnosticsService.finalizeDebugLog(false, getExitCode(reason));
     console.error(formatError(reason, verbose));
     if (debugPath) {
       console.error(`\nDebug log: ${debugPath}`);
@@ -1310,8 +1310,10 @@ process.on('unhandledRejection', (reason) => {
   }
 
   // Unknown rejection
-  debugLog('Unhandled rejection', { reason: String(reason) });
-  finalizeDebugLog(false, 1);
+  systemDiagnosticsService.debugLog('Unhandled rejection', {
+    reason: String(reason),
+  });
+  systemDiagnosticsService.finalizeDebugLog(false, 1);
   console.error(formatGenericError(reason, verbose));
   if (debugPath) {
     console.error(`\nDebug log: ${debugPath}`);
@@ -1321,9 +1323,9 @@ process.on('unhandledRejection', (reason) => {
 
 // Handle SIGINT (Ctrl-C) with proper exit code
 process.on('SIGINT', () => {
-  debugLog('SIGINT received');
-  finalizeDebugLog(false, 130);
-  const debugPath = getDebugLogPath();
+  systemDiagnosticsService.debugLog('SIGINT received');
+  systemDiagnosticsService.finalizeDebugLog(false, 130);
+  const debugPath = systemDiagnosticsService.getDebugLogPath();
   console.error('\nInterrupted');
   if (debugPath) {
     console.error(`Debug log: ${debugPath}`);

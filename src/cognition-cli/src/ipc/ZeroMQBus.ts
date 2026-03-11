@@ -16,7 +16,7 @@
 import * as zmq from 'zeromq';
 import { AgentMessage } from './AgentMessage.js';
 import { MessageMapper } from './mappers/message-mapper.js';
-import { systemLog } from '../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../core/services/diagnostics/SystemDiagnosticsService.js';
 
 /**
  * Configuration for the ZeroMQBus.
@@ -76,7 +76,7 @@ export interface BusStats {
  * await peerBus.connect();
  *
  * peerBus.subscribe('chat.message', (msg) => {
- *   systemLog('ipc', `Chat message: ${msg.payload}`);
+ *   systemDiagnosticsService.systemLog('ipc', `Chat message: ${msg.payload}`);
  * });
  * masterBus.publish('chat.message', { from: 'master', text: 'Hello!' });
  */
@@ -142,7 +142,7 @@ export class ZeroMQBus {
     this.started = true;
     this.startListening();
 
-    systemLog(
+    systemDiagnosticsService.systemLog(
       'ipc',
       `ZeroMQ Bus Master: Broker running (frontend: ${frontendAddress}, backend: ${backendAddress})`
     );
@@ -174,7 +174,10 @@ export class ZeroMQBus {
     this.started = true;
     this.startListening();
 
-    systemLog('ipc', `ZeroMQ Peer: Connected to broker at ${frontendAddress}`);
+    systemDiagnosticsService.systemLog(
+      'ipc',
+      `ZeroMQ Peer: Connected to broker at ${frontendAddress}`
+    );
   }
 
   /**
@@ -200,7 +203,7 @@ export class ZeroMQBus {
         }
       } catch (err) {
         if (this.forwarderRunning) {
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'ipc',
             'Forwarder error (XSUB→XPUB)',
             { error: err instanceof Error ? err.message : String(err) },
@@ -221,7 +224,7 @@ export class ZeroMQBus {
         }
       } catch (err) {
         if (this.forwarderRunning) {
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'ipc',
             'Forwarder error (XPUB→XSUB)',
             { error: err instanceof Error ? err.message : String(err) },
@@ -250,7 +253,7 @@ export class ZeroMQBus {
 
     // ZeroMQ pub/sub uses multipart messages: [topic, payload]
     this.pubSocket.send([topic, payload]).catch((err) => {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'ipc',
         'Failed to publish message',
         { topic, error: err instanceof Error ? err.message : String(err) },
@@ -269,13 +272,13 @@ export class ZeroMQBus {
    * @example
    * // Subscribe to specific topic
    * bus.subscribe('agent.message', (msg) => {
-   *   systemLog('ipc', 'Received message', { topic: msg.topic });
+   *   systemDiagnosticsService.systemLog('ipc', 'Received message', { topic: msg.topic });
    * });
    *
    * @example
    * // Subscribe using wildcard
    * bus.subscribe('code.*', (msg) => {
-   *   systemLog('ipc', `Code event: ${msg.topic}`);
+   *   systemDiagnosticsService.systemLog('ipc', `Code event: ${msg.topic}`);
    * });
    */
   subscribe(topic: string, handler: MessageHandler): void {
@@ -307,7 +310,7 @@ export class ZeroMQBus {
    *
    * @example
    * const handler = (msg: AgentMessage) => {
-   *   systemLog('ipc', 'Received message', { topic: msg.topic });
+   *   systemDiagnosticsService.systemLog('ipc', 'Received message', { topic: msg.topic });
    * };
    * bus.subscribe('agent.message', handler);
    * // Later...
@@ -385,7 +388,7 @@ export class ZeroMQBus {
       this.isBroker = false;
     }
 
-    systemLog('ipc', 'ZeroMQ Bus: Closed');
+    systemDiagnosticsService.systemLog('ipc', 'ZeroMQ Bus: Closed');
   }
 
   /**
@@ -405,7 +408,7 @@ export class ZeroMQBus {
             const message = MessageMapper.toDomain(dto);
             this.dispatchMessage(topic, message);
           } catch (err) {
-            systemLog(
+            systemDiagnosticsService.systemLog(
               'ipc',
               'Failed to parse message',
               {
@@ -419,7 +422,7 @@ export class ZeroMQBus {
       } catch (err) {
         // Socket closed or error
         if (this.started) {
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'ipc',
             'ZeroMQ listener error',
             { error: err instanceof Error ? err.message : String(err) },
@@ -451,7 +454,7 @@ export class ZeroMQBus {
               'catch' in result
             ) {
               (result as Promise<void>).catch((err: unknown) => {
-                systemLog(
+                systemDiagnosticsService.systemLog(
                   'ipc',
                   `Async handler error for topic ${topic}:`,
                   { error: err instanceof Error ? err.message : String(err) },
@@ -460,7 +463,7 @@ export class ZeroMQBus {
               });
             }
           } catch (err) {
-            systemLog(
+            systemDiagnosticsService.systemLog(
               'ipc',
               `Handler error for topic ${topic}:`,
               { error: err instanceof Error ? err.message : String(err) },

@@ -1,4 +1,4 @@
-import { systemLog } from '../../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../../core/services/diagnostics/SystemDiagnosticsService.js';
 import type { IPipelineStep, PipelineContext, StepResult } from '../types.js';
 
 /**
@@ -13,7 +13,10 @@ export abstract class BaseStep implements IPipelineStep {
     context?: PipelineContext,
     level: 'info' | 'warn' | 'error' | 'success' = 'info'
   ) {
-    systemLog('orchestrator', `[${this.name}] ${message}`);
+    systemDiagnosticsService.systemLog(
+      'orchestrator',
+      `[${this.name}] ${message}`
+    );
 
     if (context?.log) {
       context.log(message, level);

@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import stripAnsi from 'strip-ansi';
+import { environmentService } from '../environment/EnvironmentService.js';
 
 /**
  * TerminalFormatterService
@@ -17,6 +18,136 @@ export class TerminalFormatterService {
       TerminalFormatterService.instance = new TerminalFormatterService();
     }
     return TerminalFormatterService.instance;
+  }
+
+  /**
+   * Check if color output is enabled.
+   *
+   * Respects:
+   * 1. COGNITION_NO_COLOR env var (CLI flag)
+   * 2. NO_COLOR env var (standard)
+   * 3. TTY detection (disable if piped)
+   * 4. CI environment detection
+   */
+  public useColor(): boolean {
+    if (environmentService.getEnv('COGNITION_NO_COLOR') === '1') return false;
+    if (environmentService.getEnv('NO_COLOR')) return false;
+    if (!process.stdout.isTTY) return false;
+    if (environmentService.isCI()) return false;
+    return true;
+  }
+
+  /**
+   * Check if emoji output is enabled.
+   *
+   * Respects:
+   * 1. COGNITION_NO_EMOJI env var (CLI flag)
+   * 2. Terminal Unicode support detection
+   * 3. Plain format mode
+   */
+  public useEmoji(): boolean {
+    if (environmentService.getEnv('COGNITION_NO_EMOJI') === '1') return false;
+    if (this.isPlainMode()) return false;
+
+    const lang = environmentService.getEnv('LANG') || '';
+    const supportsUnicode =
+      lang.toLowerCase().includes('utf-8') || environmentService.isMac();
+
+    return supportsUnicode;
+  }
+
+  /**
+   * Check if box-drawing characters are supported.
+   */
+  public useBoxDrawing(): boolean {
+    if (environmentService.getEnv('TERM') === 'dumb') return false;
+    if (this.isPlainMode()) return false;
+
+    const lang = environmentService.getEnv('LANG') || '';
+    return lang.toLowerCase().includes('utf-8') || environmentService.isMac();
+  }
+
+  /**
+   * Helper function that returns emoji or fallback based on terminal support.
+   */
+  public emoji(emojiChar: string, fallback: string): string {
+    return this.useEmoji() ? emojiChar : fallback;
+  }
+
+  /**
+   * Get box-drawing characters based on terminal support.
+   */
+  public getBoxChars() {
+    if (this.useBoxDrawing()) {
+      return {
+        topLeft: '┌',
+        topRight: '┐',
+        bottomLeft: '└',
+        bottomRight: '┘',
+        horizontal: '─',
+        vertical: '│',
+        leftT: '├',
+        rightT: '┤',
+        topT: '┬',
+        bottomT: '┴',
+        cross: '┼',
+      };
+    }
+    return {
+      topLeft: '+',
+      topRight: '+',
+      bottomLeft: '+',
+      bottomRight: '+',
+      horizontal: '-',
+      vertical: '|',
+      leftT: '+',
+      rightT: '+',
+      topT: '+',
+      bottomT: '+',
+      cross: '+',
+    };
+  }
+
+  /**
+   * Returns the current output format.
+   */
+  public getFormat(): 'auto' | 'plain' | 'json' {
+    const format = environmentService.getEnv('COGNITION_FORMAT');
+    if (format === 'plain' || format === 'json') return format;
+    return 'auto';
+  }
+
+  /**
+   * Check if output should be in plain mode.
+   */
+  public isPlainMode(): boolean {
+    return this.getFormat() === 'plain';
+  }
+
+  /**
+   * Check if output should be in JSON mode.
+   */
+  public isJsonMode(): boolean {
+    return this.getFormat() === 'json';
+  }
+
+  /**
+   * Formats a number into a compact string representation (e.g., 1.7M, 269k).
+   * Useful for displaying large counts in space-constrained UI elements.
+   */
+  public formatCompactNumber(num: number): string {
+    const absNum = Math.abs(num);
+    if (absNum === 0) return '0';
+
+    if (absNum >= 1_000_000) {
+      return (num / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+    }
+
+    if (absNum >= 1_000) {
+      return (num / 1_000).toFixed(1).replace(/\.0$/, '') + 'k';
+    }
+
+    return num.toString();
   }
 
   /**

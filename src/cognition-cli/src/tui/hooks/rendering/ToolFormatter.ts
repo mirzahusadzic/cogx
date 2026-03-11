@@ -91,14 +91,8 @@
 import * as Diff from 'diff';
 import * as fs from 'fs';
 import * as path from 'path';
-import {
-  stripCursorSequences,
-  hexToAnsi,
-  hexToAnsiBg,
-  ANSI_DIM,
-  ANSI_RESET,
-} from '../../utils/ansi-utils.js';
-import { cleanAnsi, stripSigmaMarkers } from '../../../utils/string-utils.js';
+import { terminalFormatter } from '../../../core/services/terminal-formatter/TerminalFormatterService.js';
+// Use terminalFormatter instead of deprecated utilities
 import { TUITheme } from '../../theme.js';
 import type { SigmaTask, SigmaTasks } from '../useAgent/types.js';
 
@@ -563,8 +557,8 @@ function formatEditDiff(
   newString: string
 ): string {
   const diffLines: string[] = [];
-  const gray = hexToAnsi(TUITheme.text.secondary);
-  diffLines.push(`${gray}${filePath}${ANSI_RESET}`);
+  const gray = terminalFormatter.hexToAnsi(TUITheme.text.secondary);
+  diffLines.push(`${gray}${filePath}${terminalFormatter.ANSI_RESET}`);
 
   // Try to find the starting line number in the file
   let startLine = 1;
@@ -593,11 +587,11 @@ function formatEditDiff(
   let newLine = startLine;
 
   // Pre-calculate ANSI codes
-  const lineNumColor = hexToAnsi(TUITheme.syntax.lineNumber); // Cyan for line numbers
-  const addBg = hexToAnsiBg(TUITheme.syntax.diff.addBg); // Green BG
-  const removeBg = hexToAnsiBg(TUITheme.syntax.diff.removeBg); // Red BG
-  const addFg = hexToAnsi(TUITheme.syntax.diff.add); // Green Text
-  const removeFg = hexToAnsi(TUITheme.syntax.diff.remove); // Red Text
+  const lineNumColor = terminalFormatter.hexToAnsi(TUITheme.syntax.lineNumber); // Cyan for line numbers
+  const addBg = terminalFormatter.hexToAnsiBg(TUITheme.syntax.diff.addBg); // Green BG
+  const removeBg = terminalFormatter.hexToAnsiBg(TUITheme.syntax.diff.removeBg); // Red BG
+  const addFg = terminalFormatter.hexToAnsi(TUITheme.syntax.diff.add); // Green Text
+  const removeFg = terminalFormatter.hexToAnsi(TUITheme.syntax.diff.remove); // Red Text
   const resetBg = '\x1b[49m'; // Reset background
 
   lineDiff.forEach((part) => {
@@ -612,7 +606,7 @@ function formatEditDiff(
       lines.forEach((line) => {
         const lineNum = `      ${newLine}`.slice(-6);
         diffLines.push(
-          `${addBg}${addFg}+ ${lineNumColor}${lineNum}│ ${addFg}${line}${ANSI_RESET}${resetBg}`
+          `${addBg}${addFg}+ ${lineNumColor}${lineNum}│ ${addFg}${line}${terminalFormatter.ANSI_RESET}${resetBg}`
         );
         newLine++;
       });
@@ -621,7 +615,7 @@ function formatEditDiff(
       lines.forEach((line) => {
         const lineNum = `      ${oldLine}`.slice(-6);
         diffLines.push(
-          `${removeBg}${removeFg}- ${lineNumColor}${lineNum}│ ${removeFg}${line}${ANSI_RESET}${resetBg}`
+          `${removeBg}${removeFg}- ${lineNumColor}${lineNum}│ ${removeFg}${line}${terminalFormatter.ANSI_RESET}${resetBg}`
         );
         oldLine++;
       });
@@ -630,7 +624,7 @@ function formatEditDiff(
       lines.forEach((line) => {
         const newNum = `      ${newLine}`.slice(-6);
         diffLines.push(
-          `  ${lineNumColor}${newNum}│${ANSI_RESET} ${gray}${line}${ANSI_RESET}`
+          `  ${lineNumColor}${newNum}│${terminalFormatter.ANSI_RESET} ${gray}${line}${terminalFormatter.ANSI_RESET}`
         );
         oldLine++;
         newLine++;
@@ -639,7 +633,7 @@ function formatEditDiff(
   });
 
   // Ensure final reset to prevent color bleeding to subsequent messages
-  return diffLines.join('\n') + ANSI_RESET;
+  return diffLines.join('\n') + terminalFormatter.ANSI_RESET;
 }
 
 /**
@@ -697,11 +691,11 @@ function formatSigmaTaskUpdate(
   // AIEcho Theme Mapping:
   // User = Dimmed Cyan (Active/Focus)
   // Tool = Green (Success/Operational)
-  const successColor = hexToAnsi(TUITheme.roles.tool); // Green
-  const activeColor = hexToAnsi(TUITheme.roles.user); // Dimmed Cyan
-  const gray = hexToAnsi(TUITheme.text.secondary); // Gray
-  const cyan = hexToAnsi(TUITheme.overlays.o7_strategic); // Cyan
-  const red = hexToAnsi(TUITheme.text.error); // Red
+  const successColor = terminalFormatter.hexToAnsi(TUITheme.roles.tool); // Green
+  const activeColor = terminalFormatter.hexToAnsi(TUITheme.roles.user); // Dimmed Cyan
+  const gray = terminalFormatter.hexToAnsi(TUITheme.text.secondary); // Gray
+  const cyan = terminalFormatter.hexToAnsi(TUITheme.overlays.o7_strategic); // Cyan
+  const red = terminalFormatter.hexToAnsi(TUITheme.text.error); // Red
 
   todos.forEach((todo) => {
     let statusIcon = '';
@@ -753,7 +747,7 @@ function formatSigmaTaskUpdate(
     const gEv = evidenceMap.get(todo.id);
 
     if (gReq && gReq.strategy && gReq.strategy !== 'none') {
-      displayText += ` ${gray}[PGC:${gReq.strategy}]${ANSI_RESET}`;
+      displayText += ` ${gray}[PGC:${gReq.strategy}]${terminalFormatter.ANSI_RESET}`;
     }
 
     if (gEv && gEv.grounding_confidence) {
@@ -763,15 +757,15 @@ function formatSigmaTaskUpdate(
           : gEv.grounding_confidence === 'medium'
             ? activeColor
             : red;
-      displayText += ` ${confColor}●${ANSI_RESET}`;
+      displayText += ` ${confColor}●${terminalFormatter.ANSI_RESET}`;
     }
 
     // Apply bold for in-progress tasks
     const boldText = todo.status === 'in_progress' ? '\x1b[1m' : '';
 
-    // Use ANSI_RESET (full reset) to ensure terminal state is clean
+    // Use terminalFormatter.ANSI_RESET (full reset) to ensure terminal state is clean
     todoLines.push(
-      `${statusColor}${statusIcon}${ANSI_RESET} ${textColor}${boldText}${displayText}${ANSI_RESET}`
+      `${statusColor}${statusIcon}${terminalFormatter.ANSI_RESET} ${textColor}${boldText}${displayText}${terminalFormatter.ANSI_RESET}`
     );
   });
 
@@ -779,7 +773,7 @@ function formatSigmaTaskUpdate(
   if (todoLines.length === 0) {
     return '';
   }
-  return '\n' + todoLines.join('\n') + ANSI_RESET;
+  return '\n' + todoLines.join('\n') + terminalFormatter.ANSI_RESET;
 }
 
 /**
@@ -929,7 +923,11 @@ export function formatToolResult(
     // Layer 9: Aggressively strip cursor control sequences and ANSI from tool result content
     // to prevent terminal-intensive tools (like npm test) from showing the cursor
     // and to ensure that internal resets don't "brighten" muted output.
-    content = stripSigmaMarkers(cleanAnsi(stripCursorSequences(content)));
+    content = terminalFormatter.stripSigmaMarkers(
+      terminalFormatter.cleanAnsi(
+        terminalFormatter.stripCursorSequences(content)
+      )
+    );
 
     const lines = content.split('\n');
     // Remove empty trailing lines
@@ -956,9 +954,11 @@ export function formatToolResult(
     const isGlob = normalizedName === 'glob';
 
     // ANSI Colors
-    const lineNumColor = hexToAnsi(TUITheme.syntax.lineNumber);
-    const cyan = hexToAnsi(TUITheme.syntax.code.block); // Keep cyan for glob/paths
-    const gray = hexToAnsi(TUITheme.text.secondary);
+    const lineNumColor = terminalFormatter.hexToAnsi(
+      TUITheme.syntax.lineNumber
+    );
+    const cyan = terminalFormatter.hexToAnsi(TUITheme.syntax.code.block); // Keep cyan for glob/paths
+    const gray = terminalFormatter.hexToAnsi(TUITheme.text.secondary);
 
     const resultLines = truncatedLines.map((line) => {
       let displayLine = line;
@@ -976,7 +976,7 @@ export function formatToolResult(
         displayLine.includes('(streaming)') ||
         displayLine.includes('(tail of stream)')
       ) {
-        return `${gray}${ANSI_DIM}${displayLine}${ANSI_RESET}`;
+        return `${gray}${terminalFormatter.ANSI_DIM}${displayLine}${terminalFormatter.ANSI_RESET}`;
       }
 
       // Check for exit code first, regardless of the tool, to ensure consistent status reporting.
@@ -996,7 +996,7 @@ export function formatToolResult(
           : isUnknown
             ? '\x1b[90m'
             : '\x1b[31m';
-        return `${gray}Exit code: ${codeColor}${code}${ANSI_RESET}`;
+        return `${gray}Exit code: ${codeColor}${code}${terminalFormatter.ANSI_RESET}`;
       }
 
       if (isRead) {
@@ -1005,10 +1005,10 @@ export function formatToolResult(
         if (match) {
           const [, lineNum, content] = match;
           // Line numbers in custom color, content in muted gray
-          formattedLine = `${lineNumColor}${lineNum}${ANSI_RESET} ${gray}${content}${ANSI_RESET}`;
+          formattedLine = `${lineNumColor}${lineNum}${terminalFormatter.ANSI_RESET} ${gray}${content}${terminalFormatter.ANSI_RESET}`;
         } else {
           formattedLine = displayLine
-            ? `${gray}${displayLine}${ANSI_RESET}`
+            ? `${gray}${displayLine}${terminalFormatter.ANSI_RESET}`
             : '';
         }
       } else if (isGrep) {
@@ -1021,37 +1021,39 @@ export function formatToolResult(
           const [, lineNum, content] = lineMatch;
           // Pad line number to 6 chars and add pipe
           const alignedLineNum = lineNum.padStart(6, ' ');
-          formattedLine = `${lineNumColor}${alignedLineNum}│${ANSI_RESET} ${gray}${content}${ANSI_RESET}`;
+          formattedLine = `${lineNumColor}${alignedLineNum}│${terminalFormatter.ANSI_RESET} ${gray}${content}${terminalFormatter.ANSI_RESET}`;
         } else if (pathMatch) {
           const [, fullPath, lineNum, content] = pathMatch;
           const displayPath = relativizePath(fullPath, effectiveCwd);
           // Path in cyan, line number in gray, pipe separator
-          formattedLine = `${cyan}${displayPath}:${lineNumColor}${lineNum}│${ANSI_RESET} ${gray}${content}${ANSI_RESET}`;
+          formattedLine = `${cyan}${displayPath}:${lineNumColor}${lineNum}│${terminalFormatter.ANSI_RESET} ${gray}${content}${terminalFormatter.ANSI_RESET}`;
         } else {
           formattedLine = displayLine
-            ? `${gray}${displayLine}${ANSI_RESET}`
+            ? `${gray}${displayLine}${terminalFormatter.ANSI_RESET}`
             : '';
         }
       } else if (isGlob) {
         // Glob output is paths - use cyan to match file prefixes in other tools
-        formattedLine = `${cyan}${relativizePath(displayLine, effectiveCwd)}${ANSI_RESET}`;
+        formattedLine = `${cyan}${relativizePath(displayLine, effectiveCwd)}${terminalFormatter.ANSI_RESET}`;
       } else if (normalizedName === 'websearch') {
         // Special formatting for search results: highlight titles and URLs
         if (displayLine.match(/^\d+\. \*\*.+\*\*$/)) {
           // Result title: highlight in cyan and bold
-          formattedLine = `\x1b[1m${cyan}${displayLine}${ANSI_RESET}`;
+          formattedLine = `\x1b[1m${cyan}${displayLine}${terminalFormatter.ANSI_RESET}`;
         } else if (displayLine.match(/^\s+https?:\/\/.+$/)) {
           // URL: highlight in gray (already grayed by default later, but keep structure)
-          formattedLine = `${gray}${displayLine}${ANSI_RESET}`;
+          formattedLine = `${gray}${displayLine}${terminalFormatter.ANSI_RESET}`;
         } else {
           formattedLine = displayLine
-            ? `${gray}${displayLine}${ANSI_RESET}`
+            ? `${gray}${displayLine}${terminalFormatter.ANSI_RESET}`
             : '';
         }
       } else {
         // Mute other output (bash, fetch, grep) but keep it readable.
         // The Exit code check is now done at the top of this map for all tools.
-        formattedLine = displayLine ? `${gray}${displayLine}${ANSI_RESET}` : '';
+        formattedLine = displayLine
+          ? `${gray}${displayLine}${terminalFormatter.ANSI_RESET}`
+          : '';
       }
 
       return formattedLine;
@@ -1063,7 +1065,7 @@ export function formatToolResult(
     } else if (lines.length > MAX_LINES) {
       // Legacy check (shouldn't be reached with new logic, but safe to keep)
       resultLines.push(
-        `${gray}${ANSI_DIM}... (truncated ${lines.length - MAX_LINES} more lines)${ANSI_RESET}`
+        `${gray}${terminalFormatter.ANSI_DIM}... (truncated ${lines.length - MAX_LINES} more lines)${terminalFormatter.ANSI_RESET}`
       );
     }
 

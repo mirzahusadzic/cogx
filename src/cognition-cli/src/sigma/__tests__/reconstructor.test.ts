@@ -6,10 +6,11 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import {
-  reconstructContext,
-  getReconstructionStats,
-} from '../reconstructor.js';
+import { latticeQueryService } from '../../core/services/lattice/LatticeQueryService.js';
+const reconstructContext =
+  latticeQueryService.reconstructContext.bind(latticeQueryService);
+const getReconstructionStats =
+  latticeQueryService.getReconstructionStats.bind(latticeQueryService);
 import type {
   ConversationLattice,
   ConversationNode,

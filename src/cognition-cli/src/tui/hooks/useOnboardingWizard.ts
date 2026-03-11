@@ -12,7 +12,7 @@ import fs from 'fs-extra';
 import path from 'path';
 import type { UseBackgroundTaskManagerResult } from './useBackgroundTaskManager.js';
 import { detectSources } from '../../utils/source-detector.js';
-import { systemLog } from '../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../core/services/diagnostics/SystemDiagnosticsService.js';
 
 /**
  * Wizard step types
@@ -439,7 +439,11 @@ export function useOnboardingWizard(
       '# Ignore large object store\nobjects/\n# Ignore debug logs\ndebug-*.log\n# Keep structure\n!.gitkeep\n'
     );
 
-    if (debug) systemLog('tui-wizard', '[Wizard] PGC initialized');
+    if (debug)
+      systemDiagnosticsService.systemLog(
+        'tui-wizard',
+        '[Wizard] PGC initialized'
+      );
   }, [projectRoot, state.sourceDirs, debug]);
 
   /**
@@ -448,16 +452,24 @@ export function useOnboardingWizard(
   const runGenesis = useCallback(
     async (sourceDirs?: string[]) => {
       try {
-        if (debug) systemLog('tui-wizard', '[Wizard] Starting genesis...');
+        if (debug)
+          systemDiagnosticsService.systemLog(
+            'tui-wizard',
+            '[Wizard] Starting genesis...'
+          );
         setState((s) => ({ ...s, step: 'genesis' }));
 
         // Use provided sourceDirs or fall back to state
         const dirsToProcess = sourceDirs || state.sourceDirs;
 
         if (debug)
-          systemLog('tui-wizard', '[Wizard] Genesis source dirs:', {
-            dirs: dirsToProcess,
-          });
+          systemDiagnosticsService.systemLog(
+            'tui-wizard',
+            '[Wizard] Genesis source dirs:',
+            {
+              dirs: dirsToProcess,
+            }
+          );
 
         // Initialize PGC structure first
         await initializePGC();
@@ -473,7 +485,7 @@ export function useOnboardingWizard(
         }
 
         if (debug)
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'tui-wizard',
             '[Wizard] PGC verified, starting Genesis task...'
           );
@@ -482,7 +494,7 @@ export function useOnboardingWizard(
         pendingTaskId.current = taskId;
 
         if (debug)
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'tui-wizard',
             `[Wizard] Genesis started, taskId: ${taskId}`
           );
@@ -504,7 +516,7 @@ export function useOnboardingWizard(
     async (docPaths: string[]) => {
       try {
         if (debug)
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'tui-wizard',
             `[Wizard] Starting doc ingestion: ${docPaths}`
           );
@@ -514,7 +526,7 @@ export function useOnboardingWizard(
         pendingTaskId.current = taskId;
 
         if (debug)
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'tui-wizard',
             `[Wizard] Doc ingestion started, taskId: ${taskId}`
           );
@@ -536,7 +548,10 @@ export function useOnboardingWizard(
     async (overlay: string) => {
       try {
         if (debug)
-          systemLog('tui-wizard', `[Wizard] Starting overlay: ${overlay}`);
+          systemDiagnosticsService.systemLog(
+            'tui-wizard',
+            `[Wizard] Starting overlay: ${overlay}`
+          );
         setState((s) => ({ ...s, step: 'overlay', currentOverlay: overlay }));
 
         // Convert overlay code (O1) to directory name (structural_patterns)
@@ -545,7 +560,7 @@ export function useOnboardingWizard(
         pendingTaskId.current = taskId;
 
         if (debug)
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'tui-wizard',
             `[Wizard] Overlay started, taskId: ${taskId}`
           );
@@ -796,7 +811,7 @@ export function useOnboardingWizard(
 
     if (task.status === 'completed') {
       if (debug)
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'tui-wizard',
           `[Wizard] Task completed: ${task.id}, ${task.type}`
         );
@@ -834,7 +849,7 @@ export function useOnboardingWizard(
       })();
     } else if (task.status === 'failed') {
       if (debug)
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'tui-wizard',
           `[Wizard] Task failed: ${task.id}, ${task.error}`
         );
@@ -862,11 +877,15 @@ export function useOnboardingWizard(
       const detected = await detectSources(projectRoot);
 
       if (debug || process.env.DEBUG_WIZARD) {
-        systemLog('tui-wizard', '[Wizard] Detected source dirs:', {
-          dirs: detected.code.map(
-            (d) => `${d.path} (${d.fileCount} files, selected=${d.selected})`
-          ),
-        });
+        systemDiagnosticsService.systemLog(
+          'tui-wizard',
+          '[Wizard] Detected source dirs:',
+          {
+            dirs: detected.code.map(
+              (d) => `${d.path} (${d.fileCount} files, selected=${d.selected})`
+            ),
+          }
+        );
       }
 
       if (detected.code.length === 0) {
@@ -889,12 +908,20 @@ export function useOnboardingWizard(
       }));
 
       if (debug || process.env.DEBUG_WIZARD) {
-        systemLog('tui-wizard', '[Wizard] Created items:', {
-          items: items.map((i) => `${i.id} (${i.description})`),
-        });
-        systemLog('tui-wizard', '[Wizard] Unique IDs?', {
-          isUnique: new Set(items.map((i) => i.id)).size === items.length,
-        });
+        systemDiagnosticsService.systemLog(
+          'tui-wizard',
+          '[Wizard] Created items:',
+          {
+            items: items.map((i) => `${i.id} (${i.description})`),
+          }
+        );
+        systemDiagnosticsService.systemLog(
+          'tui-wizard',
+          '[Wizard] Unique IDs?',
+          {
+            isUnique: new Set(items.map((i) => i.id)).size === items.length,
+          }
+        );
       }
 
       return items;
@@ -917,7 +944,7 @@ export function useOnboardingWizard(
   const startWizard = useCallback(
     async (dirs?: string[]) => {
       if (debug)
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'tui-wizard',
           '[Wizard] Starting wizard with smart detection...'
         );
@@ -941,11 +968,15 @@ export function useOnboardingWizard(
       }));
 
       if (debug) {
-        systemLog('tui-wizard', '[Wizard] Detection results:', {
-          needsGenesis,
-          needsDocs,
-          missingOverlays,
-        });
+        systemDiagnosticsService.systemLog(
+          'tui-wizard',
+          '[Wizard] Detection results:',
+          {
+            needsGenesis,
+            needsDocs,
+            missingOverlays,
+          }
+        );
       }
 
       // Step 1: Genesis if needed
@@ -986,7 +1017,7 @@ export function useOnboardingWizard(
         // If cancelled by user (ESC), exit completely to prevent auto-restart
         if (result === 'cancel') {
           if (debug)
-            systemLog(
+            systemDiagnosticsService.systemLog(
               'tui-wizard',
               '[Wizard] User cancelled source selection, exiting'
             );
@@ -1000,9 +1031,13 @@ export function useOnboardingWizard(
       // Step 2: Generate missing overlays
       if (missingOverlays.length > 0) {
         if (debug) {
-          systemLog('tui-wizard', '[Wizard] Missing overlays:', {
-            missingOverlays,
-          });
+          systemDiagnosticsService.systemLog(
+            'tui-wizard',
+            '[Wizard] Missing overlays:',
+            {
+              missingOverlays,
+            }
+          );
         }
         // Start with first missing overlay
         await promptNextOverlay(null);

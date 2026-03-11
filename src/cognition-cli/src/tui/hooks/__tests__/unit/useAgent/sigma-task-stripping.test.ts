@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { stripSigmaMarkers } from '../../../../../utils/string-utils.js';
+import { terminalFormatter } from '../../../../../core/services/terminal-formatter/TerminalFormatterService.js';
 
 describe('stripSigmaMarkers', () => {
+  const stripSigmaMarkers = (text: string) =>
+    terminalFormatter.stripSigmaMarkers(text);
   it('should strip sigma markers and clean up resulting empty lines', () => {
     const input = 'Header\n<!-- sigma-task: task-1 -->\nContent';
     const expected = 'Header\nContent';

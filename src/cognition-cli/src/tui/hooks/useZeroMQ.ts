@@ -15,7 +15,7 @@ import {
   AgentRegistry,
   isMultiAgentAvailable,
 } from '../../ipc/index.js';
-import { systemLog } from '../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../core/services/diagnostics/SystemDiagnosticsService.js';
 
 export interface UseZeroMQConfig {
   agentId: string; // Unique agent ID (e.g., 'claude-1')
@@ -49,7 +49,10 @@ export function useZeroMQ(config: UseZeroMQConfig): UseZeroMQResult {
     // Skip if disabled or not available
     if (!config.enabled || !multiAgentAvailable) {
       if (config.debug) {
-        systemLog('tui', 'ZeroMQ: Skipped (disabled or unavailable)');
+        systemDiagnosticsService.systemLog(
+          'tui',
+          'ZeroMQ: Skipped (disabled or unavailable)'
+        );
       }
       return;
     }
@@ -59,7 +62,7 @@ export function useZeroMQ(config: UseZeroMQConfig): UseZeroMQResult {
     async function connect() {
       try {
         if (config.debug) {
-          systemLog('tui', 'ZeroMQ: Connecting...');
+          systemDiagnosticsService.systemLog('tui', 'ZeroMQ: Connecting...');
         }
 
         // Create coordinator
@@ -94,7 +97,7 @@ export function useZeroMQ(config: UseZeroMQConfig): UseZeroMQResult {
         setIsBusMaster(coordinator.getIsBusMaster());
 
         if (config.debug) {
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'tui',
             `ZeroMQ: Connected (${coordinator.getIsBusMaster() ? 'Bus Master' : 'Peer'})`
           );
@@ -114,13 +117,17 @@ export function useZeroMQ(config: UseZeroMQConfig): UseZeroMQResult {
         setError(error);
 
         if (config.debug) {
-          systemLog('tui', 'ZeroMQ: Connection failed:', {
-            error: error.message,
-          });
+          systemDiagnosticsService.systemLog(
+            'tui',
+            'ZeroMQ: Connection failed:',
+            {
+              error: error.message,
+            }
+          );
         }
 
         // Gracefully degrade to single-agent mode
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'tui',
           '⚠️  Multi-agent mode unavailable. Running in single-agent mode.',
           undefined,
@@ -137,7 +144,11 @@ export function useZeroMQ(config: UseZeroMQConfig): UseZeroMQResult {
 
       if (cleanupRef.current) {
         cleanupRef.current().catch((err) => {
-          systemLog('tui', 'ZeroMQ: Cleanup error:', err);
+          systemDiagnosticsService.systemLog(
+            'tui',
+            'ZeroMQ: Cleanup error:',
+            err
+          );
         });
       }
     };

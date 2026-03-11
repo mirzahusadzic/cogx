@@ -1,8 +1,11 @@
 /* eslint-disable no-control-regex */
 import { describe, it, expect } from 'vitest';
 import { formatToolResult } from '../../../rendering/ToolFormatter.js';
-import { stripSigmaMarkers } from '../../../../../utils/string-utils.js';
+import { terminalFormatter } from '../../../../../core/services/terminal-formatter/TerminalFormatterService.js';
 import stripAnsi from 'strip-ansi';
+
+const stripSigmaMarkers = (text: string) =>
+  terminalFormatter.stripSigmaMarkers(text);
 
 describe('ToolFormatter regression tests', () => {
   it('should correctly parse and format "unknown" exit code', () => {

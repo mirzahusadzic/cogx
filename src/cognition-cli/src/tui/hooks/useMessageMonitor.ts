@@ -3,9 +3,9 @@ import { MessageQueueMonitor } from '../../ipc/MessageQueueMonitor.js';
 import { MessageQueue } from '../../ipc/MessageQueue.js';
 import { MessagePublisher } from '../../ipc/MessagePublisher.js';
 import { BusCoordinator } from '../../ipc/BusCoordinator.js';
-import { getSigmaDirectory } from '../../ipc/sigma-directory.js';
+import { environmentService } from '../../core/services/environment/EnvironmentService.js';
 import { getModelShortName } from './session/useSessionManager.js';
-import { systemLog } from '../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../core/services/diagnostics/SystemDiagnosticsService.js';
 
 interface UseMessageMonitorOptions {
   anchorId: string | null;
@@ -59,7 +59,7 @@ export function useMessageMonitor({
     const initializeMonitor = async () => {
       try {
         const agentId = anchorId;
-        const sigmaDir = getSigmaDirectory(projectRoot);
+        const sigmaDir = environmentService.resolveSigmaDir(projectRoot);
 
         const coordinator = new BusCoordinator(projectRoot);
         const bus = await coordinator.connectWithFallback();
@@ -109,7 +109,10 @@ export function useMessageMonitor({
           messageQueue.off('countChanged', handleCountChanged);
           monitor.stop().catch((err) => {
             if (debug) {
-              systemLog('tui', `[MessageQueueMonitor] Stop error: ${err}`);
+              systemDiagnosticsService.systemLog(
+                'tui',
+                `[MessageQueueMonitor] Stop error: ${err}`
+              );
             }
           });
         };
@@ -117,7 +120,7 @@ export function useMessageMonitor({
         const errorMsg = err instanceof Error ? err.message : String(err);
         setMonitorError(`Failed to initialize message monitor: ${errorMsg}`);
         if (debug) {
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'tui',
             `[MessageQueueMonitor] Initialization error: ${err}`
           );

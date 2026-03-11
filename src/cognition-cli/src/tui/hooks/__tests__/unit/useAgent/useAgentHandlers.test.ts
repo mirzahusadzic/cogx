@@ -11,12 +11,17 @@ import type { useSessionTokenCount } from '../../../tokens/useSessionTokenCount.
 import type { UseTurnAnalysisReturn } from '../../../analysis/useTurnAnalysis.js';
 import type { UseCompressionResult } from '../../../compression/useCompression.js';
 
-import { systemLog } from '../../../../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../../../../core/services/diagnostics/SystemDiagnosticsService.js';
 
 // Mock dependencies
-vi.mock('../../../../../utils/debug-logger.js', () => ({
-  systemLog: vi.fn(),
-}));
+vi.mock(
+  '../../../../../core/services/diagnostics/SystemDiagnosticsService.js',
+  () => ({
+    systemDiagnosticsService: {
+      systemLog: vi.fn(),
+    },
+  })
+);
 vi.mock('../../../../../sigma/context-injector.js', () => ({
   injectRelevantContext: vi
     .fn()
@@ -253,7 +258,7 @@ describe('useAgentHandlers', () => {
       );
     });
 
-    expect(systemLog).toHaveBeenCalledWith(
+    expect(systemDiagnosticsService.systemLog).toHaveBeenCalledWith(
       'sigma',
       expect.stringContaining('Preemptive semantic compression')
     );

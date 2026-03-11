@@ -8,7 +8,7 @@
 import { z } from 'zod';
 import { executeSigmaTaskUpdate } from '../../llm/core/utils/tool-executors.js';
 import { getSigmaTaskUpdateDescription } from '../../llm/core/utils/tool-helpers.js';
-import { systemLog } from '../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../core/services/diagnostics/SystemDiagnosticsService.js';
 import type { SigmaTask } from '../../sigma/session-state.js';
 
 interface ToolArgs {
@@ -81,7 +81,7 @@ export function createSigmaTaskUpdateMcpServer(
   }
 
   if (!anchorId) {
-    systemLog(
+    systemDiagnosticsService.systemLog(
       'tui',
       '[Sigma] SigmaTaskUpdate MCP server initialized without anchorId. Tasks will NOT be persisted.',
       {},

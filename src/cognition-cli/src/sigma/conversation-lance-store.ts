@@ -10,7 +10,7 @@ import {
   Bool,
 } from 'apache-arrow';
 import { DEFAULT_EMBEDDING_DIMENSIONS } from '../config.js';
-import { systemLog } from '../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../core/services/diagnostics/SystemDiagnosticsService.js';
 import {
   AbstractLanceStore,
   LANCE_DUMMY_ID,
@@ -416,7 +416,7 @@ export class ConversationLanceStore extends AbstractLanceStore<ConversationTurnR
     };
 
     if (!this.isValidTurnRecord(plainRecord)) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'sigma',
         `Invalid conversation turn record found for id: ${turnId}`,
         {},

@@ -3,11 +3,15 @@ import { render, Box, Text, useInput, type TextProps } from 'ink';
 import { ThemeProvider, extendTheme, defaultTheme } from '@inkjs/ui';
 import fs from 'fs';
 import path from 'path';
-import { logEmitter, LogEvent, systemLog } from '../utils/debug-logger.js';
+import {
+  systemDiagnosticsService,
+  type LogEvent,
+} from '../core/services/diagnostics/SystemDiagnosticsService.js';
 
 // Toggle mouse tracking - disable to restore native terminal text selection
 const ENABLE_MOUSE_TRACKING = false;
-import { cleanAnsi } from '../utils/string-utils.js';
+import { environmentService } from '../core/services/environment/EnvironmentService.js';
+import { terminalFormatter } from '../core/services/terminal-formatter/TerminalFormatterService.js';
 import { CognitionTUILayout } from './components/CognitionTUILayout.js';
 import { useAgent } from './hooks/useAgent.js';
 import { useOverlays } from './hooks/useOverlays.js';
@@ -24,7 +28,6 @@ import type { TUIMessage } from './hooks/useAgent.js';
 import { MessageQueueMonitor } from '../ipc/MessageQueueMonitor.js';
 import { MessageQueue } from '../ipc/MessageQueue.js';
 import { MessagePublisher } from '../ipc/MessagePublisher.js';
-import { getSigmaDirectory } from '../ipc/sigma-directory.js';
 import type { WorkbenchHealthResult } from '../utils/workbench-detect.js';
 import { TUITheme } from './theme.js';
 
@@ -215,7 +218,7 @@ export const CognitionTUIController: React.FC<{
   // Save conversation log to file
   const saveConversationLog = useCallback(() => {
     try {
-      const sigmaDir = getSigmaDirectory(projectRoot);
+      const sigmaDir = environmentService.resolveSigmaDir(projectRoot);
       fs.mkdirSync(sigmaDir, { recursive: true });
 
       const providerName = provider || 'gemini';
@@ -230,7 +233,7 @@ export const CognitionTUIController: React.FC<{
           const timestamp = msg.timestamp.toISOString();
           const type = msg.type.toUpperCase().padEnd(9);
           const separator = '='.repeat(80);
-          return `${separator}\n[${timestamp}] ${type}\n${separator}\n${cleanAnsi(msg.content)}\n`;
+          return `${separator}\n[${timestamp}] ${type}\n${separator}\n${terminalFormatter.cleanAnsi(msg.content)}\n`;
         })
         .join('\n');
 
@@ -362,9 +365,9 @@ export const CognitionTUIController: React.FC<{
       addSystemMessage(content);
     };
 
-    logEmitter.on('log', logHandler);
+    systemDiagnosticsService.getLogEmitter().on('log', logHandler);
     return () => {
-      logEmitter.off('log', logHandler);
+      systemDiagnosticsService.getLogEmitter().off('log', logHandler);
     };
   }, [addSystemMessage]);
 
@@ -387,7 +390,7 @@ export const CognitionTUIController: React.FC<{
         '  Press any key to exit...\n',
       ].join('\n');
 
-      systemLog('tui', authErrorMessage, {}, 'error');
+      systemDiagnosticsService.systemLog('tui', authErrorMessage, {}, 'error');
 
       let exited = false;
       const cleanup = () => {
@@ -590,29 +593,34 @@ export const CognitionTUI: React.FC<CognitionTUIProps> = ({
 
 export function startTUI(options: CognitionTUIProps) {
   const handleUncaughtError = (error: Error) => {
-    systemLog(
+    systemDiagnosticsService.systemLog(
       'tui',
       '[TUI] Uncaught error',
       { message: error.message },
       'error'
     );
     if (options.debug)
-      systemLog('tui', '[TUI] Stack trace', { stack: error.stack }, 'error');
+      systemDiagnosticsService.systemLog(
+        'tui',
+        '[TUI] Stack trace',
+        { stack: error.stack },
+        'error'
+      );
 
     if (isAuthenticationError([error.message])) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'tui',
         '\n\n╔════════════════════════════════════════════════════════════════════════════╗',
         {},
         'error'
       );
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'tui',
         '║                     Authentication Failed                                  ║',
         {},
         'error'
       );
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'tui',
         '╚════════════════════════════════════════════════════════════════════════════╝\n',
         {},

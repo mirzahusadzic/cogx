@@ -22,17 +22,7 @@ const DEFAULT_OPTIONS: Required<CompressorOptions> = {
 };
 
 /**
- * Estimate token count for text (rough approximation)
- * Rule: ~4 characters per token average
- *
- * @deprecated Use latticeQueryService.estimateTokens()
- * @param text - Text to estimate token count for
- * @returns Estimated number of tokens
- * @private
- */
-function estimateTokens(text: string): number {
-  return latticeQueryService.estimateTokens(text);
-}
+ * Compress conversation context into lattice
 
 /**
  * Compress conversation context into lattice
@@ -64,7 +54,7 @@ export async function compressContext(
 
   // Calculate original size
   const originalSize = turns.reduce(
-    (sum, t) => sum + estimateTokens(t.content),
+    (sum, t) => sum + latticeQueryService.estimateTokens(t.content),
     0
   );
 
@@ -80,7 +70,7 @@ export async function compressContext(
   const discarded: string[] = [];
 
   for (const turn of sorted) {
-    const turnSize = estimateTokens(turn.content);
+    const turnSize = latticeQueryService.estimateTokens(turn.content);
 
     // Always preserve paradigm shifts (never compress)
     if (

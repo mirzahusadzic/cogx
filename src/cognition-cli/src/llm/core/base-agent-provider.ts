@@ -5,8 +5,7 @@ import {
   AgentMessage,
 } from './interfaces/agent-provider.js';
 import { UnifiedStreamingChunk } from './types.js';
-import { suppressNoise, restoreNoise } from './utils/noise-utils.js';
-import { systemLog } from '../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../core/services/diagnostics/SystemDiagnosticsService.js';
 import {
   CompletionRequest,
   CompletionResponse,
@@ -24,7 +23,7 @@ import {
   type ProviderType,
 } from '../tools/unified-tools.js';
 import { getActiveTaskId } from '../../sigma/session-state.js';
-import { stripSigmaMarkers } from '../../utils/string-utils.js';
+import { terminalFormatter } from '../../core/services/terminal-formatter/TerminalFormatterService.js';
 import type { BackgroundTaskManager } from '../../tui/services/BackgroundTaskManager.js';
 import type { MessagePublisher } from '../../ipc/MessagePublisher.js';
 import type { MessageQueue } from '../../ipc/MessageQueue.js';
@@ -103,7 +102,7 @@ export abstract class BaseAgentProvider implements AgentProvider {
     request: AgentRequest
   ): AsyncGenerator<AgentResponse, void, undefined> {
     // 1. Suppress SDK noise immediately
-    suppressNoise();
+    systemDiagnosticsService.suppressNoise();
 
     try {
       // Initialize per-request state
@@ -248,7 +247,10 @@ export abstract class BaseAgentProvider implements AgentProvider {
         errorMessage.includes('abort') ||
         errorMessage.includes('cancel')
       ) {
-        systemLog(this.name, 'Agent execution aborted or cancelled');
+        systemDiagnosticsService.systemLog(
+          this.name,
+          'Agent execution aborted or cancelled'
+        );
         // Still yield final state on abort/cancel
         yield {
           messages: this.getTuiMessages(),
@@ -260,7 +262,7 @@ export abstract class BaseAgentProvider implements AgentProvider {
           finishReason: 'stop', // Abort/cancel is treated as stop
         };
       } else {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           this.name,
           `Agent execution failed: ${errorMessage}`,
           { error: err },
@@ -288,7 +290,7 @@ export abstract class BaseAgentProvider implements AgentProvider {
       }
     } finally {
       // 5. Restore console/process functions
-      restoreNoise();
+      systemDiagnosticsService.restoreNoise();
       this.abortController = null;
     }
   }
@@ -349,21 +351,27 @@ export abstract class BaseAgentProvider implements AgentProvider {
     return this.messages.map((m) => {
       const result = { ...m };
       if (typeof result.content === 'string') {
-        result.content = stripSigmaMarkers(result.content);
+        result.content = terminalFormatter.stripSigmaMarkers(result.content);
       } else if (Array.isArray(result.content)) {
         result.content = result.content.map((block) => {
           if (block.type === 'text' && typeof block.text === 'string') {
-            return { ...block, text: stripSigmaMarkers(block.text) };
+            return {
+              ...block,
+              text: terminalFormatter.stripSigmaMarkers(block.text),
+            };
           }
           if (block.type === 'thinking' && typeof block.thinking === 'string') {
-            return { ...block, thinking: stripSigmaMarkers(block.thinking) };
+            return {
+              ...block,
+              thinking: terminalFormatter.stripSigmaMarkers(block.thinking),
+            };
           }
           return block;
         });
       }
 
       if (typeof result.thinking === 'string') {
-        result.thinking = stripSigmaMarkers(result.thinking);
+        result.thinking = terminalFormatter.stripSigmaMarkers(result.thinking);
       }
       return result;
     });

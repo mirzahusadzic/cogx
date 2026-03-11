@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react';
 import { expandCommand } from '../../commands/loader.js';
 import { injectRelevantContext } from '../../../sigma/context-injector.js';
-import { systemLog } from '../../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../../core/services/diagnostics/SystemDiagnosticsService.js';
 import {
   AgentProviderAdapter,
   isAuthenticationError,
@@ -10,22 +10,14 @@ import {
 } from '../sdk/index.js';
 import { McpServerBuilder } from '../../services/McpServerBuilder.js';
 import { formatPendingMessages } from '../../../ipc/agent-messaging-formatters.js';
-import {
-  cleanAnsi as stripAnsi,
-  stripSigmaMarkers,
-} from '../../../utils/string-utils.js';
+// Use terminalFormatter instead of deprecated utilities
 import {
   formatToolUse,
   formatToolResult,
   formatToolUseMessage,
 } from '../rendering/ToolFormatter.js';
 import { terminal } from '../../services/TerminalService.js';
-import {
-  stripCursorSequences,
-  ANSI_RESET,
-  ANSI_DIM,
-  hexToAnsi,
-} from '../../utils/ansi-utils.js';
+import { terminalFormatter } from '../../../core/services/terminal-formatter/TerminalFormatterService.js';
 import { TUITheme } from '../../theme.js';
 import type { SigmaTasks, SigmaTask } from './types.js';
 import { ThinkingState } from './types.js';
@@ -323,7 +315,7 @@ export function useAgentHandlers() {
   const activeToolContentRef = useRef<string | null>(null);
   const statusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const grayColor = `${hexToAnsi(TUITheme.text.secondary)}${ANSI_DIM}`;
+  const grayColor = `${terminalFormatter.hexToAnsi(TUITheme.text.secondary)}${terminalFormatter.ANSI_DIM}`;
 
   const processAgentMessage = useCallback(
     async (
@@ -349,7 +341,7 @@ export function useAgentHandlers() {
         case 'assistant': {
           setThinkingState(ThinkingState.PROCESSING);
           if (typeof content === 'string') {
-            const colorReplacedText = stripAnsi(content);
+            const colorReplacedText = terminalFormatter.cleanAnsi(content);
             setMessages((prev) => {
               const last = prev[prev.length - 1];
               if (last && last.type === 'assistant') {
@@ -380,7 +372,9 @@ export function useAgentHandlers() {
 
             if (thinkingBlocks.length > 0) {
               const thinking = thinkingBlocks
-                .map((b) => stripSigmaMarkers(b.thinking || ''))
+                .map((b) =>
+                  terminalFormatter.stripSigmaMarkers(b.thinking || '')
+                )
                 .join('\n');
               setMessages((prev) => {
                 const last = prev[prev.length - 1];
@@ -410,9 +404,9 @@ export function useAgentHandlers() {
 
             if (textBlocks.length > 0) {
               const text = textBlocks
-                .map((b) => stripSigmaMarkers(b.text || ''))
+                .map((b) => terminalFormatter.stripSigmaMarkers(b.text || ''))
                 .join('\n');
-              const colorReplacedText = stripAnsi(text);
+              const colorReplacedText = terminalFormatter.cleanAnsi(text);
               setMessages((prev) => {
                 const last = prev[prev.length - 1];
                 if (last && last.type === 'assistant') {
@@ -465,7 +459,7 @@ export function useAgentHandlers() {
                         );
                       } catch (err) {
                         // Ignore validation errors during streaming
-                        systemLog(
+                        systemDiagnosticsService.systemLog(
                           'sigma',
                           `Skipping intermediate SigmaTaskUpdate during stream: ${err}`
                         );
@@ -481,7 +475,7 @@ export function useAgentHandlers() {
                     effectiveTokens > semanticThreshold &&
                     !compressionInProgressRef.current
                   ) {
-                    systemLog(
+                    systemDiagnosticsService.systemLog(
                       'sigma',
                       `Preemptive semantic compression for ${tool.name} (> ${semanticThreshold} tokens)...`
                     );
@@ -574,7 +568,7 @@ export function useAgentHandlers() {
                     )
                   );
                 } catch (err) {
-                  systemLog(
+                  systemDiagnosticsService.systemLog(
                     'sigma',
                     `Failed to process SigmaTaskUpdate: ${err}`
                   );
@@ -657,7 +651,7 @@ export function useAgentHandlers() {
           // Immediately hide cursor after tool completes, as its final output might have requested to show it
           terminal.setCursorVisibility(false);
           if (process.env.DEBUG_INPUT) {
-            systemLog(
+            systemDiagnosticsService.systemLog(
               'tui',
               `[tool_result] processing ${agentMessage.toolName}`,
               {
@@ -673,7 +667,7 @@ export function useAgentHandlers() {
             // Layer 14: Sigma Task Surgical Eviction (Strip hidden tags for display)
             const resultData =
               typeof agentMessage.content === 'string'
-                ? stripSigmaMarkers(agentMessage.content)
+                ? terminalFormatter.stripSigmaMarkers(agentMessage.content)
                 : Array.isArray(agentMessage.content)
                   ? agentMessage.content.map((block) => {
                       if (
@@ -682,7 +676,7 @@ export function useAgentHandlers() {
                       ) {
                         return {
                           ...block,
-                          text: stripSigmaMarkers(block.text),
+                          text: terminalFormatter.stripSigmaMarkers(block.text),
                         };
                       }
                       if (
@@ -691,7 +685,9 @@ export function useAgentHandlers() {
                       ) {
                         return {
                           ...block,
-                          content: stripSigmaMarkers(block.content),
+                          content: terminalFormatter.stripSigmaMarkers(
+                            block.content
+                          ),
                         };
                       }
                       return block;
@@ -788,9 +784,9 @@ export function useAgentHandlers() {
               }
             }
 
-            const strippedData = stripAnsi(
-              stripSigmaMarkers(rawResultText)
-            ).trim();
+            const strippedData = terminalFormatter
+              .cleanAnsi(terminalFormatter.stripSigmaMarkers(rawResultText))
+              .trim();
 
             // Use a more robust check for "only exit code" that handles potential trailing markers
             // that might have survived or whitespace issues.
@@ -818,7 +814,7 @@ export function useAgentHandlers() {
                   : '\x1b[31m'; // Green for 0, Gray for unknown, Red otherwise
 
               const gray = '\x1b[90m';
-              formattedResult = `${gray}Exit code: ${codeColor}${exitCodeStr}${ANSI_RESET}`;
+              formattedResult = `${gray}Exit code: ${codeColor}${exitCodeStr}${terminalFormatter.ANSI_RESET}`;
             } else if (isOnlyExitCode) {
               // If not streaming but we only have an exit code (e.g. fast command with no output)
               // format it consistently (colored, no indentation)
@@ -833,7 +829,7 @@ export function useAgentHandlers() {
                   ? '\x1b[90m'
                   : '\x1b[31m';
               const gray = '\x1b[90m';
-              formattedResult = `${gray}Exit code: ${codeColor}${exitCodeStr}${ANSI_RESET}`;
+              formattedResult = `${gray}Exit code: ${codeColor}${exitCodeStr}${terminalFormatter.ANSI_RESET}`;
             }
             if (formattedResult) {
               // Layer 13: Tool Result Header Injection.
@@ -926,7 +922,7 @@ export function useAgentHandlers() {
               }
               isStreamingToolOutputRef.current = false;
             } else if (process.env.DEBUG_INPUT) {
-              systemLog(
+              systemDiagnosticsService.systemLog(
                 'tui',
                 `[tool_result] SKIPPED: ${agentMessage.toolName} (empty formatted result)`
               );
@@ -1103,7 +1099,12 @@ This triggers a semantic compression event, flushing implementation noise while 
               );
             }
           } catch (err) {
-            systemLog('sigma', `Context injection error: ${err}`, {}, 'error');
+            systemDiagnosticsService.systemLog(
+              'sigma',
+              `Context injection error: ${err}`,
+              {},
+              'error'
+            );
           }
         }
 
@@ -1135,7 +1136,9 @@ This triggers a semantic compression event, flushing implementation noise while 
 
             // Pre-strip cursor control sequences and ANSI from output chunks before storing
             // This ensures clean processing and prevents rendering artifacts like extra newlines
-            const cleanChunk = stripAnsi(stripCursorSequences(chunk));
+            const cleanChunk = terminalFormatter.cleanAnsi(
+              terminalFormatter.stripCursorSequences(chunk)
+            );
 
             setMessages((prev) => {
               // Robustly find the active tool_progress message by searching backwards.
@@ -1206,7 +1209,7 @@ This triggers a semantic compression event, flushing implementation noise while 
                     const keptLines = lines.slice(-MAX_STREAM_LINES);
                     content =
                       header +
-                      `\n${grayColor}... (tail of stream)${ANSI_RESET}\n` +
+                      `\n${grayColor}... (tail of stream)${terminalFormatter.ANSI_RESET}\n` +
                       keptLines.join('\n');
                   }
                 }
@@ -1216,7 +1219,7 @@ This triggers a semantic compression event, flushing implementation noise while 
                 if (!content.endsWith('\n')) {
                   content += '\n';
                 }
-                content += `${grayColor}(streaming)${ANSI_RESET}`;
+                content += `${grayColor}(streaming)${terminalFormatter.ANSI_RESET}`;
 
                 const newMessages = [...prev];
                 newMessages[targetIdx] = { ...target, content };

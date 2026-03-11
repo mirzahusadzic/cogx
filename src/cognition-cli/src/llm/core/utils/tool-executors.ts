@@ -7,13 +7,13 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { cleanAnsi as stripAnsi } from '../../../utils/string-utils.js';
+import { terminalFormatter } from '../../../core/services/terminal-formatter/TerminalFormatterService.js';
 import { SessionState } from '../../../sigma/session-state.js';
 import { spawn } from 'child_process';
 import { glob as globLib } from 'glob';
 import { smartCompressOutput } from './tool-helpers.js';
 import { TOOL_CONFIG } from './tool-config.js';
-import { systemLog } from '../../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../../core/services/diagnostics/SystemDiagnosticsService.js';
 
 /**
  * Helper to tag tool output with the currently active Sigma task ID.
@@ -309,7 +309,7 @@ export async function executeBash(
       } else {
         stdout += chunk;
       }
-      if (onChunk) onChunk(stripAnsi(chunk));
+      if (onChunk) onChunk(terminalFormatter.cleanAnsi(chunk));
     });
     proc.stderr.on('data', (data) => {
       const chunk = data.toString();
@@ -320,14 +320,14 @@ export async function executeBash(
       } else {
         stderr += chunk;
       }
-      if (onChunk) onChunk(stripAnsi(chunk));
+      if (onChunk) onChunk(terminalFormatter.cleanAnsi(chunk));
     });
     proc.on('close', async (code) => {
       clearTimeout(timeoutId);
       // Strip ANSI codes from output for the LLM to save tokens and prevent confusion
-      const cleanStdout = stripAnsi(stdout);
+      const cleanStdout = terminalFormatter.cleanAnsi(stdout);
 
-      const cleanStderr = stripAnsi(stderr);
+      const cleanStderr = terminalFormatter.cleanAnsi(stderr);
       const finalCode = code ?? 0;
 
       const output =
@@ -621,34 +621,52 @@ export async function executeSigmaTaskUpdate(
       );
 
       if (delegatedTasks.length > 0) {
-        systemLog('sigma', 'Delegation lifecycle events:');
+        systemDiagnosticsService.systemLog(
+          'sigma',
+          'Delegation lifecycle events:'
+        );
         delegatedTasks.forEach((task) => {
-          systemLog('sigma', `  📋 Task: ${task.id} - ${task.content}`);
-          systemLog('sigma', `     → Delegated to: ${task.delegated_to}`);
-          systemLog(
+          systemDiagnosticsService.systemLog(
+            'sigma',
+            `  📋 Task: ${task.id} - ${task.content}`
+          );
+          systemDiagnosticsService.systemLog(
+            'sigma',
+            `     → Delegated to: ${task.delegated_to}`
+          );
+          systemDiagnosticsService.systemLog(
             'sigma',
             `     → Acceptance criteria: ${task.acceptance_criteria?.join(', ')}`
           );
           if (task.context) {
-            systemLog('sigma', `     → Context: ${task.context}`);
+            systemDiagnosticsService.systemLog(
+              'sigma',
+              `     → Context: ${task.context}`
+            );
           }
           if (task.grounding) {
-            systemLog(
+            systemDiagnosticsService.systemLog(
               'sigma',
               `     → Grounding strategy: ${task.grounding.strategy}`
             );
           }
           if (task.result_summary) {
-            systemLog('sigma', `     ✅ Result: ${task.result_summary}`);
+            systemDiagnosticsService.systemLog(
+              'sigma',
+              `     ✅ Result: ${task.result_summary}`
+            );
           }
           if (task.delegate_session_id) {
-            systemLog('sigma', `     → Session: ${task.delegate_session_id}`);
+            systemDiagnosticsService.systemLog(
+              'sigma',
+              `     → Session: ${task.delegate_session_id}`
+            );
           }
         });
       }
 
       if (completedDelegations.length > 0) {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'sigma',
           `✅ ${completedDelegations.length} delegated task(s) completed`
         );

@@ -52,12 +52,11 @@
 import { Command } from 'commander';
 import { getVerboseState } from '../utils/verbose.js';
 import chalk from 'chalk';
-import path from 'path';
 
+import { environmentService } from '../core/services/environment/EnvironmentService.js';
 import { DirtyStateManager } from '../core/watcher/dirty-state.js';
 import { Index } from '../core/pgc/index.js';
 import { DirtyState } from '../core/types/watcher.js';
-import { WorkspaceManager } from '../core/workspace-manager.js';
 import { addExamples, combineHelpSections } from '../utils/help-formatter.js';
 
 /**
@@ -188,8 +187,7 @@ export async function statusCommand(options: {
     );
   }
 
-  const workspaceManager = new WorkspaceManager();
-  const projectRoot = workspaceManager.resolvePgcRoot(process.cwd());
+  const projectRoot = environmentService.findProjectRoot(process.cwd());
 
   if (!projectRoot) {
     if (!useJson) {
@@ -203,7 +201,7 @@ export async function statusCommand(options: {
     return; // Prevent further execution
   }
 
-  const pgcRoot = path.join(projectRoot, '.open_cognition');
+  const pgcRoot = environmentService.resolvePgcDir(projectRoot);
 
   const dirtyStateManager = new DirtyStateManager(pgcRoot);
   const index = new Index(pgcRoot);

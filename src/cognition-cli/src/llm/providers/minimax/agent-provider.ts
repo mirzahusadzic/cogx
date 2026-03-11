@@ -9,7 +9,7 @@ import {
   AgentMessage,
 } from '../../core/interfaces/agent-provider.js';
 import { UnifiedStreamingChunk } from '../../core/types.js';
-import { systemLog } from '../../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../../core/services/diagnostics/SystemDiagnosticsService.js';
 import {
   CompletionRequest,
   CompletionResponse,
@@ -64,7 +64,12 @@ export class MinimaxAgentProvider extends BaseAgentProvider {
     });
     this.defaultModel =
       options.model || process.env.MINIMAX_MODEL || 'MiniMax-M2.5';
-    systemLog('minimax', 'Initialized', { model: this.defaultModel }, 'debug');
+    systemDiagnosticsService.systemLog(
+      'minimax',
+      'Initialized',
+      { model: this.defaultModel },
+      'debug'
+    );
   }
 
   supportsAgentMode(): boolean {
@@ -458,12 +463,12 @@ export class MinimaxAgentProvider extends BaseAgentProvider {
         evictedLogs,
       });
 
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'sigma',
         `Rolling prune: Evicted ${toPruneCount} oldest tool logs for task ${taskId} (threshold: ${threshold}) (Minimax).`
       );
     } catch (err) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'sigma',
         `Failed rolling prune for task ${taskId} (Minimax)`,
         { error: err instanceof Error ? err.message : String(err) },
@@ -548,13 +553,13 @@ export class MinimaxAgentProvider extends BaseAgentProvider {
           result_summary,
         });
 
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'sigma',
           `Surgically evicted ${evictedCount} log messages for task ${taskId} (Minimax).`
         );
       }
     } catch (err) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'sigma',
         `Failed to prune task logs for ${taskId} (Minimax)`,
         { error: err instanceof Error ? err.message : String(err) },

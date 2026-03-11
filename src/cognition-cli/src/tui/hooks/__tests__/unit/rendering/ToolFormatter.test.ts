@@ -5,17 +5,17 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { cleanAnsi as stripAnsi } from '../../../../../utils/string-utils.js';
+import { terminalFormatter } from '../../../../../core/services/terminal-formatter/TerminalFormatterService.js';
 import {
   formatToolUse,
   formatToolUseMessage,
   formatToolResult,
   type ToolUse,
 } from '../../../rendering/ToolFormatter.js';
-import { hexToAnsi } from '../../../../utils/ansi-utils.js';
 import { TUITheme } from '../../../../theme.js';
 
 describe('ToolFormatter', () => {
+  const stripAnsi = (text: string) => terminalFormatter.cleanAnsi(text);
   describe('formatToolUse()', () => {
     it('formats recall tool with query', () => {
       const tool: ToolUse = {
@@ -164,12 +164,18 @@ describe('ToolFormatter', () => {
       expect(result.description).toContain('●'); // Confidence indicator
 
       // Check for color codes
-      expect(result.description).toContain(hexToAnsi(TUITheme.roles.tool)); // Green for completed
-      expect(result.description).toContain(hexToAnsi(TUITheme.roles.user)); // Amber for in_progress
       expect(result.description).toContain(
-        hexToAnsi(TUITheme.overlays.o7_strategic)
+        terminalFormatter.hexToAnsi(TUITheme.roles.tool)
+      ); // Green for completed
+      expect(result.description).toContain(
+        terminalFormatter.hexToAnsi(TUITheme.roles.user)
+      ); // Amber for in_progress
+      expect(result.description).toContain(
+        terminalFormatter.hexToAnsi(TUITheme.overlays.o7_strategic)
       ); // Cyan for delegated
-      expect(result.description).toContain(hexToAnsi(TUITheme.text.secondary)); // Gray for pending
+      expect(result.description).toContain(
+        terminalFormatter.hexToAnsi(TUITheme.text.secondary)
+      ); // Gray for pending
     });
 
     it('formats generic tool with JSON input', () => {
@@ -364,13 +370,17 @@ describe('ToolFormatter', () => {
       const result = formatToolResult('read_file', 'line1\nline2');
       expect(result).toContain('line1');
       expect(result).toContain('line2');
-      expect(result).toContain(hexToAnsi(TUITheme.text.secondary)); // Check for muted color
+      expect(result).toContain(
+        terminalFormatter.hexToAnsi(TUITheme.text.secondary)
+      ); // Check for muted color
     });
 
     it('formats Read result with object content', () => {
       const result = formatToolResult('Read', { content: 'hello world' });
       expect(result).toContain('hello world');
-      expect(result).toContain(hexToAnsi(TUITheme.text.secondary));
+      expect(result).toContain(
+        terminalFormatter.hexToAnsi(TUITheme.text.secondary)
+      );
     });
 
     it('truncates long file content', () => {
@@ -382,7 +392,9 @@ describe('ToolFormatter', () => {
 
       expect(result.split('\n').length).toBeLessThanOrEqual(33); // 30 lines + 1 truncation message + potential borders
       expect(result).toContain('... (truncated');
-      expect(result).toContain(hexToAnsi(TUITheme.text.secondary)); // Dim gray for truncation message
+      expect(result).toContain(
+        terminalFormatter.hexToAnsi(TUITheme.text.secondary)
+      ); // Dim gray for truncation message
     });
 
     it('formats read_file result with result property', () => {
@@ -417,12 +429,14 @@ describe('ToolFormatter', () => {
 
       // Path should be cyan (code block color)
       expect(result).toContain(
-        `${hexToAnsi(TUITheme.syntax.code.block)}src/index.ts:`
+        `${terminalFormatter.hexToAnsi(TUITheme.syntax.code.block)}src/index.ts:`
       );
 
       // Line number should be gray (line number color)
       // Note: In path match mode (grep), line number is NOT padded currently
-      expect(result).toContain(`${hexToAnsi(TUITheme.syntax.lineNumber)}10│`);
+      expect(result).toContain(
+        `${terminalFormatter.hexToAnsi(TUITheme.syntax.lineNumber)}10│`
+      );
 
       // Content should be present
       expect(result).toContain('console.log("hello")');
@@ -435,7 +449,7 @@ describe('ToolFormatter', () => {
         '     1│line1\n     2│line2'
       );
       expect(result).toContain(
-        `${hexToAnsi(TUITheme.syntax.lineNumber)}     1│\x1b[0m `
+        `${terminalFormatter.hexToAnsi(TUITheme.syntax.lineNumber)}     1│\x1b[0m `
       );
       expect(result).toContain('line1');
     });
@@ -459,11 +473,15 @@ describe('ToolFormatter', () => {
 
       // Title should be bold and cyan
       expect(result).toContain('\x1b[1m');
-      expect(result).toContain(hexToAnsi(TUITheme.syntax.code.block));
+      expect(result).toContain(
+        terminalFormatter.hexToAnsi(TUITheme.syntax.code.block)
+      );
 
       // URL and snippet should be gray
       expect(result).toContain('https://example.com');
-      expect(result).toContain(hexToAnsi(TUITheme.text.secondary));
+      expect(result).toContain(
+        terminalFormatter.hexToAnsi(TUITheme.text.secondary)
+      );
     });
   });
 });

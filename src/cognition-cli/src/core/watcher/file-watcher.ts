@@ -53,7 +53,7 @@ import chokidar, { FSWatcher } from 'chokidar';
 import path from 'path';
 import fs from 'fs-extra';
 import { EventEmitter } from 'events';
-import { systemLog } from '../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../core/services/diagnostics/SystemDiagnosticsService.js';
 
 import { Index } from '../pgc/index.js';
 import { ObjectStore } from '../pgc/object-store.js';
@@ -131,7 +131,7 @@ export class FileWatcher extends EventEmitter {
     // Generate glob patterns from indexed files to watch directories
     const watchPatterns = this.getWatchPatternsFromFiles(indexedFiles);
 
-    systemLog(
+    systemDiagnosticsService.systemLog(
       'watcher',
       `Starting file watcher for ${indexedFiles.length} indexed files (${watchPatterns.length} patterns)...`
     );
@@ -158,7 +158,7 @@ export class FileWatcher extends EventEmitter {
         })
         .on('ready', () => {
           this.isWatching = true;
-          systemLog('watcher', 'File watcher ready');
+          systemDiagnosticsService.systemLog('watcher', 'File watcher ready');
           this.emit('ready');
           resolve();
         });
@@ -179,7 +179,7 @@ export class FileWatcher extends EventEmitter {
       await this.watcher.close();
       this.watcher = undefined;
       this.isWatching = false;
-      systemLog('watcher', 'File watcher stopped');
+      systemDiagnosticsService.systemLog('watcher', 'File watcher stopped');
     }
     // Clean up event listeners to prevent memory leaks
     this.removeAllListeners();
@@ -223,7 +223,7 @@ export class FileWatcher extends EventEmitter {
       // Get tracked hash from index
       const indexData = await this.index.get(relativePath);
       if (!indexData) {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'watcher',
           `File ${relativePath} changed but not in index`,
           undefined,
@@ -256,10 +256,13 @@ export class FileWatcher extends EventEmitter {
         };
 
         this.emit('change', event);
-        systemLog('watcher', `Detected change: ${relativePath}`);
+        systemDiagnosticsService.systemLog(
+          'watcher',
+          `Detected change: ${relativePath}`
+        );
       }
     } catch (error) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'watcher',
         `Error processing change for ${relativePath}`,
         { error: error instanceof Error ? error.message : String(error) },
@@ -291,9 +294,12 @@ export class FileWatcher extends EventEmitter {
       };
 
       this.emit('change', event);
-      systemLog('watcher', `Detected deletion: ${relativePath}`);
+      systemDiagnosticsService.systemLog(
+        'watcher',
+        `Detected deletion: ${relativePath}`
+      );
     } catch (error) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'watcher',
         `Error processing deletion for ${relativePath}`,
         { error: error instanceof Error ? error.message : String(error) },
@@ -334,9 +340,12 @@ export class FileWatcher extends EventEmitter {
       };
 
       this.emit('change', event);
-      systemLog('watcher', `Detected new file: ${relativePath}`);
+      systemDiagnosticsService.systemLog(
+        'watcher',
+        `Detected new file: ${relativePath}`
+      );
     } catch (error) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'watcher',
         `Error processing new file ${relativePath}`,
         { error: error instanceof Error ? error.message : String(error) },
@@ -346,7 +355,7 @@ export class FileWatcher extends EventEmitter {
   }
 
   private handleError(error: Error): void {
-    systemLog(
+    systemDiagnosticsService.systemLog(
       'watcher',
       'File watcher error',
       { error: error.message },

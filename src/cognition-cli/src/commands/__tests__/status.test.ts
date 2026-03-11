@@ -13,13 +13,14 @@ import { statusCommand } from '../status';
 
 let mockPgcRoot: string | null = '/test-project';
 
-// Mock workspace manager to return a fixed project root
-vi.mock('../../core/workspace-manager.js', () => {
+// Mock environment service to return a fixed project root
+vi.mock('../../core/services/environment/EnvironmentService.js', () => {
   return {
-    WorkspaceManager: class {
-      resolvePgcRoot() {
-        return mockPgcRoot;
-      }
+    environmentService: {
+      findProjectRoot: vi.fn(() => mockPgcRoot),
+      resolvePgcDir: vi.fn((root) =>
+        path.join(root || mockPgcRoot || '', '.open_cognition')
+      ),
     },
   };
 });

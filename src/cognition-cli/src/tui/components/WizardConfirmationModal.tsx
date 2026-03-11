@@ -10,7 +10,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Box, Text, useStdout } from 'ink';
-import { systemLog } from '../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../core/services/diagnostics/SystemDiagnosticsService.js';
 import type { WizardConfirmationState } from '../hooks/useOnboardingWizard.js';
 import { TUITheme } from '../theme.js';
 
@@ -69,7 +69,7 @@ const WizardConfirmationModalComponent: React.FC<
 
   // DEBUG: Log items to systemLog
   if (mode === 'select' && items && process.env.DEBUG_WIZARD) {
-    systemLog(
+    systemDiagnosticsService.systemLog(
       'tui',
       `[WizardModal] Rendering ${items.length} items: ${items.map((i) => i.label).join(', ')}`,
       {
@@ -91,13 +91,13 @@ const WizardConfirmationModalComponent: React.FC<
 
     // DEBUG: Log visible items calculation
     if (process.env.DEBUG_WIZARD) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'tui',
         `[WizardModal] totalItems: ${totalItems}, maxHeight: ${maxHeight}, actualOffset: ${actualOffset}`,
         {},
         'error'
       );
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'tui',
         `[WizardModal] visibleItems: ${visibleItems.map((it, idx) => `${idx}:${it.label}`).join(', ')}`,
         {},
@@ -129,7 +129,7 @@ const WizardConfirmationModalComponent: React.FC<
 
               // DEBUG: Log each visible item being rendered
               if (process.env.DEBUG_WIZARD) {
-                systemLog(
+                systemDiagnosticsService.systemLog(
                   'tui',
                   `[WizardModal] Rendering visible item ${visibleIdx} (actualIdx ${actualIdx}): "${item.label}" description="${item.description}" highlighted=${isHighlighted}`,
                   {},
@@ -143,7 +143,7 @@ const WizardConfirmationModalComponent: React.FC<
               const line = `${prefix}${checkbox} ${item.label}${desc}`;
 
               if (process.env.DEBUG_WIZARD && item.label === 'dev') {
-                systemLog(
+                systemDiagnosticsService.systemLog(
                   'tui',
                   `[WizardModal] DEV item line: "${line}"`,
                   {},

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Box, Text } from 'ink';
 import { IPty } from 'node-pty';
-import { cleanAnsi as stripAnsi } from '../../utils/string-utils.js';
+import { terminalFormatter } from '../../core/services/terminal-formatter/TerminalFormatterService.js';
 
 /**
  * Props for ClaudePanel component
@@ -87,7 +87,7 @@ export const ClaudePanel: React.FC<ClaudePanelProps> = ({
 
       // Only strip ANSI escape codes and box-drawing characters
       // Keep all text content so user can see status updates
-      let cleaned = stripAnsi(data);
+      let cleaned = terminalFormatter.cleanAnsi(data);
       cleaned = cleaned.replace(/[│─┌┐└┘├┤┬┴┼]/g, '');
 
       // Remove excessive whitespace

@@ -17,7 +17,7 @@
 import { connect } from '@lancedb/lancedb';
 import path from 'path';
 import fs from 'fs-extra';
-import { systemLog } from '../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../core/services/diagnostics/SystemDiagnosticsService.js';
 
 export interface CompactionResult {
   before: {
@@ -99,14 +99,25 @@ export async function compactConversationLanceDB(
   const versionsBefore = await countVersionFiles(lanceDbPath);
 
   if (verbose) {
-    systemLog('sigma', 'Before compaction:');
-    systemLog('sigma', `  Size: ${formatBytes(sizeBefore)}`);
-    systemLog('sigma', `  Version files: ${versionsBefore}`);
+    systemDiagnosticsService.systemLog('sigma', 'Before compaction:');
+    systemDiagnosticsService.systemLog(
+      'sigma',
+      `  Size: ${formatBytes(sizeBefore)}`
+    );
+    systemDiagnosticsService.systemLog(
+      'sigma',
+      `  Version files: ${versionsBefore}`
+    );
   }
 
   if (dryRun) {
     if (verbose) {
-      systemLog('sigma', '[DRY RUN] Would compact LanceDB...', {}, 'warn');
+      systemDiagnosticsService.systemLog(
+        'sigma',
+        '[DRY RUN] Would compact LanceDB...',
+        {},
+        'warn'
+      );
     }
     return {
       before: { versions: versionsBefore, dataSize: sizeBefore },
@@ -125,7 +136,10 @@ export async function compactConversationLanceDB(
     const allRecords = await table.query().toArray();
 
     if (verbose) {
-      systemLog('sigma', `Read ${allRecords.length} records from LanceDB`);
+      systemDiagnosticsService.systemLog(
+        'sigma',
+        `Read ${allRecords.length} records from LanceDB`
+      );
     }
 
     // Deduplicate by turn ID (keep latest)
@@ -146,14 +160,17 @@ export async function compactConversationLanceDB(
     }
 
     if (verbose) {
-      systemLog('sigma', `Deduplicated to ${uniqueRecords.size} unique turns`);
+      systemDiagnosticsService.systemLog(
+        'sigma',
+        `Deduplicated to ${uniqueRecords.size} unique turns`
+      );
     }
 
     // Drop and recreate table with deduplicated records
     await db.dropTable('conversation_turns');
 
     if (verbose) {
-      systemLog('sigma', 'Dropped old table');
+      systemDiagnosticsService.systemLog('sigma', 'Dropped old table');
     }
 
     // Recreate table with same schema
@@ -171,7 +188,10 @@ export async function compactConversationLanceDB(
     );
 
     if (verbose) {
-      systemLog('sigma', 'Table recreated with deduplicated data');
+      systemDiagnosticsService.systemLog(
+        'sigma',
+        'Table recreated with deduplicated data'
+      );
     }
   } finally {
     // LanceDB doesn't require explicit close
@@ -188,13 +208,28 @@ export async function compactConversationLanceDB(
   };
 
   if (verbose) {
-    systemLog('sigma', '\nAfter compaction:');
-    systemLog('sigma', `  Size: ${formatBytes(sizeAfter)}`);
-    systemLog('sigma', `  Version files: ${versionsAfter}`);
-    systemLog('sigma', '\nReduction:');
-    systemLog('sigma', `  Versions removed: ${reduction.versions}`);
-    systemLog('sigma', `  Bytes saved: ${formatBytes(reduction.bytes)}`);
-    systemLog('sigma', `  Total reduction: ${reduction.percentage}%`);
+    systemDiagnosticsService.systemLog('sigma', '\nAfter compaction:');
+    systemDiagnosticsService.systemLog(
+      'sigma',
+      `  Size: ${formatBytes(sizeAfter)}`
+    );
+    systemDiagnosticsService.systemLog(
+      'sigma',
+      `  Version files: ${versionsAfter}`
+    );
+    systemDiagnosticsService.systemLog('sigma', '\nReduction:');
+    systemDiagnosticsService.systemLog(
+      'sigma',
+      `  Versions removed: ${reduction.versions}`
+    );
+    systemDiagnosticsService.systemLog(
+      'sigma',
+      `  Bytes saved: ${formatBytes(reduction.bytes)}`
+    );
+    systemDiagnosticsService.systemLog(
+      'sigma',
+      `  Total reduction: ${reduction.percentage}%`
+    );
   }
 
   return {

@@ -28,7 +28,7 @@ import { ConversationLanceStore } from './conversation-lance-store.js';
 import { ConversationOverlayManager } from './overlays/conversation-overlay-manager.js';
 import { CONVERSATION_OVERLAY_CONFIGS } from './overlays/types.js';
 import { AsyncMutex } from './utils/AsyncMutex.js';
-import { systemLog } from '../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../core/services/diagnostics/SystemDiagnosticsService.js';
 
 /**
  * Overlay identifiers (same as project)
@@ -100,13 +100,17 @@ export class ConversationOverlayRegistry {
     // CRITICAL FIX: Set current session ID on newly created manager
     // This ensures lazy-loaded managers get the session filter
     if (this.debug) {
-      systemLog('sigma', `[Registry] Creating ${overlayId}`, {
-        currentSessionId: this.currentSessionId || 'NULL',
-      });
+      systemDiagnosticsService.systemLog(
+        'sigma',
+        `[Registry] Creating ${overlayId}`,
+        {
+          currentSessionId: this.currentSessionId || 'NULL',
+        }
+      );
     }
     if (this.currentSessionId && 'setCurrentSession' in manager) {
       if (this.debug) {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'sigma',
           `[Registry] Setting session ${this.currentSessionId} on ${overlayId}`
         );
@@ -115,7 +119,7 @@ export class ConversationOverlayRegistry {
         this.currentSessionId
       );
     } else if (this.debug) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'sigma',
         `[Registry] NOT setting session on ${overlayId}`,
         { currentSessionId: this.currentSessionId },
@@ -264,7 +268,10 @@ export class ConversationOverlayRegistry {
   async setCurrentSession(sessionId: string): Promise<void> {
     // CRITICAL FIX: Store session ID so lazy-loaded managers get it too
     if (this.debug) {
-      systemLog('sigma', `setCurrentSession called with: ${sessionId}`);
+      systemDiagnosticsService.systemLog(
+        'sigma',
+        `setCurrentSession called with: ${sessionId}`
+      );
     }
     this.currentSessionId = sessionId;
 

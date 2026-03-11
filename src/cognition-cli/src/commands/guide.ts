@@ -170,7 +170,7 @@ async function showGuide(topic: string): Promise<void> {
     return;
   }
 
-  console.log(renderMarkdown(content));
+  console.log(terminalFormatter.renderMarkdown(content));
 }
 
 /**
@@ -200,16 +200,4 @@ async function getGuideContent(topic: string): Promise<string | null> {
   }
 
   return null;
-}
-
-/**
- * Renders Markdown content to ANSI-formatted string
- *
- * @param content - Raw Markdown content to render
- * @returns Formatted string with ANSI color codes
- *
- * @deprecated Use terminalFormatter.renderMarkdown instead.
- */
-function renderMarkdown(content: string): string {
-  return terminalFormatter.renderMarkdown(content);
 }

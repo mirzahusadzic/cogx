@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import path from 'path';
 import fs from 'fs';
-import { systemLog } from '../../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../../core/services/diagnostics/SystemDiagnosticsService.js';
 import { useAgentBaseContext } from '../../contexts/AgentContext.js';
 
 export function useAgentSync() {
@@ -74,7 +74,7 @@ export function useAgentSync() {
           },
         ]);
       } catch (err) {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'sigma',
           `Failed to load lattice from LanceDB: ${err}`,
           {},
@@ -101,7 +101,7 @@ export function useAgentSync() {
       conversationRegistryRef.current
         ?.flushAll(currentSessionIdValue)
         .catch((err: Error) => {
-          systemLog(
+          systemDiagnosticsService.systemLog(
             'sigma',
             `Failed to flush conversation overlays: ${err}`,
             {},

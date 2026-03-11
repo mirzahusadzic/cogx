@@ -9,7 +9,7 @@ import type { PGCManager } from '../pgc/manager.js';
 import type { StructuralMiner } from './miners/structural.js';
 import type { WorkbenchClient } from '../executors/workbench-client.js';
 import type { GenesisOracle } from '../pgc/oracles/genesis.js';
-import { systemLog } from '../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../core/services/diagnostics/SystemDiagnosticsService.js';
 
 /**
  * A generic orchestrator that executes a configurable pipeline of steps.
@@ -35,7 +35,10 @@ export class GenericOrchestrator extends BaseOrchestrator {
    * @param onProgress - Optional callback for reporting progress to the UI
    */
   async run(onProgress?: ProgressCallback): Promise<void> {
-    systemLog('orchestrator', `Starting orchestrator: ${this.config.name}`);
+    systemDiagnosticsService.systemLog(
+      'orchestrator',
+      `Starting orchestrator: ${this.config.name}`
+    );
 
     const context: PipelineContext = {
       pgc: this.pgc,
@@ -81,12 +84,12 @@ export class GenericOrchestrator extends BaseOrchestrator {
         await this.executeStep(step, context);
       }
 
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'orchestrator',
         `Completed orchestrator: ${this.config.name}. Processed ${context.processedFiles.length} files.`
       );
     } catch (error) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'orchestrator',
         `Orchestrator ${this.config.name} failed: ${error instanceof Error ? error.message : String(error)}`,
         undefined,
@@ -100,12 +103,20 @@ export class GenericOrchestrator extends BaseOrchestrator {
     step: IPipelineStep,
     context: PipelineContext
   ): Promise<void> {
-    systemLog('orchestrator', `Executing step: ${step.name}`);
+    systemDiagnosticsService.systemLog(
+      'orchestrator',
+      `Executing step: ${step.name}`
+    );
     const result = await step.execute(context);
 
     if (!result.success) {
       const errorMessage = `Step ${step.name} failed: ${result.message || 'Unknown error'}`;
-      systemLog('orchestrator', errorMessage, undefined, 'error');
+      systemDiagnosticsService.systemLog(
+        'orchestrator',
+        errorMessage,
+        undefined,
+        'error'
+      );
       if (result.error) {
         throw result.error;
       }

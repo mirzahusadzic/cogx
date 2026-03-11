@@ -16,7 +16,7 @@ import type {
 } from './types.js';
 import { EmbeddingService } from '../core/services/embedding.js';
 import { OverlayRegistry } from '../core/algebra/overlay-registry.js';
-import { systemLog } from '../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../core/services/diagnostics/SystemDiagnosticsService.js';
 
 const DEFAULT_OPTIONS: Required<AnalyzerOptions> = {
   overlay_threshold: 5,
@@ -196,7 +196,7 @@ async function detectOverlaysByProjectAlignment(
         }
       } catch (error) {
         // Overlay not populated yet, skip
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'sigma',
           `Failed to query overlay ${overlayId}: ${error instanceof Error ? error.message : String(error)}`,
           undefined,
@@ -207,7 +207,7 @@ async function detectOverlaysByProjectAlignment(
     }
   } catch (error) {
     // Project lattice not available, graceful degradation
-    systemLog(
+    systemDiagnosticsService.systemLog(
       'sigma',
       'Project lattice query failed:',
       { error: error instanceof Error ? error.message : String(error) },

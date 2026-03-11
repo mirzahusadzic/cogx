@@ -8,7 +8,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { systemLog } from '../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../core/services/diagnostics/SystemDiagnosticsService.js';
 import {
   SYSTEM_PROMPT_MAX_COMPLETED_TASKS,
   SYSTEM_PROMPT_MAX_PENDING_TASKS,
@@ -230,7 +230,7 @@ function migrateTasks(
       // Generate stable ID from content hash or index
       // Use timestamp to ensure uniqueness across migrations
       const id = `migrated-${idx}-${Date.now()}`;
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'sigma',
         'Migrating task without ID',
         { content: task.content, id },
@@ -275,7 +275,7 @@ export function loadSessionState(
 
     return state;
   } catch (err) {
-    systemLog(
+    systemDiagnosticsService.systemLog(
       'sigma',
       `Failed to load session state for ${anchorId}`,
       { error: err instanceof Error ? err.message : String(err) },
@@ -638,7 +638,7 @@ export function listSessions(projectRoot: string): Array<{
         sessions_count: state.compression_history.length,
       });
     } catch (err) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'sigma',
         `Failed to load session state from ${file}`,
         { error: err instanceof Error ? err.message : String(err) },
@@ -692,7 +692,10 @@ export function migrateOldStateFile(
     }
 
     // Migrate old format
-    systemLog('sigma', `Migrating old state file: ${anchorId}`);
+    systemDiagnosticsService.systemLog(
+      'sigma',
+      `Migrating old state file: ${anchorId}`
+    );
 
     const compressionHistory: SessionState['compression_history'] = [];
 
@@ -732,7 +735,7 @@ export function migrateOldStateFile(
         currentState = nextState;
         nextId = nextState.newSessionId; // May be undefined in leaf nodes
       } catch (err) {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'sigma',
           `Failed to process chain file ${nextId}`,
           { error: err instanceof Error ? err.message : String(err) },
@@ -747,9 +750,12 @@ export function migrateOldStateFile(
       try {
         fs.unlinkSync(file);
         const filename = path.basename(file);
-        systemLog('sigma', `Removed old chained file: ${filename}`);
+        systemDiagnosticsService.systemLog(
+          'sigma',
+          `Removed old chained file: ${filename}`
+        );
       } catch (err) {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'sigma',
           `Failed to delete ${file}`,
           { error: err instanceof Error ? err.message : String(err) },
@@ -781,14 +787,14 @@ export function migrateOldStateFile(
 
     // Save migrated state
     saveSessionState(newState, projectRoot);
-    systemLog(
+    systemDiagnosticsService.systemLog(
       'sigma',
       `Migrated to new format (${compressionHistory.length} sessions)`
     );
 
     return newState;
   } catch (err) {
-    systemLog(
+    systemDiagnosticsService.systemLog(
       'sigma',
       `Failed to migrate state file ${anchorId}`,
       { error: err instanceof Error ? err.message : String(err) },
@@ -835,7 +841,7 @@ export function migrateAllOldStates(projectRoot: string): void {
   }
 
   if (migratedCount > 0) {
-    systemLog(
+    systemDiagnosticsService.systemLog(
       'sigma',
       `Migrated ${migratedCount} session(s) to new anchor format`
     );

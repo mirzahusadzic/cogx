@@ -1,7 +1,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { AdkSession } from './adk-types.js';
-import { systemLog } from '../../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../../core/services/diagnostics/SystemDiagnosticsService.js';
 
 export const TASK_LOG_EVICTION_THRESHOLD = 20;
 
@@ -130,12 +130,12 @@ export async function performRollingPrune({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (session as any).events = newEvents;
 
-    systemLog(
+    systemDiagnosticsService.systemLog(
       'sigma',
       `Rolling prune: Evicted ${toPruneCount} oldest tool logs for task ${taskId} (threshold: ${threshold}).`
     );
   } catch (err) {
-    systemLog(
+    systemDiagnosticsService.systemLog(
       'sigma',
       `Failed rolling prune for task ${taskId}`,
       { error: err instanceof Error ? err.message : String(err) },

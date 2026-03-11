@@ -18,8 +18,8 @@ import fs from 'fs-extra';
 import * as os from 'os';
 import * as path from 'path';
 import { ZeroMQBus } from './ZeroMQBus.js';
-import { getHomeDir } from '../utils/home-dir.js';
-import { systemLog } from '../utils/debug-logger.js';
+import { environmentService } from '../core/services/environment/EnvironmentService.js';
+import { systemDiagnosticsService } from '../core/services/diagnostics/SystemDiagnosticsService.js';
 
 /**
  * Coordinates the creation of a single ZeroMQ bus master.
@@ -35,7 +35,7 @@ import { systemLog } from '../utils/debug-logger.js';
  * const coordinator = new BusCoordinator();
  * try {
  *   const bus = await coordinator.connectWithFallback();
- *   systemLog('ipc', `Connected to bus. Master: ${coordinator.getIsBusMaster()}`);
+ *   systemDiagnosticsService.systemLog('ipc', `Connected to bus. Master: ${coordinator.getIsBusMaster()}`);
  *   // ... use bus
  * } finally {
  *   await coordinator.cleanup();
@@ -66,7 +66,7 @@ export class BusCoordinator {
    */
   constructor(projectRoot?: string) {
     // Store lock file in .cognition directory
-    const cogniDir = path.join(getHomeDir(), '.cognition');
+    const cogniDir = path.join(environmentService.getHomeDir(), '.cognition');
 
     // Determine bus identifier:
     // 1. If IPC_SIGMA_BUS is set → use that (e.g., "global", "team")
@@ -142,13 +142,19 @@ export class BusCoordinator {
         await this.bus.bind();
         await this.writePidFile();
         this.isBusMaster = true;
-        systemLog('ipc', `Bus Master: Bound to ${this.socketPath}`);
+        systemDiagnosticsService.systemLog(
+          'ipc',
+          `Bus Master: Bound to ${this.socketPath}`
+        );
       } else {
         // Connect as peer
         this.bus = new ZeroMQBus({ address: this.socketPath });
         await this.bus.connect();
         this.isBusMaster = false;
-        systemLog('ipc', `Peer: Connected to ${this.socketPath}`);
+        systemDiagnosticsService.systemLog(
+          'ipc',
+          `Peer: Connected to ${this.socketPath}`
+        );
       }
 
       return this.bus;
@@ -305,7 +311,7 @@ export class BusCoordinator {
     try {
       return await this.connect();
     } catch (err) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'ipc',
         'IPC socket failed, falling back to TCP',
         { error: err instanceof Error ? err.message : String(err) },
@@ -361,7 +367,7 @@ export class BusCoordinator {
           await fs.remove(socketFile);
           await fs.remove(subSocketFile);
 
-          systemLog('ipc', 'Cleaned up socket files');
+          systemDiagnosticsService.systemLog('ipc', 'Cleaned up socket files');
         } catch {
           // Ignore cleanup errors
         }

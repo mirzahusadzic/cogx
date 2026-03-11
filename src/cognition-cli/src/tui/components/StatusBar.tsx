@@ -2,7 +2,7 @@ import React, { useEffect, useMemo } from 'react';
 import { Box, Text } from 'ink';
 import { terminal } from '../services/TerminalService.js';
 import { TUITheme } from '../theme.js';
-import { formatCompactNumber } from '../../utils/string-utils.js';
+import { terminalFormatter } from '../../core/services/terminal-formatter/TerminalFormatterService.js';
 import type { SessionTokenCount } from '../hooks/tokens/useSessionTokenCount.js';
 import { environmentService } from '../../core/services/environment/EnvironmentService.js';
 
@@ -215,11 +215,15 @@ const StatusBarComponent: React.FC<StatusBarProps> = ({
               <>
                 <Text color={TUITheme.text.secondary}> [</Text>
                 <Text color={TUITheme.providers.google}>
-                  {formatCompactNumber(sessionTokenCount?.cached || 0)}
+                  {terminalFormatter.formatCompactNumber(
+                    sessionTokenCount?.cached || 0
+                  )}
                 </Text>
                 <Text color={TUITheme.text.secondary}>/</Text>
                 <Text color={TUITheme.text.success}>
-                  {formatCompactNumber(sessionTokenCount?.total || 0)}
+                  {terminalFormatter.formatCompactNumber(
+                    sessionTokenCount?.total || 0
+                  )}
                 </Text>
                 <Text color={TUITheme.text.secondary}>]</Text>
               </>
@@ -233,11 +237,11 @@ const StatusBarComponent: React.FC<StatusBarProps> = ({
             <Text color={TUITheme.text.secondary}>
               Σ{' '}
               <Text color={TUITheme.providers.google}>
-                {formatCompactNumber(cachedTokens)}
+                {terminalFormatter.formatCompactNumber(cachedTokens)}
               </Text>
               <Text color={TUITheme.text.secondary}>/</Text>
               <Text color={TUITheme.text.success}>
-                {formatCompactNumber(totalTokens)}
+                {terminalFormatter.formatCompactNumber(totalTokens)}
               </Text>
             </Text>
 
@@ -268,15 +272,16 @@ const StatusBarComponent: React.FC<StatusBarProps> = ({
 
             {/* Remaining in Context */}
             <Text color={TUITheme.text.secondary}>
-              ⏳ {formatCompactNumber(remainingTokens)}
+              ⏳ {terminalFormatter.formatCompactNumber(remainingTokens)}
             </Text>
 
             <Text color={TUITheme.ui.border.dim}> | </Text>
 
             {/* Threshold */}
             <Text color={TUITheme.text.secondary}>
-              🗜️{EMOJI_SPACER} [{formatCompactNumber(semanticThreshold)}/
-              {formatCompactNumber(compressionThreshold)}]
+              🗜️{EMOJI_SPACER} [
+              {terminalFormatter.formatCompactNumber(semanticThreshold)}/
+              {terminalFormatter.formatCompactNumber(compressionThreshold)}]
             </Text>
           </>
         )}

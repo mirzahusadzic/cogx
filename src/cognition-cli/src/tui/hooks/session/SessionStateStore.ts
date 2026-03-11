@@ -53,7 +53,7 @@
  * // Resume existing session
  * const store = new SessionStateStore('my-project', cwd);
  * const result = store.loadForResume();
- * systemLog('tui', `Resume from: ${result.resumeSessionId}`);
+ * systemDiagnosticsService.systemLog('tui', `Resume from: ${result.resumeSessionId}`);
  */
 
 import {
@@ -65,7 +65,7 @@ import {
   migrateOldStateFile,
   type SessionState,
 } from '../../../sigma/session-state.js';
-import { systemLog } from '../../../utils/debug-logger.js';
+import { systemDiagnosticsService } from '../../../core/services/diagnostics/SystemDiagnosticsService.js';
 import type {
   SessionLoadResult,
   SessionUpdateEvent,
@@ -109,7 +109,7 @@ export interface SessionStats {
  * const store = new SessionStateStore('my-session', '/home/user/project');
  * const state = store.load();
  * if (state) {
- *   systemLog('tui', `Current SDK session: ${state.current_session}`);
+ *   systemDiagnosticsService.systemLog('tui', `Current SDK session: ${state.current_session}`);
  * }
  */
 export class SessionStateStore {
@@ -138,7 +138,7 @@ export class SessionStateStore {
    * const store = new SessionStateStore('my-session', cwd);
    * const state = store.load();
    * if (state) {
-   *   systemLog('tui', `Session has ${state.compression_history.length} compressions`);
+   *   systemDiagnosticsService.systemLog('tui', `Session has ${state.compression_history.length} compressions`);
    * }
    */
   load(): SessionState | null {
@@ -146,7 +146,10 @@ export class SessionStateStore {
       return loadSessionState(this.anchorId, this.cwd);
     } catch (err) {
       if (this.debug) {
-        systemLog('tui', `[SessionStateStore] Failed to load state: ${err}`);
+        systemDiagnosticsService.systemLog(
+          'tui',
+          `[SessionStateStore] Failed to load state: ${err}`
+        );
       }
       return null;
     }
@@ -167,7 +170,10 @@ export class SessionStateStore {
       return true;
     } catch (err) {
       if (this.debug) {
-        systemLog('tui', `[SessionStateStore] Failed to save state: ${err}`);
+        systemDiagnosticsService.systemLog(
+          'tui',
+          `[SessionStateStore] Failed to save state: ${err}`
+        );
       }
       return false;
     }
@@ -206,7 +212,7 @@ export class SessionStateStore {
     );
     this.save(state);
     if (this.debug) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'tui',
         `[SessionStateStore] Created state: ${this.anchorId} → ${sdkSessionId} (${provider}/${model})`
       );
@@ -235,7 +241,10 @@ export class SessionStateStore {
     const state = this.load();
     if (!state) {
       if (this.debug) {
-        systemLog('tui', '[SessionStateStore] No state to update');
+        systemDiagnosticsService.systemLog(
+          'tui',
+          '[SessionStateStore] No state to update'
+        );
       }
       return null;
     }
@@ -249,7 +258,7 @@ export class SessionStateStore {
 
     this.save(updated);
     if (this.debug) {
-      systemLog(
+      systemDiagnosticsService.systemLog(
         'tui',
         `[SessionStateStore] Updated: ${this.anchorId} → ${event.newSessionId} (${event.reason})`
       );
@@ -280,7 +289,10 @@ export class SessionStateStore {
     const state = this.load();
     if (!state) {
       if (this.debug) {
-        systemLog('tui', '[SessionStateStore] No state to update stats');
+        systemDiagnosticsService.systemLog(
+          'tui',
+          '[SessionStateStore] No state to update stats'
+        );
       }
       return false;
     }
@@ -302,7 +314,7 @@ export class SessionStateStore {
     const state = this.load();
     if (!state) {
       if (this.debug) {
-        systemLog(
+        systemDiagnosticsService.systemLog(
           'tui',
           '[SessionStateStore] No state to update session tokens'
         );
@@ -334,7 +346,10 @@ export class SessionStateStore {
     const state = this.load();
     if (!state) {
       if (this.debug) {
-        systemLog('tui', '[SessionStateStore] No state to update tokens');
+        systemDiagnosticsService.systemLog(
+          'tui',
+          '[SessionStateStore] No state to update tokens'
+        );
       }
       return false;
     }
@@ -362,7 +377,10 @@ export class SessionStateStore {
     const state = this.load();
     if (!state) {
       if (this.debug) {
-        systemLog('tui', '[SessionStateStore] No state to update tasks');
+        systemDiagnosticsService.systemLog(
+          'tui',
+          '[SessionStateStore] No state to update tasks'
+        );
       }
       return false;
     }
@@ -391,7 +409,10 @@ export class SessionStateStore {
       // Check if migration needed
       if (!('compression_history' in state)) {
         if (this.debug) {
-          systemLog('tui', '[SessionStateStore] Migrating old state file');
+          systemDiagnosticsService.systemLog(
+            'tui',
+            '[SessionStateStore] Migrating old state file'
+          );
         }
         return migrateOldStateFile(this.anchorId, this.cwd);
       }
@@ -399,7 +420,10 @@ export class SessionStateStore {
       return state;
     } catch (err) {
       if (this.debug) {
-        systemLog('tui', `[SessionStateStore] Migration failed: ${err}`);
+        systemDiagnosticsService.systemLog(
+          'tui',
+          `[SessionStateStore] Migration failed: ${err}`
+        );
       }
       return null;
     }
@@ -420,7 +444,7 @@ export class SessionStateStore {
    * @example
    * const result = store.loadForResume();
    * if (result.resumeSessionId) {
-   *   systemLog('tui', `Resuming from: ${result.resumeSessionId}`);
+   *   systemDiagnosticsService.systemLog('tui', `Resuming from: ${result.resumeSessionId}`);
    *   if (result.message) {
    *     showUserMessage(result.message);
    *   }
