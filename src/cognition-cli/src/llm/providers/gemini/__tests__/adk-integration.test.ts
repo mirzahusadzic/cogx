@@ -1,3 +1,4 @@
+// @vitest-environment node -- Use native Node environment to avoid happy-dom AbortSignal compatibility issues with ADK
 /**
  * Gemini ADK Integration Tests
  *
