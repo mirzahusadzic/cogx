@@ -288,7 +288,7 @@ export abstract class BaseAgentProvider implements AgentProvider {
       }
     } finally {
       // 5. Restore console/process functions
-      restoreNoise(noiseState);
+      restoreNoise();
       this.abortController = null;
     }
   }

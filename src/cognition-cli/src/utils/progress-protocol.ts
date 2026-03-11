@@ -127,18 +127,16 @@ export function shouldUseJsonProgress(forceJson?: boolean): boolean {
   return false;
 }
 
+import { systemDiagnosticsService } from '../core/services/diagnostics/SystemDiagnosticsService.js';
+
 /**
  * Emit a progress event to stdout as JSON line
  *
+ * @deprecated Use systemDiagnosticsService.emitProgress()
  * @param event - Progress event (without timestamp, added automatically)
  */
 export function emitProgress(event: Omit<AnyProgressEvent, 'timestamp'>): void {
-  const fullEvent: AnyProgressEvent = {
-    ...event,
-    timestamp: Date.now(),
-  } as AnyProgressEvent;
-
-  console.log(JSON.stringify(fullEvent));
+  systemDiagnosticsService.emitProgress(event);
 }
 
 /**
