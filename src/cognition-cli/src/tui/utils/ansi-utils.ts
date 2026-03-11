@@ -1,18 +1,17 @@
+import { terminalFormatter } from '../../core/services/terminal-formatter/TerminalFormatterService.js';
+
 /**
  * ANSI Utility Functions
  *
  * Provides helpers for cleaning and processing ANSI escape sequences
  * specifically for TUI rendering.
+ *
+ * @deprecated Use TerminalFormatterService instead.
  */
 
 /**
  * Regex to match terminal cursor control sequences
- * Matches:
- * - \x1b[?25h (show cursor), \x1b[?25l (hide cursor)
- * - \x1b[K (erase line), \x1b[2K (erase line)
- * - \x1b[A, \x1b[B, etc (cursor movement)
- * - \x1b[H (home), \x1b[f (force cursor)
- * But preserves SGR (colors/bold) which end in 'm'
+ * @deprecated Use TerminalFormatterService.CURSOR_CONTROL_RE instead.
  */
 // eslint-disable-next-line no-control-regex
 export const CURSOR_CONTROL_RE = /\x1b\[(?:\?[\d;]*[hl]|[\d;]*[A-LN-Za-ln-z])/g;
@@ -22,57 +21,63 @@ export const CURSOR_CONTROL_RE = /\x1b\[(?:\?[\d;]*[hl]|[\d;]*[A-LN-Za-ln-z])/g;
  *
  * @param text - Text to clean
  * @returns Cleaned text
+ * @deprecated Use terminalFormatter.stripCursorSequences instead.
  */
 export function stripCursorSequences(text: string): string {
-  if (!text) return text;
-  return text.replace(CURSOR_CONTROL_RE, '');
+  return terminalFormatter.stripCursorSequences(text);
 }
 
 /**
  * Convert hex color to ANSI foreground sequence (TrueColor)
  * @param hex Hex color (e.g., #ff0000)
+ * @deprecated Use terminalFormatter.hexToAnsi instead.
  */
 export function hexToAnsi(hex: string): string {
-  const { r, g, b } = hexToRgb(hex);
-  return `\x1b[38;2;${r};${g};${b}m`;
+  return terminalFormatter.hexToAnsi(hex);
 }
 
 /**
  * Convert hex color to ANSI background sequence (TrueColor)
  * @param hex Hex color (e.g., #ff0000)
+ * @deprecated Use terminalFormatter.hexToAnsiBg instead.
  */
 export function hexToAnsiBg(hex: string): string {
-  const { r, g, b } = hexToRgb(hex);
-  return `\x1b[48;2;${r};${g};${b}m`;
+  return terminalFormatter.hexToAnsiBg(hex);
 }
 
 /**
  * ANSI Reset Code
+ * @deprecated Use terminalFormatter.ANSI_RESET instead.
  */
-export const ANSI_RESET = '\x1b[0m';
+export const ANSI_RESET = terminalFormatter.ANSI_RESET;
 
 /**
  * ANSI Dim Code
+ * @deprecated Use terminalFormatter.ANSI_DIM instead.
  */
-export const ANSI_DIM = '\x1b[2m';
+export const ANSI_DIM = terminalFormatter.ANSI_DIM;
 
 /**
  * ANSI Italic Code
+ * @deprecated Use terminalFormatter.ANSI_ITALIC instead.
  */
-export const ANSI_ITALIC = '\x1b[3m';
+export const ANSI_ITALIC = terminalFormatter.ANSI_ITALIC;
 
 /**
  * ANSI Bold Code
+ * @deprecated Use terminalFormatter.ANSI_BOLD instead.
  */
-export const ANSI_BOLD = '\x1b[1m';
+export const ANSI_BOLD = terminalFormatter.ANSI_BOLD;
 
 /**
  * ANSI Inverse Code
+ * @deprecated Use terminalFormatter.ANSI_INVERSE instead.
  */
-export const ANSI_INVERSE = '\x1b[7m';
+export const ANSI_INVERSE = terminalFormatter.ANSI_INVERSE;
 
 /**
  * Get the ANSI escape sequence for a set of styles
+ * @deprecated Use terminalFormatter.getStyleAnsi instead.
  */
 export function getStyleAnsi(styles: {
   color?: string;
@@ -82,31 +87,5 @@ export function getStyleAnsi(styles: {
   dim?: boolean;
   inverse?: boolean;
 }): string {
-  let ansi = '';
-  if (styles.color) ansi += hexToAnsi(styles.color);
-  if (styles.bg) ansi += hexToAnsiBg(styles.bg);
-  if (styles.bold) ansi += ANSI_BOLD;
-  if (styles.italic) ansi += ANSI_ITALIC;
-  if (styles.dim) ansi += ANSI_DIM;
-  if (styles.inverse) ansi += ANSI_INVERSE;
-  return ansi;
-}
-
-/**
- * Helper to parse hex to RGB
- */
-function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  const cleanHex = hex.replace('#', '');
-  if (cleanHex.length === 3) {
-    return {
-      r: parseInt(cleanHex[0] + cleanHex[0], 16) || 0,
-      g: parseInt(cleanHex[1] + cleanHex[1], 16) || 0,
-      b: parseInt(cleanHex[2] + cleanHex[2], 16) || 0,
-    };
-  }
-  return {
-    r: parseInt(cleanHex.substring(0, 2), 16) || 0,
-    g: parseInt(cleanHex.substring(2, 4), 16) || 0,
-    b: parseInt(cleanHex.substring(4, 6), 16) || 0,
-  };
+  return terminalFormatter.getStyleAnsi(styles);
 }

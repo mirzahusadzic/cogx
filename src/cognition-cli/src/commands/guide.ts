@@ -22,10 +22,10 @@
  * MARKDOWN RENDERING:
  * The guide renderer supports:
  * - Headers (# ## ###)
- * - Code blocks (```)
+ * - Code blocks (\`\`\`)
  * - Lists (- * 1.)
  * - Blockquotes (>)
- * - Inline code (`code`)
+ * - Inline code (\`code\`)
  * - Bold (**text**) and italic (*text*)
  * - Emojis (preserved as-is)
  *
@@ -51,6 +51,7 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { terminalFormatter } from '../core/services/terminal-formatter/TerminalFormatterService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -98,204 +99,117 @@ export function createGuideCommand(): Command {
 async function showGuideIndex(): Promise<void> {
   console.log(chalk.bold.cyan('📚 Cognition CLI Guides'));
   console.log('');
-  console.log('Available guides (colorful & candid! 🎨):');
-  console.log('');
 
-  const guides = [
-    {
-      name: 'watch',
-      emoji: '👀',
-      desc: 'Monitor file changes & maintain dirty state',
-    },
-    { name: 'status', emoji: '🔍', desc: 'Check PGC coherence (< 10ms!)' },
-    {
-      name: 'explore-architecture',
-      emoji: '🏗️',
-      desc: 'Explore codebase architecture with PGC',
-    },
-    {
-      name: 'analyze-symbol',
-      emoji: '🔬',
-      desc: 'Deep-dive into a specific symbol',
-    },
-    { name: 'trace-dependency', emoji: '🧭', desc: 'Follow dependency chains' },
-    {
-      name: 'analyze-impact',
-      emoji: '💥',
-      desc: 'Understand blast radius of changes',
-    },
-  ];
+  const builtInGuidesDir = path.join(__dirname, '../../.claude/commands');
+  const projectGuidesDir = path.join(process.cwd(), '.claude/commands');
 
-  for (const guide of guides) {
+  const topics = new Set<string>();
+
+  if (await fs.pathExists(builtInGuidesDir)) {
+    const files = await fs.readdir(builtInGuidesDir);
+    files
+      .filter((f) => f.endsWith('.md'))
+      .forEach((f) => topics.add(f.replace('.md', '')));
+  }
+
+  if (await fs.pathExists(projectGuidesDir)) {
+    const files = await fs.readdir(projectGuidesDir);
+    files
+      .filter((f) => f.endsWith('.md'))
+      .forEach((f) => topics.add(f.replace('.md', '')));
+  }
+
+  if (topics.size === 0) {
+    console.log(chalk.yellow('No guides found.'));
+    return;
+  }
+
+  console.log('Available guides:');
+  const sortedTopics = Array.from(topics).sort();
+
+  for (const topic of sortedTopics) {
+    const content = await getGuideContent(topic);
+    const firstLine = content?.split('\n')[0] || '';
+    const description = firstLine.startsWith('# ')
+      ? firstLine.slice(2).trim()
+      : topic;
+
+    // Extract emoji if present
+    const emojiMatch = description.match(
+      /^(\p{Emoji_Presentation}|\p{Emoji})/u
+    );
+    const emoji = emojiMatch ? emojiMatch[0] : '📄';
+    const text = emojiMatch
+      ? description.slice(emoji.length).trim()
+      : description;
+
     console.log(
-      `  ${guide.emoji}  ${chalk.cyan(guide.name.padEnd(25))} ${chalk.gray(guide.desc)}`
+      `  ${emoji} ${chalk.bold(topic.padEnd(12))} ${chalk.gray(text)}`
     );
   }
 
   console.log('');
-  console.log(chalk.gray('Usage:'));
-  console.log(chalk.gray(`  $ cognition-cli guide ${chalk.cyan('<topic>')}`));
-  console.log('');
-  console.log(chalk.gray('Example:'));
-  console.log(chalk.gray(`  $ cognition-cli guide ${chalk.cyan('watch')}`));
+  console.log(
+    `Run ${chalk.cyan('cognition-cli guide <topic>')} to read a guide.`
+  );
 }
 
 /**
- * Displays a specific guide by topic
+ * Loads and displays a specific guide topic
  *
- * Searches for the guide in project-specific .claude/commands/ directory first,
- * then falls back to built-in guides. Renders the Markdown content with colors
- * and formatting.
- *
- * SEARCH ORDER:
- * 1. <project>/.claude/commands/<topic>.md (project-specific override)
- * 2. cognition-cli/.claude/commands/<topic>.md (built-in guide)
- *
- * @param topic - The guide topic to display (e.g., 'watch', 'status')
- *
- * @example
- * await showGuide('watch');
- * // → Renders .claude/commands/watch.md with colors
+ * @param topic - Guide topic to display
  */
 async function showGuide(topic: string): Promise<void> {
-  // Try to find guide in .claude/commands/ directory (from project root)
-  const projectRoot = process.cwd();
-  const guidePath = path.join(
-    projectRoot,
-    '.claude',
-    'commands',
-    `${topic}.md`
-  );
+  const content = await getGuideContent(topic);
 
-  // Fallback to built-in guides if project doesn't have .claude/commands
-  const builtinGuidePath = path.join(
-    path.dirname(path.dirname(__dirname)), // Go up from dist/commands to project root
-    '.claude',
-    'commands',
-    `${topic}.md`
-  );
-
-  let content: string;
-  let sourcePath: string;
-
-  if (await fs.pathExists(guidePath)) {
-    content = await fs.readFile(guidePath, 'utf-8');
-    sourcePath = guidePath;
-  } else if (await fs.pathExists(builtinGuidePath)) {
-    content = await fs.readFile(builtinGuidePath, 'utf-8');
-    sourcePath = builtinGuidePath;
-  } else {
-    console.log(chalk.red(`❌ Guide not found: ${topic}`));
-    console.log('');
-    console.log(chalk.gray('Available guides:'));
-    await showGuideIndex();
-    process.exit(1);
+  if (!content) {
+    console.error(chalk.red(`Guide not found: ${topic}`));
+    console.log(
+      `Run ${chalk.cyan('cognition-cli guide')} to see available guides.`
+    );
     return;
   }
 
-  // Render markdown with basic formatting
-  const rendered = renderMarkdown(content);
-  console.log(rendered);
-  console.log('');
-  console.log(chalk.gray(`📖 Source: ${sourcePath}`));
+  console.log(renderMarkdown(content));
 }
 
 /**
- * Renders Markdown content as formatted terminal output
+ * Retrieves the content of a guide file, checking project then built-in locations
  *
- * Implements a basic Markdown parser that converts Markdown syntax to
- * chalk-colored terminal output. Supports common Markdown features without
- * requiring external dependencies.
- *
- * SUPPORTED FEATURES:
- * - Headers (# ## ###) → Bold colored text
- * - Code blocks (```) → Gray text
- * - Lists (- * 1.) → Cyan bullets
- * - Blockquotes (>) → Italic gray text
- * - Inline code (`code`) → Cyan text
- * - Bold (**text**) → Bold text
- * - Italic (*text*) → Italic text
- * - Emojis → Preserved as-is
+ * @param topic - Guide topic
+ * @returns Markdown content or null if not found
+ */
+async function getGuideContent(topic: string): Promise<string | null> {
+  const projectPath = path.join(
+    process.cwd(),
+    '.claude/commands',
+    `${topic}.md`
+  );
+  const builtInPath = path.join(
+    __dirname,
+    '../../.claude/commands',
+    `${topic}.md`
+  );
+
+  if (await fs.pathExists(projectPath)) {
+    return fs.readFile(projectPath, 'utf8');
+  }
+
+  if (await fs.pathExists(builtInPath)) {
+    return fs.readFile(builtInPath, 'utf8');
+  }
+
+  return null;
+}
+
+/**
+ * Renders Markdown content to ANSI-formatted string
  *
  * @param content - Raw Markdown content to render
  * @returns Formatted string with ANSI color codes
  *
- * @example
- * const output = renderMarkdown('# Hello\n\nThis is **bold** text.');
- * console.log(output);
- * // → Colored output: "Hello" in cyan bold, "This is bold text." with bold styling
+ * @deprecated Use terminalFormatter.renderMarkdown instead.
  */
 function renderMarkdown(content: string): string {
-  const lines = content.split('\n');
-  const output: string[] = [];
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-
-    // Headers
-    if (line.startsWith('# ')) {
-      output.push('');
-      output.push(chalk.bold.cyan(line.slice(2)));
-      output.push('');
-    } else if (line.startsWith('## ')) {
-      output.push('');
-      output.push(chalk.bold.yellow(line.slice(3)));
-      output.push('');
-    } else if (line.startsWith('### ')) {
-      output.push('');
-      output.push(chalk.bold(line.slice(4)));
-    } else if (line.startsWith('```')) {
-      // Code blocks
-      // const lang = line.slice(3); // TODO: Use for syntax highlighting
-      i++; // Skip opening ```
-      const codeLines: string[] = [];
-      while (i < lines.length && !lines[i].startsWith('```')) {
-        codeLines.push(chalk.gray(lines[i]));
-        i++;
-      }
-      output.push('');
-      output.push(codeLines.join('\n'));
-      output.push('');
-    } else if (line.startsWith('- ') || line.startsWith('* ')) {
-      // Lists
-      output.push(chalk.cyan('  •') + line.slice(1));
-    } else if (line.match(/^\d+\./)) {
-      // Numbered lists
-      output.push(chalk.cyan(line));
-    } else if (line.trim() === '') {
-      // Empty lines
-      output.push('');
-    } else if (line.startsWith('>')) {
-      // Blockquotes
-      output.push(chalk.italic.gray(line.slice(1).trim()));
-    } else {
-      // Regular text - preserve emojis and formatting
-      let formatted = line;
-
-      // Bold (**text** or __text__)
-      formatted = formatted.replace(/\*\*(.*?)\*\*/g, (_, text) =>
-        chalk.bold(text)
-      );
-      formatted = formatted.replace(/__(.*?)__/g, (_, text) =>
-        chalk.bold(text)
-      );
-
-      // Italic (*text* or _text_)
-      formatted = formatted.replace(/\*(.*?)\*/g, (_, text) =>
-        chalk.italic(text)
-      );
-      formatted = formatted.replace(/_(.*?)_/g, (_, text) =>
-        chalk.italic(text)
-      );
-
-      // Inline code (`code`)
-      formatted = formatted.replace(/`([^`]+)`/g, (_, code) =>
-        chalk.cyan(code)
-      );
-
-      output.push(formatted);
-    }
-  }
-
-  return output.join('\n');
+  return terminalFormatter.renderMarkdown(content);
 }
