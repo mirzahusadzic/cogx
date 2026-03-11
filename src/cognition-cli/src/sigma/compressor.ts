@@ -5,6 +5,7 @@
  * Achieves 30-50x compression while preserving paradigm shifts.
  */
 
+import { latticeQueryService } from '../core/services/lattice/LatticeQueryService.js';
 import type {
   TurnAnalysis,
   CompressionResult,
@@ -24,12 +25,13 @@ const DEFAULT_OPTIONS: Required<CompressorOptions> = {
  * Estimate token count for text (rough approximation)
  * Rule: ~4 characters per token average
  *
+ * @deprecated Use latticeQueryService.estimateTokens()
  * @param text - Text to estimate token count for
  * @returns Estimated number of tokens
  * @private
  */
 function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4);
+  return latticeQueryService.estimateTokens(text);
 }
 
 /**

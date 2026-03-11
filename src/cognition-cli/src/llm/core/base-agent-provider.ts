@@ -103,7 +103,7 @@ export abstract class BaseAgentProvider implements AgentProvider {
     request: AgentRequest
   ): AsyncGenerator<AgentResponse, void, undefined> {
     // 1. Suppress SDK noise immediately
-    const noiseState = suppressNoise();
+    suppressNoise();
 
     try {
       // Initialize per-request state
