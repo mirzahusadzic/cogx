@@ -32,50 +32,99 @@ interface StructuralMiningResult {
  */
 function inferArchitecturalRole(
   symbolName: string,
-  structuralData: StructuralData
+  structuralData: StructuralData,
+  filePath: string
 ): string {
+  const name = symbolName;
+  const path = filePath.toLowerCase();
+
   // Find the specific symbol in the structural data
-  const targetClass = structuralData.classes?.find(
-    (c) => c.name === symbolName
-  );
-  const targetFunction = structuralData.functions?.find(
-    (f) => f.name === symbolName
-  );
+  const targetClass = structuralData.classes?.find((c) => c.name === name);
+  const targetFunction = structuralData.functions?.find((f) => f.name === name);
   const targetInterface = structuralData.interfaces?.find(
-    (i) => i.name === symbolName
+    (i) => i.name === name
   );
 
-  // Infer role from class name
+  // 1. Commands (CLI or Internal)
+  if (path.includes('/commands/') || name.endsWith('Command')) {
+    return 'command';
+  }
+
+  // 2. UI Components / Views
+  if (
+    path.includes('/tui/') ||
+    path.includes('/components/') ||
+    path.includes('/views/') ||
+    name.endsWith('View') ||
+    name.endsWith('Component')
+  ) {
+    // React components usually start with Uppercase
+    if (/^[A-Z]/.test(name)) return 'view';
+  }
+
+  // 3. Hooks
+  if (name.startsWith('use') && /^[A-Z]/.test(name.slice(3))) {
+    return 'hook';
+  }
+
+  // 4. Data Access / Repositories
+  if (
+    path.includes('/repositories/') ||
+    path.includes('/data-access/') ||
+    path.includes('/db/') ||
+    name.endsWith('Repository') ||
+    name.endsWith('Store') ||
+    name.endsWith('DAO')
+  ) {
+    return 'data_access';
+  }
+
+  // 5. Classes - specific roles
   if (targetClass) {
-    if (targetClass.name.includes('Repository')) return 'data_access';
-    if (targetClass.name.includes('Service')) return 'service';
-    if (
-      targetClass.name.includes('Controller') ||
-      targetClass.name.includes('Handler')
-    )
+    if (name.includes('Service')) return 'service';
+    if (name.includes('Controller') || name.includes('Handler'))
       return 'controller';
-    if (targetClass.name.includes('Orchestrator')) return 'orchestrator';
+    if (name.includes('Orchestrator')) return 'orchestrator';
+    if (name.includes('Provider') || name.includes('Factory'))
+      return 'provider';
+    if (name.includes('Manager') || name.includes('Engine')) return 'service';
     return 'component';
   }
 
-  // Infer role from function name
+  // 6. Functions - specific roles
   if (targetFunction) {
-    if (targetFunction.name.includes('Handler')) return 'controller';
+    if (name.includes('Handler')) return 'controller';
     if (
-      targetFunction.name.includes('Util') ||
-      targetFunction.name.includes('Helper')
-    )
+      path.includes('/utils/') ||
+      path.includes('/helpers/') ||
+      name.includes('Util') ||
+      name.includes('Helper')
+    ) {
       return 'utility';
+    }
+    if (path.includes('/services/')) return 'service';
+    if (path.includes('/logic/') || path.includes('/core/')) return 'service';
+
+    // Default to utility for functions unless they are in a known architectural path
     return 'utility';
   }
 
-  // Infer role from interface name
+  // 7. Interfaces / Types
   if (targetInterface) {
-    if (targetInterface.name.endsWith('Config')) return 'configuration';
-    if (targetInterface.name.endsWith('Data')) return 'type';
-    if (targetInterface.name.endsWith('Request')) return 'type';
-    if (targetInterface.name.endsWith('Response')) return 'type';
-    if (targetInterface.name.endsWith('Result')) return 'type';
+    if (name.endsWith('Config') || name.endsWith('Options'))
+      return 'configuration';
+    if (
+      name.endsWith('Data') ||
+      name.endsWith('Request') ||
+      name.endsWith('Response') ||
+      name.endsWith('Result') ||
+      name.endsWith('DTO') ||
+      path.includes('/types/') ||
+      path.includes('/interfaces/') ||
+      path.includes('/models/')
+    ) {
+      return 'type';
+    }
     return 'type';
   }
 
@@ -235,7 +284,8 @@ async function processStructuralPattern(
     );
     const architecturalRole = inferArchitecturalRole(
       symbolName,
-      structuralData
+      structuralData,
+      filePath
     );
 
     return {

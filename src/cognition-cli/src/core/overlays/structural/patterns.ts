@@ -543,7 +543,11 @@ export class StructuralPatternsManager implements PatternManager {
   ): Promise<void> {
     await this.vectorDB.initialize('structural_patterns');
     const signature = this.generateStructuralSignature(symbolStructuralData);
-    const architecturalRole = this.inferArchitecturalRole(symbolStructuralData);
+    const architecturalRole = this.inferArchitecturalRole(
+      symbolName,
+      symbolStructuralData,
+      relativePath
+    );
 
     const embedResponse: EmbedResponse = await this.workbench.embed({
       signature,
@@ -616,21 +620,83 @@ export class StructuralPatternsManager implements PatternManager {
     await this.pgc.overlays.update('structural_patterns', overlayKey, metadata);
   }
 
-  private inferArchitecturalRole(structuralData: StructuralData): string {
+  private inferArchitecturalRole(
+    symbolName: string,
+    structuralData: StructuralData,
+    filePath: string
+  ): string {
+    const name = symbolName;
+    const path = filePath.toLowerCase();
+
+    // 1. Commands (CLI or Internal)
+    if (path.includes('/commands/') || name.endsWith('Command')) {
+      return 'command';
+    }
+
+    // 2. UI Components / Views
+    if (
+      path.includes('/tui/') ||
+      path.includes('/components/') ||
+      path.includes('/views/') ||
+      name.endsWith('View') ||
+      name.endsWith('Component')
+    ) {
+      if (/^[A-Z]/.test(name)) return 'view';
+    }
+
+    // 3. Hooks
+    if (name.startsWith('use') && /^[A-Z]/.test(name.slice(3))) {
+      return 'hook';
+    }
+
+    // 4. Data Access / Repositories
+    if (
+      path.includes('/repositories/') ||
+      path.includes('/data-access/') ||
+      path.includes('/db/') ||
+      name.endsWith('Repository') ||
+      name.endsWith('Store') ||
+      name.endsWith('DAO')
+    ) {
+      return 'data_access';
+    }
+
+    // 5. Classes - specific roles
     if (structuralData.classes && structuralData.classes.length > 0) {
-      const className = structuralData.classes[0].name;
-      if (className.includes('Repository')) return 'data_access';
-      if (className.includes('Service')) return 'service';
-      if (className.includes('Controller') || className.includes('Handler'))
+      if (name.includes('Service')) return 'service';
+      if (name.includes('Controller') || name.includes('Handler'))
         return 'controller';
-      if (className.includes('Orchestrator')) return 'orchestrator';
+      if (name.includes('Orchestrator')) return 'orchestrator';
+      if (name.includes('Provider') || name.includes('Factory'))
+        return 'provider';
+      if (name.includes('Manager') || name.includes('Engine')) return 'service';
+      return 'component';
     }
+
+    // 6. Functions - specific roles
     if (structuralData.functions && structuralData.functions.length > 0) {
-      const functionName = structuralData.functions[0].name;
-      if (functionName.includes('Handler')) return 'controller';
-      if (functionName.includes('Util') || functionName.includes('Helper'))
+      if (name.includes('Handler')) return 'controller';
+      if (
+        path.includes('/utils/') ||
+        path.includes('/helpers/') ||
+        name.includes('Util') ||
+        name.includes('Helper')
+      ) {
         return 'utility';
+      }
+      if (path.includes('/services/')) return 'service';
+      if (path.includes('/logic/') || path.includes('/core/')) return 'service';
+      return 'utility';
     }
+
+    // 7. Interfaces / Types
+    if (structuralData.interfaces && structuralData.interfaces.length > 0) {
+      if (name.endsWith('Config') || name.endsWith('Options'))
+        return 'configuration';
+      return 'type';
+    }
+
+    // 8. Explicit type field from extraction
     if (structuralData.type) {
       if (structuralData.type.includes('Repository')) return 'data_access';
       if (structuralData.type.includes('Service')) return 'service';
@@ -640,6 +706,7 @@ export class StructuralPatternsManager implements PatternManager {
       )
         return 'controller';
       if (structuralData.type.includes('Orchestrator')) return 'orchestrator';
+      return 'type';
     }
 
     return 'component';
