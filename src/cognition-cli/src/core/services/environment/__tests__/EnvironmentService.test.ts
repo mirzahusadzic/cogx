@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { EnvironmentService } from '../EnvironmentService.js';
 import * as path from 'path';
+import * as fs from 'fs';
+import * as os from 'os';
 
 describe('EnvironmentService', () => {
   let service: EnvironmentService;
@@ -73,12 +75,18 @@ describe('EnvironmentService', () => {
   });
 
   it('should find project root by walking up', () => {
-    const cwd = service.getCwd();
-    // Assuming we are in a project that has .open_cognition at root
-    const root = service.findProjectRoot();
-    expect(root).not.toBeNull();
-    if (root) {
-      expect(cwd).toContain(root);
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'cognition-test-'));
+    try {
+      const pgcDir = path.join(tempRoot, '.open_cognition');
+      fs.mkdirSync(pgcDir);
+      const subDir = path.join(tempRoot, 'a', 'b');
+      fs.mkdirSync(subDir, { recursive: true });
+
+      const root = service.findProjectRoot(subDir);
+      expect(root).toBe(tempRoot);
+    } finally {
+      // Cleanup
+      fs.rmSync(tempRoot, { recursive: true, force: true });
     }
   });
 
