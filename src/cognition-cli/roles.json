@@ -6,7 +6,7 @@
       "priority": 110,
       "rules": [
         { "path": ".*/sigma/.*" },
-        { "name": ".*(Compressor|Reconstructor|Lattice|Context|Overlay).* " }
+        { "name": ".*(Compressor|Reconstructor|Lattice|Context|Overlay).*" }
       ],
       "description": "Conversation Lattice (O1-O7) components responsible for semantic context management, compression, and reconstruction."
     },
@@ -16,7 +16,7 @@
       "rules": [
         { "path": ".*/core/pgc/.*" },
         { "path": ".*/core/overlays/.*" },
-        { "name": ".*(PGC|Manager|Manifest|Pattern).* " }
+        { "name": ".*(PGC|Manager|Manifest|Pattern).*" }
       ],
       "description": "Project Lattice (PGC) components managing the Grounded Context Pool, structural patterns, and lineage overlays."
     },
@@ -25,7 +25,7 @@
       "priority": 100,
       "rules": [
         { "path": ".*/ipc/.*" },
-        { "name": ".*(Bus|Coordinator|Publisher|Subscriber|ZMQ).* " }
+        { "name": ".*(Bus|Coordinator|Publisher|Subscriber|ZMQ).*" }
       ],
       "description": "ZeroMQ-based IPC bus for cross-process coordination between the TUI, agents, and the context engine."
     },
@@ -35,7 +35,7 @@
       "rules": [
         { "path": ".*/core/algebra/.*" },
         { "path": ".*/core/graph/.*" },
-        { "name": ".*(Algebra|Graph|Lattice).* " }
+        { "name": ".*(Algebra|Graph|Lattice).*" }
       ],
       "description": "Mathematical foundations for lattice operations, graph theory, and semantic merging."
     },
@@ -44,7 +44,7 @@
       "priority": 90,
       "rules": [
         { "path": ".*/llm/.*" },
-        { "name": ".*(LLM|Provider|Adapter|Agent).* " }
+        { "name": ".*(LLM|Provider|Adapter|Agent).*" }
       ],
       "description": "LLM abstraction layer and provider implementations (Gemini, Claude, OpenAI)."
     },
@@ -55,12 +55,18 @@
         { "path": ".*/tui/.*" },
         { "path": ".*/components/.*" },
         { "path": ".*/views/.*" },
-        { "name": ".*(View|Component|Widget|Screen).* " }
+        { "name": ".*(View|Component|Widget|Screen|Options|Props).*" }
       ],
       "description": "React/Ink-based terminal user interface and visual workspace components."
     },
     {
-      "id": "command_cli",
+      "id": "tui_commands",
+      "priority": 86,
+      "rules": [{ "path": ".*/tui/commands/.*" }],
+      "description": "TUI-specific slash commands and loader logic."
+    },
+    {
+      "id": "cli_commands",
       "priority": 80,
       "rules": [{ "path": ".*/commands/.*" }, { "name": ".*Command$" }],
       "description": "CLI command definitions and entry points for the cognition-cli."
@@ -70,7 +76,7 @@
       "priority": 70,
       "rules": [
         { "path": ".*/services/.*" },
-        { "name": ".*(Service|Manager|Registry|Monitor).* " }
+        { "name": ".*(Service|Manager|Registry|Monitor).*" }
       ],
       "description": "General-purpose core services and system managers."
     },
@@ -79,7 +85,7 @@
       "priority": 65,
       "rules": [
         { "path": ".*/security/.*" },
-        { "name": ".*(Security|Integrity|Validator|Audit).* " }
+        { "name": ".*(Security|Integrity|Validator|Audit).*" }
       ],
       "description": "Security monitors, codebase integrity validators, and audit tools."
     },
@@ -89,7 +95,7 @@
       "rules": [
         { "path": ".*/db/.*" },
         { "path": ".*/repositories/.*" },
-        { "name": ".*(Store|Repository|DAO|Database).* " }
+        { "name": ".*(Store|Repository|DAO|Database).*" }
       ],
       "description": "Persistence layers, vector databases (LanceDB), and data access objects."
     },
@@ -99,7 +105,7 @@
       "rules": [
         { "path": ".*/utils/.*" },
         { "path": ".*/helpers/.*" },
-        { "name": ".*(Util|Helper|Support).* " }
+        { "name": ".*(Util|Helper|Support).*" }
       ],
       "description": "Shared utility functions, formatting helpers, and support logic."
     },
