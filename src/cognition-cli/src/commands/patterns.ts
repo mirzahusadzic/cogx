@@ -145,6 +145,7 @@ export function addPatternsCommands(program: Command) {
 
   const analyzeCommand = patternsCommand
     .command('analyze')
+    .argument('[role]', 'The ID of the architectural role to analyze')
     .description('Analyze architectural patterns across the codebase')
     .option(
       '--type <type>',
@@ -153,8 +154,8 @@ export function addPatternsCommands(program: Command) {
     )
     .option('-v, --verbose', 'Show detailed information including file paths')
     .option('--json', 'Output as JSON')
-    .action(async (options, command) => {
-      await analyzePatterns(options, command);
+    .action(async (role, options, command) => {
+      await analyzePatterns({ ...options, role }, command);
     });
 
   analyzeCommand
