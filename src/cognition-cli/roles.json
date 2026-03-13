@@ -2,6 +2,12 @@
   "description": "Architectural Role Classification Configuration for Cognition Σ. This file maps the codebase into its dual-lattice architecture (Conversation O1-O7 & Project PGC) to enable high-fidelity structural reasoning and pattern analysis.",
   "roles": [
     {
+      "id": "error_handling",
+      "priority": 115,
+      "rules": [{ "name": ".*Error$" }],
+      "description": "Exception types, error classes, and error handling logic."
+    },
+    {
       "id": "lattice_conversation",
       "priority": 110,
       "rules": [
@@ -55,7 +61,7 @@
         { "path": ".*/tui/.*" },
         { "path": ".*/components/.*" },
         { "path": ".*/views/.*" },
-        { "name": ".*(View|Component|Widget|Screen|Options|Props).*" }
+        { "name": ".*(View|Component|Widget|Screen|Props)$" }
       ],
       "description": "React/Ink-based terminal user interface and visual workspace components."
     },
@@ -115,13 +121,13 @@
       "rules": [
         { "path": ".*/types/.*" },
         { "path": ".*/interfaces/.*" },
-        { "name": ".*(Type|DTO|Interface|Enum|Error)$" }
+        { "name": ".*(Type|DTO|Interface|Enum)$" }
       ],
       "description": "TypeScript type definitions, interfaces, and domain models."
     },
     {
       "id": "configuration",
-      "priority": 30,
+      "priority": 75,
       "rules": [{ "path": ".*/config/.*" }, { "name": ".*(Config|Options)$" }],
       "description": "System configuration, environment settings, and runtime options."
     },

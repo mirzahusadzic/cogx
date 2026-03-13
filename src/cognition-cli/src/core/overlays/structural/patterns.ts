@@ -7,6 +7,7 @@ import os from 'os';
 
 import { PatternManager } from '../../pgc/patterns.js';
 import { PGCManager } from '../../pgc/manager.js';
+import { OverlayManifestEntry } from '../../pgc/overlays.js';
 import { LanceVectorStore, VectorRecord } from '../vector-db/lance-store.js';
 import { WorkbenchClient } from '../../executors/workbench-client.js';
 import { StructuralData } from '../../types/structural.js';
@@ -88,10 +89,10 @@ export interface PatternMetadata {
   validation: {
     sourceHash: string;
     embeddingModelVersion: typeof DEFAULT_EMBEDDING_MODEL_NAME;
-    extractionMethod: string;
-    fidelity: number;
+    extractionMethod?: string;
+    fidelity?: number;
   };
-  cpow: {
+  cpow?: {
     magnitude: number; // 0.0 - 1.0 scale of computational work
     computation: {
       extraction_method: string;
@@ -111,12 +112,29 @@ const PatternMetadataSchema = z.object({
   symbolStructuralDataHash: z.string(),
   embeddingHash: z.string(),
   structuralSignature: z.string(),
+  semanticSignature: z.string().optional(),
+  semanticEmbeddingHash: z.string().optional(),
+  semanticVectorId: z.string().optional(),
+  architecturalRole: z.string(),
   computedAt: z.string(),
   vectorId: z.string(),
   validation: z.object({
     sourceHash: z.string(),
     embeddingModelVersion: z.literal(DEFAULT_EMBEDDING_MODEL_NAME),
+    extractionMethod: z.string().optional(),
+    fidelity: z.number().optional(),
   }),
+  cpow: z
+    .object({
+      magnitude: z.number(),
+      computation: z.object({
+        extraction_method: z.string(),
+        embedding_model: z.string(),
+        api_calls: z.number(),
+      }),
+      timestamp: z.string(),
+    })
+    .optional(),
 });
 
 /**
@@ -142,6 +160,7 @@ interface StructuralMiningResult {
   signature?: string; // Structural signature (the body)
   semanticSignature?: string; // Semantic signature (the shadow)
   architecturalRole?: string;
+  rulesHash?: string; // Hash of classification rules at time of mining
   structuralData?: StructuralData;
   contentHash?: string;
   structuralHash?: string;
@@ -371,6 +390,195 @@ export class StructuralPatternsManager implements PatternManager {
   }
 
   /**
+   * Re-classify symbols without re-embedding.
+   * This is much faster than full regeneration when only role rules changed.
+   */
+  public async reclassifySymbols(
+    jobs: Array<{ symbolName: string; filePath: string; rulesHash: string }>,
+    onProgress?: (
+      current: number,
+      total: number,
+      message: string,
+      phase: string
+    ) => void
+  ): Promise<void> {
+    if (jobs.length === 0) return;
+
+    console.log(
+      chalk.blue(
+        `[StructuralPatterns] Re-classifying ${jobs.length} symbols without re-embedding...`
+      )
+    );
+
+    await this.vectorDB.initialize('structural_patterns');
+
+    // 1. Fetch ALL vectors once to avoid thousands of individual lookups
+    console.log(
+      chalk.gray(`[StructuralPatterns] Pre-loading vector database...`)
+    );
+    const allVectors = await this.vectorDB.getAllVectors();
+    const vectorMap = new Map<string, VectorRecord>();
+    for (const v of allVectors) {
+      vectorMap.set(v.id, v);
+    }
+
+    let processedCount = 0;
+    const manifestUpdates: Record<string, Partial<OverlayManifestEntry>> = {};
+    const vectorUpdates: Array<{
+      id: string;
+      embedding: number[];
+      metadata: Omit<VectorRecord, 'id' | 'embedding'>;
+    }> = [];
+
+    // Process in chunks to manage concurrency for metadata file I/O
+    const CHUNK_SIZE = 50;
+    for (let i = 0; i < jobs.length; i += CHUNK_SIZE) {
+      const chunk = jobs.slice(i, i + CHUNK_SIZE);
+
+      await Promise.all(
+        chunk.map(async (job) => {
+          const { symbolName, filePath, rulesHash } = job;
+          const overlayKey = `${filePath}#${symbolName}`;
+
+          try {
+            // 2. Get existing metadata (from JSON file)
+            const metadata = await this.pgc.overlays.get(
+              'structural_patterns',
+              overlayKey,
+              PatternMetadataSchema
+            );
+
+            if (!metadata) {
+              return;
+            }
+
+            // 3. Perform new classification
+            const newRole = this.roleClassifier.classify(symbolName, filePath);
+            const now = new Date().toISOString();
+
+            // 4. Update metadata object
+            const updatedMetadata: PatternMetadata = {
+              ...metadata,
+              architecturalRole: newRole,
+              computedAt: now,
+            };
+
+            // 5. Prepare vector updates (from memory map)
+            const existingVector = vectorMap.get(metadata.vectorId);
+            if (existingVector) {
+              vectorUpdates.push({
+                id: metadata.vectorId,
+                embedding: existingVector.embedding,
+                metadata: {
+                  symbol: symbolName,
+                  filePath: filePath,
+                  structuralHash: metadata.symbolStructuralDataHash,
+                  document_hash: metadata.symbolStructuralDataHash,
+                  structural_signature: metadata.structuralSignature,
+                  semantic_signature: metadata.semanticSignature || '',
+                  architectural_role: newRole,
+                  computed_at: now,
+                  lineage_hash:
+                    (existingVector.lineage_hash as string) || 'unknown',
+                  type: (existingVector.type as string) || 'structural',
+                },
+              });
+            }
+
+            if (metadata.semanticVectorId) {
+              const semanticVector = vectorMap.get(metadata.semanticVectorId);
+              if (semanticVector) {
+                vectorUpdates.push({
+                  id: metadata.semanticVectorId,
+                  embedding: semanticVector.embedding,
+                  metadata: {
+                    symbol: symbolName,
+                    filePath: filePath,
+                    structuralHash: metadata.symbolStructuralDataHash,
+                    document_hash: metadata.symbolStructuralDataHash,
+                    semantic_signature: metadata.semanticSignature || '',
+                    architectural_role: newRole,
+                    computed_at: now,
+                    lineage_hash:
+                      (semanticVector.lineage_hash as string) || 'unknown',
+                    type: 'semantic',
+                  },
+                });
+              }
+            }
+
+            // 6. Update overlay metadata file
+            await this.pgc.overlays.update(
+              'structural_patterns',
+              overlayKey,
+              updatedMetadata
+            );
+
+            // 7. Collect manifest update
+            manifestUpdates[symbolName] = {
+              filePath,
+              sourceHash: metadata.validation.sourceHash,
+              rulesHash,
+              lastUpdated: now,
+            };
+
+            processedCount++;
+            if (
+              processedCount === 1 ||
+              processedCount % 50 === 0 ||
+              processedCount === jobs.length
+            ) {
+              console.log(
+                chalk.gray(
+                  `[StructuralPatterns] Re-classified ${processedCount}/${jobs.length} symbols...`
+                )
+              );
+            }
+            if (onProgress) {
+              onProgress(
+                processedCount,
+                jobs.length,
+                `Re-classifying ${processedCount}/${jobs.length} symbols`,
+                'reclassification'
+              );
+            }
+          } catch (error) {
+            console.error(
+              chalk.red(
+                `[StructuralPatterns] Failed to re-classify ${symbolName}: ${(error as Error).message}`
+              )
+            );
+          }
+        })
+      );
+    }
+
+    // 8. Batch store all vector updates (Massive speedup: 1 mergeInsert instead of 1000)
+    if (vectorUpdates.length > 0) {
+      console.log(
+        chalk.gray(
+          `[StructuralPatterns] Saving ${vectorUpdates.length} vector updates to database...`
+        )
+      );
+      await this.vectorDB.batchStoreVectors(vectorUpdates);
+    }
+
+    // 9. Perform batch manifest update
+    if (Object.keys(manifestUpdates).length > 0) {
+      await this.pgc.overlays.batchUpdateManifest(
+        'structural_patterns',
+        manifestUpdates
+      );
+    }
+
+    console.log(
+      chalk.green(
+        `[StructuralPatterns] Re-classification complete: ${processedCount} succeeded.`
+      )
+    );
+  }
+
+  /**
    * Generate DUAL embeddings (structural + semantic) and store pattern for a single mined result
    * The structural embedding captures the architecture (the body)
    * The semantic embedding captures the meaning (the shadow)
@@ -384,6 +592,7 @@ export class StructuralPatternsManager implements PatternManager {
       signature,
       semanticSignature,
       architecturalRole,
+      rulesHash,
       structuralData,
       contentHash,
       structuralHash,
@@ -520,6 +729,7 @@ export class StructuralPatternsManager implements PatternManager {
     await this.pgc.overlays.updateManifest('structural_patterns', symbolName, {
       filePath,
       sourceHash: contentHash,
+      rulesHash,
       lastUpdated: new Date().toISOString(),
     });
 

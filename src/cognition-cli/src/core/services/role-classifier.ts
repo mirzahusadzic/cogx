@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import crypto from 'crypto';
 
 export interface RoleRule {
   path?: string;
@@ -133,6 +134,17 @@ export class RoleClassifier {
 
   public getConfig(): RoleClassificationConfig {
     return this.config;
+  }
+
+  /**
+   * Get a stable hash of the current classification rules.
+   * Used for incremental update change detection.
+   */
+  public getRulesHash(): string {
+    return crypto
+      .createHash('sha256')
+      .update(JSON.stringify(this.config), 'utf8')
+      .digest('hex');
   }
 
   public classify(symbolName: string, filePath: string): string {

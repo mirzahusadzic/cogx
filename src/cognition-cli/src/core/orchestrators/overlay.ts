@@ -297,6 +297,11 @@ export class OverlayOrchestrator extends BaseOrchestrator {
     const useJson = actualOptions.useJson || false;
     const onProgress = actualOptions.onProgress as ProgressCallback | undefined;
 
+    // Get current rules hash for incremental logic
+    const rulesHash = this.structuralPatternManager
+      .getClassifier()
+      .getRulesHash();
+
     // Initialize progress handling
     this.setProgressHandler(onProgress);
     if (useJson) this.useSpinner = false;
@@ -477,8 +482,15 @@ export class OverlayOrchestrator extends BaseOrchestrator {
         force: boolean;
       }> = [];
 
+      const reclassificationJobs: Array<{
+        symbolName: string;
+        filePath: string;
+        rulesHash: string;
+      }> = [];
+
       // Pre-load manifest for incremental filtering
       const manifest = await this.pgc.overlays.getManifest(actualType);
+      const discoveredSymbols = new Set<string>();
 
       for (let i = 0; i < allFiles.length; i += BATCH_SIZE) {
         const batch = allFiles.slice(i, i + BATCH_SIZE);
@@ -542,35 +554,46 @@ export class OverlayOrchestrator extends BaseOrchestrator {
           }
 
           // Helper function to check if symbol needs processing
-          const needsProcessing = (symbolName: string): boolean => {
-            if (force) return true;
+          const getJobType = (
+            symbolName: string
+          ): { needsFull: boolean; needsReclassify: boolean } => {
+            if (force) return { needsFull: true, needsReclassify: false };
 
             const manifestEntry = manifest[symbolName];
-            if (!manifestEntry) return true; // New symbol
+            if (!manifestEntry)
+              return { needsFull: true, needsReclassify: false }; // New symbol
 
             const parsedEntry =
               this.pgc.overlays.parseManifestEntry(manifestEntry);
 
             // If old format or no sourceHash, needs processing
             if (parsedEntry.needsMigration || !parsedEntry.sourceHash) {
-              return true;
+              return { needsFull: true, needsReclassify: false };
             }
 
             // Check if sourceHash changed (content changed)
             if (parsedEntry.sourceHash !== contentHash) {
-              return true;
+              return { needsFull: true, needsReclassify: false };
             }
 
             // Check if file path changed (symbol moved)
             if (parsedEntry.filePath !== file.relativePath) {
-              return true;
+              return { needsFull: true, needsReclassify: false };
             }
 
-            return false; // Symbol unchanged, skip processing
+            // Check if classification rules changed (roles.json changed)
+            // If only rules changed, we only need to reclassify, not re-embed
+            if (!parsedEntry.rulesHash || parsedEntry.rulesHash !== rulesHash) {
+              return { needsFull: false, needsReclassify: true };
+            }
+
+            return { needsFull: false, needsReclassify: false }; // Symbol unchanged, skip processing
           };
 
           structuralData!.classes?.forEach((c) => {
-            if (needsProcessing(c.name)) {
+            discoveredSymbols.add(c.name);
+            const { needsFull, needsReclassify } = getJobType(c.name);
+            if (needsFull) {
               allJobs.push({
                 projectRoot: this.projectRoot,
                 symbolName: c.name,
@@ -580,13 +603,21 @@ export class OverlayOrchestrator extends BaseOrchestrator {
                 structuralData: structuralData!,
                 force,
               });
+            } else if (needsReclassify) {
+              reclassificationJobs.push({
+                symbolName: c.name,
+                filePath: file.relativePath,
+                rulesHash,
+              });
             } else {
               incrementalSkipCount++;
             }
           });
 
           structuralData!.functions?.forEach((f) => {
-            if (needsProcessing(f.name)) {
+            discoveredSymbols.add(f.name);
+            const { needsFull, needsReclassify } = getJobType(f.name);
+            if (needsFull) {
               allJobs.push({
                 projectRoot: this.projectRoot,
                 symbolName: f.name,
@@ -596,13 +627,21 @@ export class OverlayOrchestrator extends BaseOrchestrator {
                 structuralData: structuralData!,
                 force,
               });
+            } else if (needsReclassify) {
+              reclassificationJobs.push({
+                symbolName: f.name,
+                filePath: file.relativePath,
+                rulesHash,
+              });
             } else {
               incrementalSkipCount++;
             }
           });
 
           structuralData!.interfaces?.forEach((i) => {
-            if (needsProcessing(i.name)) {
+            discoveredSymbols.add(i.name);
+            const { needsFull, needsReclassify } = getJobType(i.name);
+            if (needsFull) {
               allJobs.push({
                 projectRoot: this.projectRoot,
                 symbolName: i.name,
@@ -611,6 +650,12 @@ export class OverlayOrchestrator extends BaseOrchestrator {
                 structuralHash,
                 structuralData: structuralData!,
                 force,
+              });
+            } else if (needsReclassify) {
+              reclassificationJobs.push({
+                symbolName: i.name,
+                filePath: file.relativePath,
+                rulesHash,
               });
             } else {
               incrementalSkipCount++;
@@ -685,6 +730,19 @@ export class OverlayOrchestrator extends BaseOrchestrator {
           )
         );
 
+        // Phase 2: Handle re-classification jobs (no re-embedding needed)
+        if (reclassificationJobs.length > 0) {
+          this.logInfo(
+            chalk.cyan(
+              `\n[Overlay] Re-classifying ${reclassificationJobs.length} patterns (rules changed)...`
+            )
+          );
+          await this.structuralPatternManager.reclassifySymbols(
+            reclassificationJobs,
+            onProgress
+          );
+        }
+
         // Deduplicate vectors (keep most recent by computed_at)
         // Only needed when --force creates duplicates, skip if --skip-gc
         if (force && !skipGc) {
@@ -702,6 +760,72 @@ export class OverlayOrchestrator extends BaseOrchestrator {
           this.logInfo(
             'Transform: Vector deduplication skipped (--skip-gc flag).'
           );
+        }
+
+        // Monument 4.9: Clean up stale manifest entries and vectors
+        // Only if we discovered all files (not a partial run)
+        if (!force && !actualOptions.force) {
+          const manifestSymbols = Object.keys(manifest);
+          const staleSymbols = manifestSymbols.filter(
+            (s) => !discoveredSymbols.has(s)
+          );
+
+          if (staleSymbols.length > 0) {
+            this.logStep(
+              `\n[Overlay] Cleaning up ${staleSymbols.length} stale symbols from manifest...`
+            );
+            for (const symbol of staleSymbols) {
+              const parsed = this.pgc.overlays.parseManifestEntry(
+                manifest[symbol]
+              );
+              const filePath = parsed.filePath;
+
+              if (filePath) {
+                // Delete overlay metadata
+                const overlayKey = `${filePath}#${symbol}`;
+                await this.pgc.overlays.update(
+                  'structural_patterns',
+                  overlayKey,
+                  null
+                );
+              }
+
+              // Robust cleanup: Delete ALL vectors for this symbol from LanceDB
+              // This handles duplicates and ensures the Oracle is happy.
+              await this.vectorDB.delete(
+                `symbol = '${symbol.replace(/'/g, "''")}'`
+              );
+
+              // Delete manifest entry
+              await this.pgc.overlays.deleteManifestEntry(
+                'structural_patterns',
+                symbol
+              );
+            }
+            this.logSuccess(
+              `[Overlay] Cleaned up ${staleSymbols.length} stale symbols.`
+            );
+          }
+
+          // Monument 4.9.5: Clean up orphaned vectors (In DB but NOT in manifest)
+          // This fixes the MANIFEST INCOMPLETE error
+          const allVectors = await this.vectorDB.getAllVectors();
+          const vectorSymbols = new Set(allVectors.map((v) => v.symbol));
+          const orphanedSymbols = [...vectorSymbols].filter(
+            (s) =>
+              s && !discoveredSymbols.has(s as string) && !manifest[s as string]
+          );
+
+          if (orphanedSymbols.length > 0) {
+            this.logStep(
+              `[Overlay] Cleaning up ${orphanedSymbols.length} orphaned vectors missing from manifest...`
+            );
+            for (const symbol of orphanedSymbols) {
+              await this.vectorDB.delete(
+                `symbol = '${(symbol as string).replace(/'/g, "''")}'`
+              );
+            }
+          }
         }
 
         // Verify the structural patterns overlay after generation

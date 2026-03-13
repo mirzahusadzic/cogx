@@ -32,6 +32,7 @@ interface StructuralMiningResult {
   signature?: string; // Structural signature (the body)
   semanticSignature?: string; // Semantic signature (the shadow)
   architecturalRole?: string;
+  rulesHash?: string; // Rules hash for change detection
   structuralData?: StructuralData;
   contentHash?: string;
   structuralHash?: string;
@@ -39,19 +40,6 @@ interface StructuralMiningResult {
 }
 
 // Helper functions (duplicated to keep worker self-contained)
-
-/**
- * Infer architectural role from a SPECIFIC symbol, not the entire file
- */
-function inferArchitecturalRole(
-  symbolName: string,
-  _structuralData: StructuralData,
-  filePath: string,
-  projectRoot: string
-): string {
-  const classifier = getClassifier(projectRoot);
-  return classifier.classify(symbolName, filePath);
-}
 
 /**
  * Generate semantic signature for mission coherence alignment
@@ -198,18 +186,14 @@ async function processStructuralPattern(
       };
     }
 
-    // Mine the pattern: generate BOTH signatures and infer role for THIS SPECIFIC SYMBOL
+    const classifier = getClassifier(job.projectRoot);
     const signature = generateStructuralSignature(symbolName, structuralData);
     const semanticSignature = generateSemanticSignature(
       symbolName,
       structuralData
     );
-    const architecturalRole = inferArchitecturalRole(
-      symbolName,
-      structuralData,
-      filePath,
-      job.projectRoot
-    );
+    const architecturalRole = classifier.classify(symbolName, filePath);
+    const rulesHash = classifier.getRulesHash();
 
     return {
       status: 'success',
@@ -219,6 +203,7 @@ async function processStructuralPattern(
       signature,
       semanticSignature, // The Shadow
       architecturalRole,
+      rulesHash,
       structuralData,
       contentHash,
       structuralHash,

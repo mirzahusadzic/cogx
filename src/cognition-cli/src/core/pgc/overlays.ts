@@ -184,6 +184,55 @@ export class Overlays {
   }
 
   /**
+   * Update multiple manifest entries at once (batch mode)
+   * @param overlayType - The type of overlay
+   * @param entries - Record of symbol names to manifest entries
+   */
+  async batchUpdateManifest(
+    overlayType: string,
+    entries: Record<string, Partial<OverlayManifestEntry>>
+  ): Promise<void> {
+    const manifestPath = path.join(
+      this.getOverlayPath(overlayType),
+      'manifest.json'
+    );
+
+    let release;
+    try {
+      await fs.ensureDir(path.dirname(manifestPath));
+      if (await fs.pathExists(manifestPath)) {
+        release = await lock(manifestPath, {
+          retries: 5,
+          stale: 5000,
+          realpath: false,
+        });
+      }
+
+      let manifest: Record<string, ManifestEntryRaw> = {};
+      if (await fs.pathExists(manifestPath)) {
+        manifest = await fs.readJSON(manifestPath);
+      }
+
+      for (const [symbolName, entryData] of Object.entries(entries)) {
+        const existing = manifest[symbolName];
+        const existingData =
+          typeof existing === 'string' ? { filePath: existing } : existing;
+
+        manifest[symbolName] = {
+          ...(existingData as Record<string, unknown>),
+          ...entryData,
+        } as OverlayManifestEntry;
+      }
+
+      await fs.writeJSON(manifestPath, manifest, { spaces: 2 });
+    } finally {
+      if (release) {
+        await release();
+      }
+    }
+  }
+
+  /**
    * Remove an entry from the manifest
    * @param overlayType - The type of overlay
    * @param symbolName - The symbol/entry name to remove
@@ -252,6 +301,7 @@ export class Overlays {
   public parseManifestEntry(entry: ManifestEntryRaw): {
     filePath?: string;
     sourceHash?: string;
+    rulesHash?: string;
     documentHash?: string;
     sourceFile?: string;
     dependencies?: Record<string, string>;
