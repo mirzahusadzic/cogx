@@ -7,6 +7,7 @@ These commands integrate cognition-cli's lattice algebra system with Claude Code
 ### Project Setup
 
 - **`/onboard-project`** - Create strategic documentation for new project (VISION.md, CODING_PRINCIPLES.md)
+- **`/onboard-roles`** - Discover architectural patterns and create tailored roles.json for the repository
 
 ### Quest Management
 
@@ -69,19 +70,14 @@ The Cognition CLI TUI (Σ SIGMA CLI) supports all commands in this directory via
 
 ## Usage
 
-### Starting a New Quest
+### Starting a New Project
 
 ```
-/quest-start "Implement user authentication with JWT tokens"
+/onboard-project
+/onboard-roles
 ```
 
-This will:
-
-- Check baseline coherence
-- Find relevant security patterns
-- Identify similar implementations
-- List security requirements
-- Provide recommended approach
+`/onboard-project` helps create the core vision and principles, while `/onboard-roles` ensures the architectural mapping matches your project's specific layers.
 
 ### During Development
 
