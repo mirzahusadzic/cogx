@@ -143,7 +143,7 @@ export function addPatternsCommands(program: Command) {
       }
     });
 
-  patternsCommand
+  const analyzeCommand = patternsCommand
     .command('analyze')
     .description('Analyze architectural patterns across the codebase')
     .option(
@@ -154,155 +154,43 @@ export function addPatternsCommands(program: Command) {
     .option('-v, --verbose', 'Show detailed information including file paths')
     .option('--json', 'Output as JSON')
     .action(async (options, command) => {
-      const isVerbose = getVerboseState(options);
+      await analyzePatterns(options, command);
+    });
+
+  analyzeCommand
+    .command('roles')
+    .description('List all architectural roles and their descriptions')
+    .option('--json', 'Output as JSON')
+    .action(async (options) => {
       const pgc = new PGCManager(process.cwd());
       const classifier = RoleClassifier.loadFromProject(pgc.projectRoot);
       const roleConfig = classifier.getConfig();
 
-      const allOpts = command.optsWithGlobals();
-      const useJson = allOpts.json || options.json;
-
-      // Monument 4.8: Manifest as Source of Truth
-      // Read manifest first to determine which patterns should exist
-      const manifest = await pgc.overlays.getManifest(
-        `${options.type}_patterns`
-      );
-
-      if (!manifest || Object.keys(manifest).length === 0) {
-        if (!useJson) {
-          console.log(
-            chalk.yellow(`\nNo ${options.type} patterns found in manifest.`)
-          );
-          console.log(
-            chalk.dim(
-              `Run: cognition-cli overlay generate ${options.type}_patterns`
-            )
-          );
-        }
+      if (options.json) {
+        console.log(JSON.stringify(roleConfig.roles, null, 2));
         return;
       }
 
-      const vectorDB = new LanceVectorStore(pgc.pgcRoot);
-      const tableName = `${options.type}_patterns`;
-      await vectorDB.initialize(tableName);
-
-      // Group by architectural role with symbols and file paths
-      // Only include symbols that are in the manifest (source of truth)
-      const roleGroups: Record<
-        string,
-        Array<{ symbol: string; filePath: string }>
-      > = {};
-      let totalPatterns = 0;
-      let staleVectors = 0;
-
-      // Get all vectors at once (much faster than calling getVectorForSymbol 711 times)
-      const allVectors = await vectorDB.getAllVectors();
-      const vectorsBySymbol = new Map(
-        allVectors.map((v) => [v.symbol as string, v])
-      );
-
-      for (const [symbol, manifestEntry] of Object.entries(manifest)) {
-        // Parse manifest entry using utility
-        const parsed = pgc.overlays.parseManifestEntry(manifestEntry);
-        const filePath = parsed.filePath || '';
-
-        // Check if vector exists for this symbol
-        const vector = vectorsBySymbol.get(symbol);
-
-        if (vector) {
-          const role = (vector.architectural_role as string) || 'unknown';
-          if (!roleGroups[role]) {
-            roleGroups[role] = [];
-          }
-          roleGroups[role].push({ symbol, filePath });
-          totalPatterns++;
-        } else {
-          // Symbol in manifest but not in vector DB - will be generated on next overlay run
-          staleVectors++;
-        }
-      }
-
-      const sortedRoles = Object.entries(roleGroups).sort(
-        ([, a], [, b]) => b.length - a.length
-      );
-
-      if (useJson) {
-        console.log(
-          JSON.stringify(
-            {
-              type: options.type,
-              totalPatterns,
-              roles: sortedRoles.map(([role, symbols]) => {
-                const config = roleConfig.roles.find((r) => r.id === role);
-                return {
-                  role,
-                  description: config?.description,
-                  count: symbols.length,
-                  symbols: symbols.map((s) => ({
-                    symbol: s.symbol,
-                    filePath: s.filePath,
-                  })),
-                };
-              }),
-              staleVectors,
-            },
-            null,
-            2
-          )
-        );
-        return;
-      }
-
-      for (const [role, symbols] of sortedRoles) {
-        const count = symbols.length;
-        const config = roleConfig.roles.find((r) => r.id === role);
-        const bar = '▓'.repeat(Math.min(count, 50));
-        console.log(
-          `\n${chalk.cyan(role.padEnd(20))} ${bar} ${chalk.bold(count)}`
-        );
-        if (config?.description) {
-          console.log(chalk.dim(`  ${config.description}`));
-        }
-
-        if (isVerbose) {
-          // Show first 5 symbols in this role
-          const displayCount = Math.min(5, symbols.length);
-          for (let i = 0; i < displayCount; i++) {
-            const { symbol, filePath } = symbols[i];
-            console.log(chalk.dim(`  ${i + 1}. ${symbol} - ${filePath}`));
-          }
-          if (symbols.length > 5) {
-            console.log(chalk.dim(`  ... and ${symbols.length - 5} more`));
-          }
-        }
-      }
-
-      // Show summary statistics
-      console.log(chalk.bold('\n📈 Summary:'));
-      console.log(`  Total patterns: ${totalPatterns}`);
-      console.log(`  Unique roles: ${sortedRoles.length}`);
+      console.log(chalk.bold('\nArchitectural Roles:\n'));
+      roleConfig.roles.forEach((role) => {
+        console.log(`${chalk.cyan(role.id.padEnd(25))} ${role.description}`);
+      });
       console.log(
-        `  Most common role: ${chalk.cyan(sortedRoles[0]?.[0])} (${sortedRoles[0]?.[1].length})`
+        chalk.dim('\nUse `patterns analyze role <role>` for detailed analysis')
       );
+    });
 
-      if (staleVectors > 0) {
-        console.log(
-          chalk.yellow(
-            `  ⚠️  ${staleVectors} patterns in manifest but not in vector DB`
-          )
-        );
-        console.log(
-          chalk.dim(
-            `     Run: cognition-cli overlay generate ${options.type}_patterns --force`
-          )
-        );
-      }
-
-      if (!isVerbose) {
-        console.log(
-          chalk.dim('\n💡 Use -v, --verbose to see file paths for each role')
-        );
-      }
+  analyzeCommand
+    .command('role <roleId>')
+    .description('Detailed analysis of a specific architectural role')
+    .option(
+      '--type <type>',
+      "The type of patterns to analyze ('structural' or 'lineage')",
+      'structural'
+    )
+    .option('--json', 'Output as JSON')
+    .action(async (roleId, options, command) => {
+      await analyzePatterns({ ...options, role: roleId }, command);
     });
 
   patternsCommand
@@ -851,4 +739,189 @@ export function addPatternsCommands(program: Command) {
         )
       );
     });
+}
+
+/**
+ * Shared logic for analyzing architectural patterns
+ */
+async function analyzePatterns(
+  options: {
+    type?: string;
+    json?: boolean;
+    verbose?: boolean;
+    role?: string;
+  },
+  command: Command
+) {
+  const isVerbose = getVerboseState(options as Record<string, unknown>);
+  const pgc = new PGCManager(process.cwd());
+  const classifier = RoleClassifier.loadFromProject(pgc.projectRoot);
+  const roleConfig = classifier.getConfig();
+
+  const allOpts = command.optsWithGlobals();
+  const useJson = allOpts.json || options.json;
+  const targetRole = options.role;
+
+  // Monument 4.8: Manifest as Source of Truth
+  const manifest = await pgc.overlays.getManifest(`${options.type}_patterns`);
+
+  if (!manifest || Object.keys(manifest).length === 0) {
+    if (!useJson) {
+      console.log(
+        chalk.yellow(`\nNo ${options.type} patterns found in manifest.`)
+      );
+      console.log(
+        chalk.dim(
+          `Run: cognition-cli overlay generate ${options.type}_patterns`
+        )
+      );
+    }
+    return;
+  }
+
+  const vectorDB = new LanceVectorStore(pgc.pgcRoot);
+  const tableName = `${options.type}_patterns`;
+  await vectorDB.initialize(tableName);
+
+  const roleGroups: Record<
+    string,
+    Array<{ symbol: string; filePath: string }>
+  > = {};
+  let totalPatterns = 0;
+  let staleVectors = 0;
+
+  const allVectors = await vectorDB.getAllVectors();
+  const vectorsBySymbol = new Map(
+    allVectors.map((v) => [v.symbol as string, v])
+  );
+
+  for (const [symbol, manifestEntry] of Object.entries(manifest)) {
+    const parsed = pgc.overlays.parseManifestEntry(manifestEntry);
+    const filePath = parsed.filePath || '';
+    const vector = vectorsBySymbol.get(symbol);
+
+    if (vector) {
+      const role = (vector.architectural_role as string) || 'unknown';
+      if (!roleGroups[role]) {
+        roleGroups[role] = [];
+      }
+      roleGroups[role].push({ symbol, filePath });
+      totalPatterns++;
+    } else {
+      staleVectors++;
+    }
+  }
+
+  let filteredRoles = Object.entries(roleGroups);
+  if (targetRole) {
+    filteredRoles = filteredRoles.filter(([role]) => role === targetRole);
+    if (filteredRoles.length === 0) {
+      if (!useJson) {
+        console.log(chalk.red(`\nUnknown role: ${targetRole}`));
+        const availableRoles = Object.keys(roleGroups).sort();
+        console.log(chalk.dim(`Available roles: ${availableRoles.join(', ')}`));
+      } else {
+        console.log(
+          JSON.stringify({ error: `Role '${targetRole}' not found` })
+        );
+      }
+      return;
+    }
+  }
+
+  const sortedRoles = filteredRoles.sort(([, a], [, b]) => b.length - a.length);
+
+  if (useJson) {
+    console.log(
+      JSON.stringify(
+        {
+          type: options.type,
+          role: targetRole,
+          totalPatterns: targetRole ? sortedRoles[0][1].length : totalPatterns,
+          roles: sortedRoles.map(([role, symbols]) => {
+            const config = roleConfig.roles.find((r) => r.id === role);
+            return {
+              role,
+              description: config?.description,
+              count: symbols.length,
+              symbols: symbols.map((s) => ({
+                symbol: s.symbol,
+                filePath: s.filePath,
+              })),
+            };
+          }),
+          staleVectors: targetRole ? 0 : staleVectors,
+        },
+        null,
+        2
+      )
+    );
+    return;
+  }
+
+  if (targetRole) {
+    const [role, symbols] = sortedRoles[0];
+    const config = roleConfig.roles.find((r) => r.id === role);
+    console.log(chalk.bold(`\nAnalysis for Role: ${chalk.cyan(role)}`));
+    if (config?.description) {
+      console.log(chalk.dim(`${config.description}\n`));
+    }
+    console.log(`Total symbols: ${chalk.bold(symbols.length)}`);
+    console.log(chalk.bold('\nSymbols:'));
+    symbols.forEach(({ symbol, filePath }, i) => {
+      console.log(chalk.dim(`  ${i + 1}. ${symbol} - ${filePath}`));
+    });
+  } else {
+    for (const [role, symbols] of sortedRoles) {
+      const count = symbols.length;
+      const config = roleConfig.roles.find((r) => r.id === role);
+      const bar = '▓'.repeat(Math.min(count, 50));
+      console.log(
+        `\n${chalk.cyan(role.padEnd(20))} ${bar} ${chalk.bold(count)}`
+      );
+      if (config?.description) {
+        console.log(chalk.dim(`  ${config.description}`));
+      }
+
+      if (isVerbose) {
+        const displayCount = Math.min(5, symbols.length);
+        for (let i = 0; i < displayCount; i++) {
+          const { symbol, filePath } = symbols[i];
+          console.log(chalk.dim(`  ${i + 1}. ${symbol} - ${filePath}`));
+        }
+        if (symbols.length > 5) {
+          console.log(chalk.dim(`  ... and ${symbols.length - 5} more`));
+        }
+      }
+    }
+
+    console.log(chalk.bold('\n📈 Summary:'));
+    console.log(`  Total patterns: ${totalPatterns}`);
+    console.log(`  Unique roles: ${sortedRoles.length}`);
+    console.log(
+      `  Most common role: ${chalk.cyan(sortedRoles[0]?.[0])} (${sortedRoles[0]?.[1].length})`
+    );
+
+    if (staleVectors > 0) {
+      console.log(
+        chalk.yellow(
+          `  ⚠️  ${staleVectors} patterns in manifest but not in vector DB`
+        )
+      );
+      console.log(
+        chalk.dim(
+          `     Run: cognition-cli overlay generate ${options.type}_patterns --force`
+        )
+      );
+    }
+
+    if (!isVerbose) {
+      console.log(
+        chalk.dim('\n💡 Use -v, --verbose to see file paths for each role')
+      );
+      console.log(
+        chalk.dim('💡 Use `patterns analyze role <role>` for full symbol list')
+      );
+    }
+  }
 }

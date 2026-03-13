@@ -756,9 +756,20 @@ _cognition_cli() {
             '2:type:(structural_patterns security_guidelines lineage_patterns mission_concepts operational_patterns mathematical_proofs strategic_coherence all)'
           ;;
         patterns)
-          _arguments \
+          _arguments -C \
             '--json[Output as JSON]' \
-            '1:subcommand:(find-similar compare analyze inspect list graph)'
+            '1:subcommand:(find-similar compare analyze inspect list graph)' \
+            '*:: :->patterns_args'
+
+          case $state in
+            patterns_args)
+              case $words[1] in
+                analyze)
+                  _arguments '1:subcommand:(roles role)'
+                  ;;
+              esac
+              ;;
+          esac
           ;;
         concepts)
           _arguments \
@@ -833,15 +844,6 @@ _cognition_cli() {
                 '1:subcommand:(theorems lemmas list aligned)'
               ;;
           esac
-          ;;
-        patterns)
-          _arguments '1:subcommand:(find-similar compare analyze inspect list graph)'
-          ;;
-        concepts)
-          _arguments '1:subcommand:(list search by-section inspect top)'
-          ;;
-        coherence)
-          _arguments '1:subcommand:(report aligned drifted list)'
           ;;
         audit)
           _arguments \
@@ -972,6 +974,7 @@ complete -c cognition-cli -n "__fish_seen_subcommand_from workflow" -l json -d "
 
 # Patterns subcommands
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from patterns" -a "find-similar compare analyze inspect list graph"
+complete -c cognition-cli -f -n "__fish_seen_subcommand_from patterns; and __fish_seen_subcommand_from analyze" -a "roles role"
 complete -c cognition-cli -n "__fish_seen_subcommand_from patterns" -l json -d "Output as JSON"
 
 # Concepts subcommands
