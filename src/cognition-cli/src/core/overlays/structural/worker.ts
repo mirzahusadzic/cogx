@@ -1,6 +1,19 @@
 import * as workerpool from 'workerpool';
 import { PGCManager } from '../../pgc/manager.js';
 import { StructuralData } from '../../types/structural.js';
+import { RoleClassifier } from '../../services/role-classifier.js';
+
+let cachedClassifier: RoleClassifier | null = null;
+let cachedProjectRoot: string | null = null;
+
+function getClassifier(projectRoot: string): RoleClassifier {
+  if (cachedClassifier && cachedProjectRoot === projectRoot) {
+    return cachedClassifier;
+  }
+  cachedProjectRoot = projectRoot;
+  cachedClassifier = RoleClassifier.loadFromProject(projectRoot);
+  return cachedClassifier;
+}
 
 interface StructuralJobPacket {
   projectRoot: string;
@@ -32,103 +45,12 @@ interface StructuralMiningResult {
  */
 function inferArchitecturalRole(
   symbolName: string,
-  structuralData: StructuralData,
-  filePath: string
+  _structuralData: StructuralData,
+  filePath: string,
+  projectRoot: string
 ): string {
-  const name = symbolName;
-  const path = filePath.toLowerCase();
-
-  // Find the specific symbol in the structural data
-  const targetClass = structuralData.classes?.find((c) => c.name === name);
-  const targetFunction = structuralData.functions?.find((f) => f.name === name);
-  const targetInterface = structuralData.interfaces?.find(
-    (i) => i.name === name
-  );
-
-  // 1. Commands (CLI or Internal)
-  if (path.includes('/commands/') || name.endsWith('Command')) {
-    return 'command';
-  }
-
-  // 2. UI Components / Views
-  if (
-    path.includes('/tui/') ||
-    path.includes('/components/') ||
-    path.includes('/views/') ||
-    name.endsWith('View') ||
-    name.endsWith('Component')
-  ) {
-    // React components usually start with Uppercase
-    if (/^[A-Z]/.test(name)) return 'view';
-  }
-
-  // 3. Hooks
-  if (name.startsWith('use') && /^[A-Z]/.test(name.slice(3))) {
-    return 'hook';
-  }
-
-  // 4. Data Access / Repositories
-  if (
-    path.includes('/repositories/') ||
-    path.includes('/data-access/') ||
-    path.includes('/db/') ||
-    name.endsWith('Repository') ||
-    name.endsWith('Store') ||
-    name.endsWith('DAO')
-  ) {
-    return 'data_access';
-  }
-
-  // 5. Classes - specific roles
-  if (targetClass) {
-    if (name.includes('Service')) return 'service';
-    if (name.includes('Controller') || name.includes('Handler'))
-      return 'controller';
-    if (name.includes('Orchestrator')) return 'orchestrator';
-    if (name.includes('Provider') || name.includes('Factory'))
-      return 'provider';
-    if (name.includes('Manager') || name.includes('Engine')) return 'service';
-    return 'component';
-  }
-
-  // 6. Functions - specific roles
-  if (targetFunction) {
-    if (name.includes('Handler')) return 'controller';
-    if (
-      path.includes('/utils/') ||
-      path.includes('/helpers/') ||
-      name.includes('Util') ||
-      name.includes('Helper')
-    ) {
-      return 'utility';
-    }
-    if (path.includes('/services/')) return 'service';
-    if (path.includes('/logic/') || path.includes('/core/')) return 'service';
-
-    // Default to utility for functions unless they are in a known architectural path
-    return 'utility';
-  }
-
-  // 7. Interfaces / Types
-  if (targetInterface) {
-    if (name.endsWith('Config') || name.endsWith('Options'))
-      return 'configuration';
-    if (
-      name.endsWith('Data') ||
-      name.endsWith('Request') ||
-      name.endsWith('Response') ||
-      name.endsWith('Result') ||
-      name.endsWith('DTO') ||
-      path.includes('/types/') ||
-      path.includes('/interfaces/') ||
-      path.includes('/models/')
-    ) {
-      return 'type';
-    }
-    return 'type';
-  }
-
-  return 'component';
+  const classifier = getClassifier(projectRoot);
+  return classifier.classify(symbolName, filePath);
 }
 
 /**
@@ -285,7 +207,8 @@ async function processStructuralPattern(
     const architecturalRole = inferArchitecturalRole(
       symbolName,
       structuralData,
-      filePath
+      filePath,
+      job.projectRoot
     );
 
     return {

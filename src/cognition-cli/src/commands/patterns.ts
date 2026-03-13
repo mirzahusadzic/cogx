@@ -58,6 +58,7 @@ import {
 import { WorkbenchClient } from '../core/executors/workbench-client.js';
 import { StructuralPatternsManager } from '../core/overlays/structural/patterns.js';
 import { LineagePatternsManager } from '../core/overlays/lineage/manager.js';
+import { RoleClassifier } from '../core/services/role-classifier.js';
 import chalk from 'chalk';
 import { z } from 'zod';
 
@@ -155,6 +156,8 @@ export function addPatternsCommands(program: Command) {
     .action(async (options, command) => {
       const isVerbose = getVerboseState(options);
       const pgc = new PGCManager(process.cwd());
+      const classifier = RoleClassifier.loadFromProject(pgc.projectRoot);
+      const roleConfig = classifier.getConfig();
 
       const allOpts = command.optsWithGlobals();
       const useJson = allOpts.json || options.json;
@@ -229,14 +232,18 @@ export function addPatternsCommands(program: Command) {
             {
               type: options.type,
               totalPatterns,
-              roles: sortedRoles.map(([role, symbols]) => ({
-                role,
-                count: symbols.length,
-                symbols: symbols.map((s) => ({
-                  symbol: s.symbol,
-                  filePath: s.filePath,
-                })),
-              })),
+              roles: sortedRoles.map(([role, symbols]) => {
+                const config = roleConfig.roles.find((r) => r.id === role);
+                return {
+                  role,
+                  description: config?.description,
+                  count: symbols.length,
+                  symbols: symbols.map((s) => ({
+                    symbol: s.symbol,
+                    filePath: s.filePath,
+                  })),
+                };
+              }),
               staleVectors,
             },
             null,
@@ -248,10 +255,14 @@ export function addPatternsCommands(program: Command) {
 
       for (const [role, symbols] of sortedRoles) {
         const count = symbols.length;
+        const config = roleConfig.roles.find((r) => r.id === role);
         const bar = '▓'.repeat(Math.min(count, 50));
         console.log(
           `\n${chalk.cyan(role.padEnd(20))} ${bar} ${chalk.bold(count)}`
         );
+        if (config?.description) {
+          console.log(chalk.dim(`  ${config.description}`));
+        }
 
         if (isVerbose) {
           // Show first 5 symbols in this role

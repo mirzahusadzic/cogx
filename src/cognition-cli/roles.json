@@ -1,0 +1,130 @@
+{
+  "description": "Architectural Role Classification Configuration for Cognition Σ. This file maps the codebase into its dual-lattice architecture (Conversation O1-O7 & Project PGC) to enable high-fidelity structural reasoning and pattern analysis.",
+  "roles": [
+    {
+      "id": "lattice_conversation",
+      "priority": 110,
+      "rules": [
+        { "path": ".*/sigma/.*" },
+        { "name": ".*(Compressor|Reconstructor|Lattice|Context|Overlay).* " }
+      ],
+      "description": "Conversation Lattice (O1-O7) components responsible for semantic context management, compression, and reconstruction."
+    },
+    {
+      "id": "lattice_project",
+      "priority": 105,
+      "rules": [
+        { "path": ".*/core/pgc/.*" },
+        { "path": ".*/core/overlays/.*" },
+        { "name": ".*(PGC|Manager|Manifest|Pattern).* " }
+      ],
+      "description": "Project Lattice (PGC) components managing the Grounded Context Pool, structural patterns, and lineage overlays."
+    },
+    {
+      "id": "bus_coordination",
+      "priority": 100,
+      "rules": [
+        { "path": ".*/ipc/.*" },
+        { "name": ".*(Bus|Coordinator|Publisher|Subscriber|ZMQ).* " }
+      ],
+      "description": "ZeroMQ-based IPC bus for cross-process coordination between the TUI, agents, and the context engine."
+    },
+    {
+      "id": "logic_algebra",
+      "priority": 95,
+      "rules": [
+        { "path": ".*/core/algebra/.*" },
+        { "path": ".*/core/graph/.*" },
+        { "name": ".*(Algebra|Graph|Lattice).* " }
+      ],
+      "description": "Mathematical foundations for lattice operations, graph theory, and semantic merging."
+    },
+    {
+      "id": "provider_llm",
+      "priority": 90,
+      "rules": [
+        { "path": ".*/llm/.*" },
+        { "name": ".*(LLM|Provider|Adapter|Agent).* " }
+      ],
+      "description": "LLM abstraction layer and provider implementations (Gemini, Claude, OpenAI)."
+    },
+    {
+      "id": "tui_interface",
+      "priority": 85,
+      "rules": [
+        { "path": ".*/tui/.*" },
+        { "path": ".*/components/.*" },
+        { "path": ".*/views/.*" },
+        { "name": ".*(View|Component|Widget|Screen).* " }
+      ],
+      "description": "React/Ink-based terminal user interface and visual workspace components."
+    },
+    {
+      "id": "command_cli",
+      "priority": 80,
+      "rules": [{ "path": ".*/commands/.*" }, { "name": ".*Command$" }],
+      "description": "CLI command definitions and entry points for the cognition-cli."
+    },
+    {
+      "id": "service_core",
+      "priority": 70,
+      "rules": [
+        { "path": ".*/services/.*" },
+        { "name": ".*(Service|Manager|Registry|Monitor).* " }
+      ],
+      "description": "General-purpose core services and system managers."
+    },
+    {
+      "id": "security_integrity",
+      "priority": 65,
+      "rules": [
+        { "path": ".*/security/.*" },
+        { "name": ".*(Security|Integrity|Validator|Audit).* " }
+      ],
+      "description": "Security monitors, codebase integrity validators, and audit tools."
+    },
+    {
+      "id": "data_persistence",
+      "priority": 60,
+      "rules": [
+        { "path": ".*/db/.*" },
+        { "path": ".*/repositories/.*" },
+        { "name": ".*(Store|Repository|DAO|Database).* " }
+      ],
+      "description": "Persistence layers, vector databases (LanceDB), and data access objects."
+    },
+    {
+      "id": "utility_support",
+      "priority": 50,
+      "rules": [
+        { "path": ".*/utils/.*" },
+        { "path": ".*/helpers/.*" },
+        { "name": ".*(Util|Helper|Support).* " }
+      ],
+      "description": "Shared utility functions, formatting helpers, and support logic."
+    },
+    {
+      "id": "type_definition",
+      "priority": 40,
+      "rules": [
+        { "path": ".*/types/.*" },
+        { "path": ".*/interfaces/.*" },
+        { "name": ".*(Type|DTO|Interface|Enum|Error)$" }
+      ],
+      "description": "TypeScript type definitions, interfaces, and domain models."
+    },
+    {
+      "id": "configuration",
+      "priority": 30,
+      "rules": [{ "path": ".*/config/.*" }, { "name": ".*(Config|Options)$" }],
+      "description": "System configuration, environment settings, and runtime options."
+    },
+    {
+      "id": "logic_component",
+      "priority": 0,
+      "rules": [],
+      "description": "General logic components, glue code, or uniquely specialized modules."
+    }
+  ],
+  "defaultRole": "logic_component"
+}

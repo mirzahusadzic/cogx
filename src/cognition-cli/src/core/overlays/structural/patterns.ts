@@ -11,6 +11,7 @@ import { LanceVectorStore, VectorRecord } from '../vector-db/lance-store.js';
 import { WorkbenchClient } from '../../executors/workbench-client.js';
 import { StructuralData } from '../../types/structural.js';
 import { EmbeddingService } from '../../services/embedding.js';
+import { RoleClassifier } from '../../services/role-classifier.js';
 import { EmbedResponse } from '../../types/workbench.js';
 import { EmbedLogger } from '../shared/embed-logger.js';
 import {
@@ -153,13 +154,20 @@ interface StructuralMiningResult {
 export class StructuralPatternsManager implements PatternManager {
   private workerPool?: workerpool.Pool;
   private embeddingService?: EmbeddingService;
+  private roleClassifier: RoleClassifier = new RoleClassifier();
   private useWorkers: boolean = false;
 
   constructor(
     private pgc: PGCManager,
     private vectorDB: LanceVectorStore,
     private workbench: WorkbenchClient
-  ) {}
+  ) {
+    this.roleClassifier = RoleClassifier.loadFromProject(this.pgc.projectRoot);
+  }
+
+  public getClassifier(): RoleClassifier {
+    return this.roleClassifier;
+  }
 
   /**
    * Initialize worker pool for parallel processing with optimal size
@@ -622,94 +630,10 @@ export class StructuralPatternsManager implements PatternManager {
 
   private inferArchitecturalRole(
     symbolName: string,
-    structuralData: StructuralData,
+    _structuralData: StructuralData,
     filePath: string
   ): string {
-    const name = symbolName;
-    const path = filePath.toLowerCase();
-
-    // 1. Commands (CLI or Internal)
-    if (path.includes('/commands/') || name.endsWith('Command')) {
-      return 'command';
-    }
-
-    // 2. UI Components / Views
-    if (
-      path.includes('/tui/') ||
-      path.includes('/components/') ||
-      path.includes('/views/') ||
-      name.endsWith('View') ||
-      name.endsWith('Component')
-    ) {
-      if (/^[A-Z]/.test(name)) return 'view';
-    }
-
-    // 3. Hooks
-    if (name.startsWith('use') && /^[A-Z]/.test(name.slice(3))) {
-      return 'hook';
-    }
-
-    // 4. Data Access / Repositories
-    if (
-      path.includes('/repositories/') ||
-      path.includes('/data-access/') ||
-      path.includes('/db/') ||
-      name.endsWith('Repository') ||
-      name.endsWith('Store') ||
-      name.endsWith('DAO')
-    ) {
-      return 'data_access';
-    }
-
-    // 5. Classes - specific roles
-    if (structuralData.classes && structuralData.classes.length > 0) {
-      if (name.includes('Service')) return 'service';
-      if (name.includes('Controller') || name.includes('Handler'))
-        return 'controller';
-      if (name.includes('Orchestrator')) return 'orchestrator';
-      if (name.includes('Provider') || name.includes('Factory'))
-        return 'provider';
-      if (name.includes('Manager') || name.includes('Engine')) return 'service';
-      return 'component';
-    }
-
-    // 6. Functions - specific roles
-    if (structuralData.functions && structuralData.functions.length > 0) {
-      if (name.includes('Handler')) return 'controller';
-      if (
-        path.includes('/utils/') ||
-        path.includes('/helpers/') ||
-        name.includes('Util') ||
-        name.includes('Helper')
-      ) {
-        return 'utility';
-      }
-      if (path.includes('/services/')) return 'service';
-      if (path.includes('/logic/') || path.includes('/core/')) return 'service';
-      return 'utility';
-    }
-
-    // 7. Interfaces / Types
-    if (structuralData.interfaces && structuralData.interfaces.length > 0) {
-      if (name.endsWith('Config') || name.endsWith('Options'))
-        return 'configuration';
-      return 'type';
-    }
-
-    // 8. Explicit type field from extraction
-    if (structuralData.type) {
-      if (structuralData.type.includes('Repository')) return 'data_access';
-      if (structuralData.type.includes('Service')) return 'service';
-      if (
-        structuralData.type.includes('Controller') ||
-        structuralData.type.includes('Handler')
-      )
-        return 'controller';
-      if (structuralData.type.includes('Orchestrator')) return 'orchestrator';
-      return 'type';
-    }
-
-    return 'component';
+    return this.roleClassifier.classify(symbolName, filePath);
   }
 
   private generateStructuralSignature(structuralData: StructuralData): string {
