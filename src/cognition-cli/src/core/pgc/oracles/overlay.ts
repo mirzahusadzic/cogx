@@ -124,7 +124,10 @@ export class OverlayOracle {
           typeof manifestEntry === 'string'
             ? manifestEntry
             : manifestEntry.filePath || '';
-        const overlayKey = `${relativeFilePath}#${symbolName}`;
+        // Construct the unique overlay key (handles both legacy symbol-only and new unique-id manifest keys)
+        const overlayKey = symbolName.includes('#')
+          ? symbolName
+          : `${relativeFilePath}#${symbolName}`;
         const metadata: StructuralPatternMetadata | undefined | null =
           await this.pgcManager.overlays.get(
             'structural_patterns',
@@ -239,23 +242,43 @@ export class OverlayOracle {
       vectorDB = new LanceVectorStore(this.pgcManager.pgcRoot);
       await vectorDB.initialize('structural_patterns');
       const allVectors = await vectorDB.getAllVectors();
+
+      // Use unique key for comparison (handles both new unique keys and legacy symbol-only)
       const vectorSymbols = new Set(
-        allVectors.map((v: { symbol: unknown }) => v.symbol as string)
+        allVectors.map((v: { filePath?: string; symbol: string }) =>
+          v.filePath ? `${v.filePath}#${v.symbol}` : v.symbol
+        )
       );
 
       // Find patterns in vector DB but missing from manifest
       const missingFromManifest: string[] = [];
       for (const symbol of vectorSymbols) {
-        if (!manifestSymbols.has(symbol as string)) {
-          missingFromManifest.push(symbol as string);
+        // Handle both exact match (unique key) and legacy symbol name lookup
+        if (
+          !manifestSymbols.has(symbol) &&
+          !manifestSymbols.has(
+            symbol.includes('#') ? symbol.split('#').pop()! : symbol
+          )
+        ) {
+          missingFromManifest.push(symbol);
         }
       }
 
       // Find manifest entries with no corresponding vector
       const orphanedInManifest: string[] = [];
-      for (const symbol of manifestSymbols) {
-        if (!vectorSymbols.has(symbol as string)) {
-          orphanedInManifest.push(symbol as string);
+      for (const key of manifestSymbols) {
+        if (!vectorSymbols.has(key)) {
+          // If the manifest key is just a symbol, check if ANY vector matches this symbol
+          if (!key.includes('#')) {
+            const hasMatch = [...vectorSymbols].some((vKey) =>
+              vKey.endsWith(`#${key}`)
+            );
+            if (!hasMatch) {
+              orphanedInManifest.push(key);
+            }
+          } else {
+            orphanedInManifest.push(key);
+          }
         }
       }
 

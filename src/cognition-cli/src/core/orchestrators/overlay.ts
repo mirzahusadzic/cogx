@@ -559,7 +559,9 @@ export class OverlayOrchestrator extends BaseOrchestrator {
           ): { needsFull: boolean; needsReclassify: boolean } => {
             if (force) return { needsFull: true, needsReclassify: false };
 
-            const manifestEntry = manifest[symbolName];
+            // Look up manifest entry using unique key (handles backward compatibility)
+            const uniqueKey = `${file.relativePath}#${symbolName}`;
+            const manifestEntry = manifest[uniqueKey] || manifest[symbolName];
             if (!manifestEntry)
               return { needsFull: true, needsReclassify: false }; // New symbol
 
@@ -591,7 +593,8 @@ export class OverlayOrchestrator extends BaseOrchestrator {
           };
 
           structuralData!.classes?.forEach((c) => {
-            discoveredSymbols.add(c.name);
+            const overlayKey = `${file.relativePath}#${c.name}`;
+            discoveredSymbols.add(overlayKey);
             const { needsFull, needsReclassify } = getJobType(c.name);
             if (needsFull) {
               allJobs.push({
@@ -615,7 +618,8 @@ export class OverlayOrchestrator extends BaseOrchestrator {
           });
 
           structuralData!.functions?.forEach((f) => {
-            discoveredSymbols.add(f.name);
+            const overlayKey = `${file.relativePath}#${f.name}`;
+            discoveredSymbols.add(overlayKey);
             const { needsFull, needsReclassify } = getJobType(f.name);
             if (needsFull) {
               allJobs.push({
@@ -639,7 +643,8 @@ export class OverlayOrchestrator extends BaseOrchestrator {
           });
 
           structuralData!.interfaces?.forEach((i) => {
-            discoveredSymbols.add(i.name);
+            const overlayKey = `${file.relativePath}#${i.name}`;
+            discoveredSymbols.add(overlayKey);
             const { needsFull, needsReclassify } = getJobType(i.name);
             if (needsFull) {
               allJobs.push({
@@ -781,8 +786,10 @@ export class OverlayOrchestrator extends BaseOrchestrator {
               const filePath = parsed.filePath;
 
               if (filePath) {
-                // Delete overlay metadata
-                const overlayKey = `${filePath}#${symbol}`;
+                // Delete overlay metadata (handles both legacy and new unique keys)
+                const overlayKey = symbol.includes('#')
+                  ? symbol
+                  : `${filePath}#${symbol}`;
                 await this.pgc.overlays.update(
                   'structural_patterns',
                   overlayKey,
@@ -791,10 +798,17 @@ export class OverlayOrchestrator extends BaseOrchestrator {
               }
 
               // Robust cleanup: Delete ALL vectors for this symbol from LanceDB
-              // This handles duplicates and ensures the Oracle is happy.
-              await this.vectorDB.delete(
-                `symbol = '${symbol.replace(/'/g, "''")}'`
-              );
+              // Use both symbol name and file path for precise deletion
+              const symbolName = symbol.includes('#')
+                ? symbol.split('#').pop()!
+                : symbol;
+
+              let filter = `symbol = '${symbolName.replace(/'/g, "''")}'`;
+              if (filePath) {
+                filter += ` AND filePath = '${filePath.replace(/'/g, "''")}'`;
+              }
+
+              await this.vectorDB.delete(filter);
 
               // Delete manifest entry
               await this.pgc.overlays.deleteManifestEntry(

@@ -443,7 +443,11 @@ export class LanceVectorStore extends AbstractLanceStore<VectorRecord> {
     const duplicatesToDelete: string[] = [];
 
     allVectors.forEach((vec) => {
-      const key = `${vec.symbol}::${vec.document_hash || vec.structuralHash}`;
+      // Deduplicate by file path, symbol name, document hash, AND vector type
+      // Without 'filePath', we incorrectly prune distinct symbols that happen to have the same name/content
+      const type = (vec.type as string) || 'structural';
+      const path = (vec.filePath as string) || '';
+      const key = `${path}::${vec.symbol}::${type}::${vec.document_hash || vec.structuralHash}`;
 
       if (!vectorMap.has(key)) {
         vectorMap.set(key, vec);
@@ -461,7 +465,12 @@ export class LanceVectorStore extends AbstractLanceStore<VectorRecord> {
       }
     });
 
-    await Promise.all(duplicatesToDelete.map((id) => this.deleteVector(id)));
+    // Batch delete all duplicates (Massive speedup: 1 atomic delete instead of 1000)
+    if (duplicatesToDelete.length > 0) {
+      // LanceDB filter for multiple IDs (escaped to prevent injection)
+      const filter = `id IN (${duplicatesToDelete.map((id) => `'${id.replace(/'/g, "''")}'`).join(', ')})`;
+      await this.delete(filter);
+    }
 
     return duplicatesToDelete.length;
   }

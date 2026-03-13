@@ -135,12 +135,12 @@ export class Overlays {
   /**
    * Update manifest with new format (with metadata) or old format (string path)
    * @param overlayType - The type of overlay
-   * @param symbolName - The symbol/entry name
+   * @param key - The manifest key (symbol name or unique symbol ID)
    * @param entryData - Either a string path (old format) or full manifest entry (new format)
    */
   async updateManifest(
     overlayType: string,
-    symbolName: string,
+    key: string,
     entryData: string | OverlayManifestEntry
   ): Promise<void> {
     const manifestPath = path.join(
@@ -174,7 +174,7 @@ export class Overlays {
       if (await fs.pathExists(manifestPath)) {
         manifest = await fs.readJSON(manifestPath);
       }
-      manifest[symbolName] = entryData;
+      manifest[key] = entryData;
       await fs.writeJSON(manifestPath, manifest, { spaces: 2 });
     } finally {
       if (release) {
@@ -186,7 +186,7 @@ export class Overlays {
   /**
    * Update multiple manifest entries at once (batch mode)
    * @param overlayType - The type of overlay
-   * @param entries - Record of symbol names to manifest entries
+   * @param entries - Record of keys (symbol names or unique IDs) to manifest entries
    */
   async batchUpdateManifest(
     overlayType: string,
@@ -213,12 +213,12 @@ export class Overlays {
         manifest = await fs.readJSON(manifestPath);
       }
 
-      for (const [symbolName, entryData] of Object.entries(entries)) {
-        const existing = manifest[symbolName];
+      for (const [key, entryData] of Object.entries(entries)) {
+        const existing = manifest[key];
         const existingData =
           typeof existing === 'string' ? { filePath: existing } : existing;
 
-        manifest[symbolName] = {
+        manifest[key] = {
           ...(existingData as Record<string, unknown>),
           ...entryData,
         } as OverlayManifestEntry;
@@ -329,16 +329,25 @@ export class Overlays {
    */
   public async getManifestEntry(
     overlayType: string,
-    symbolName: string
+    key: string
   ): Promise<ReturnType<typeof this.parseManifestEntry> | null> {
     const manifest = await this.getManifest(overlayType);
-    const entry = manifest[symbolName];
 
-    if (!entry) {
-      return null;
+    // 1. Try exact match (full ID or legacy symbol-only key)
+    if (manifest[key]) {
+      return this.parseManifestEntry(manifest[key]);
     }
 
-    return this.parseManifestEntry(entry);
+    // 2. Try suffix match for symbol names (if key is just a symbol name)
+    // We look for keys ending in `#${key}`
+    const matchingKey = Object.keys(manifest).find((k) =>
+      k.endsWith(`#${key}`)
+    );
+    if (matchingKey) {
+      return this.parseManifestEntry(manifest[matchingKey]);
+    }
+
+    return null;
   }
 
   /**

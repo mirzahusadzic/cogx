@@ -346,9 +346,24 @@ export class StructuralPatternsManager implements PatternManager {
     let embeddedCount = 0;
     let embedFailedCount = 0;
 
+    const manifestUpdates: Record<string, Partial<OverlayManifestEntry>> = {};
+    const allVectorRecords: Array<{
+      id: string;
+      embedding: number[];
+      metadata: Omit<VectorRecord, 'id' | 'embedding'>;
+    }> = [];
+
     for (const result of successfulMines) {
       try {
-        await this.generateAndStoreEmbedding(result);
+        const { vectorRecords, manifestEntry } =
+          await this.generatePatternEmbedding(result);
+
+        allVectorRecords.push(...vectorRecords);
+
+        // Use unique key for manifest (filePath#symbolName)
+        const manifestKey = `${result.filePath}#${result.symbolName}`;
+        manifestUpdates[manifestKey] = manifestEntry;
+
         embeddedCount++;
 
         // Report progress via callback
@@ -380,6 +395,28 @@ export class StructuralPatternsManager implements PatternManager {
         );
         embedFailedCount++;
       }
+    }
+
+    // Phase 3: Batch store everything (Massive speedup!)
+    if (allVectorRecords.length > 0) {
+      console.log(
+        chalk.blue(
+          `\n[StructuralPatterns] Phase 3: Batch storing ${allVectorRecords.length} vectors...`
+        )
+      );
+      await this.vectorDB.batchStoreVectors(allVectorRecords);
+    }
+
+    if (Object.keys(manifestUpdates).length > 0) {
+      console.log(
+        chalk.blue(
+          `[StructuralPatterns] Updating manifest for ${Object.keys(manifestUpdates).length} symbols...`
+        )
+      );
+      await this.pgc.overlays.batchUpdateManifest(
+        'structural_patterns',
+        manifestUpdates
+      );
     }
 
     console.log(
@@ -515,7 +552,7 @@ export class StructuralPatternsManager implements PatternManager {
             );
 
             // 7. Collect manifest update
-            manifestUpdates[symbolName] = {
+            manifestUpdates[overlayKey] = {
               filePath,
               sourceHash: metadata.validation.sourceHash,
               rulesHash,
@@ -583,9 +620,16 @@ export class StructuralPatternsManager implements PatternManager {
    * The structural embedding captures the architecture (the body)
    * The semantic embedding captures the meaning (the shadow)
    */
-  private async generateAndStoreEmbedding(
+  private async generatePatternEmbedding(
     result: StructuralMiningResult
-  ): Promise<void> {
+  ): Promise<{
+    vectorRecords: Array<{
+      id: string;
+      embedding: number[];
+      metadata: Omit<VectorRecord, 'id' | 'embedding'>;
+    }>;
+    manifestEntry: Partial<OverlayManifestEntry>;
+  }> {
     const {
       symbolName,
       filePath,
@@ -653,36 +697,52 @@ export class StructuralPatternsManager implements PatternManager {
       JSON.stringify(structuralData)
     );
 
-    // Store semantic vector (the shadow) if it exists
+    const now = new Date().toISOString();
+    const vectorRecords: Array<{
+      id: string;
+      embedding: number[];
+      metadata: Omit<VectorRecord, 'id' | 'embedding'>;
+    }> = [];
+
+    // Prepare semantic vector record if it exists
     if (semanticEmbedding && semanticVectorId) {
-      await this.vectorDB.storeVector(semanticVectorId, semanticEmbedding, {
-        symbol: symbolName,
-        filePath: filePath,
-        structuralHash: structuralHash,
-        document_hash: structuralHash, // Use structural hash as document identifier
-        semantic_signature: semanticSignature,
-        architectural_role: architecturalRole,
-        computed_at: new Date().toISOString(),
-        lineage_hash: lineageHash, // CRITICAL: Include lineage hash
-        type: 'semantic', // Mark as semantic shadow
+      vectorRecords.push({
+        id: semanticVectorId,
+        embedding: semanticEmbedding,
+        metadata: {
+          symbol: symbolName,
+          filePath: filePath,
+          structuralHash: structuralHash,
+          document_hash: structuralHash, // Use structural hash as document identifier
+          semantic_signature: semanticSignature,
+          architectural_role: architecturalRole,
+          computed_at: now,
+          lineage_hash: lineageHash, // CRITICAL: Include lineage hash
+          type: 'semantic', // Mark as semantic shadow
+        },
       });
     }
+
     const embeddingHash = this.pgc.objectStore.computeHash(
       JSON.stringify(structuralEmbedding)
     );
     const vectorId = `pattern_${filePath.replace(/[^a-zA-Z0-9]/g, '_')}_${symbolName.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
-    // Store structural vector (the body)
-    await this.vectorDB.storeVector(vectorId, structuralEmbedding as number[], {
-      symbol: symbolName,
-      filePath: filePath,
-      structuralHash: structuralHash,
-      document_hash: structuralHash, // Use structural hash as document identifier
-      structural_signature: signature,
-      architectural_role: architecturalRole,
-      computed_at: new Date().toISOString(),
-      lineage_hash: lineageHash,
-      type: 'structural', // Mark as structural body
+    // Prepare structural vector record
+    vectorRecords.push({
+      id: vectorId,
+      embedding: structuralEmbedding as number[],
+      metadata: {
+        symbol: symbolName,
+        filePath: filePath,
+        structuralHash: structuralHash,
+        document_hash: structuralHash, // Use structural hash as document identifier
+        structural_signature: signature,
+        architectural_role: architecturalRole,
+        computed_at: now,
+        lineage_hash: lineageHash,
+        type: 'structural', // Mark as structural body
+      },
     });
 
     // Calculate cPOW magnitude
@@ -702,7 +762,7 @@ export class StructuralPatternsManager implements PatternManager {
       semanticEmbeddingHash: semanticEmbeddingHash, // Shadow's hash
       semanticVectorId: semanticVectorId, // Shadow's vector ID
       architecturalRole: architecturalRole,
-      computedAt: new Date().toISOString(),
+      computedAt: now,
       validation: {
         sourceHash: contentHash,
         embeddingModelVersion: DEFAULT_EMBEDDING_MODEL_NAME,
@@ -716,24 +776,27 @@ export class StructuralPatternsManager implements PatternManager {
           embedding_model: DEFAULT_EMBEDDING_MODEL_NAME,
           api_calls: semanticEmbedding ? 2 : 1, // Count both embeddings if shadow exists
         },
-        timestamp: new Date().toISOString(),
+        timestamp: now,
       },
       vectorId: vectorId,
     };
 
     const overlayKey = `${filePath}#${symbolName}`;
 
-    // CRITICAL: Update overlay metadata FIRST, then manifest
-    // If overlay update fails, manifest won't have a stale entry
+    // CRITICAL: Update overlay metadata FIRST (individual JSON file)
     await this.pgc.overlays.update('structural_patterns', overlayKey, metadata);
-    await this.pgc.overlays.updateManifest('structural_patterns', symbolName, {
-      filePath,
-      sourceHash: contentHash,
-      rulesHash,
-      lastUpdated: new Date().toISOString(),
-    });
 
     EmbedLogger.complete(symbolName);
+
+    return {
+      vectorRecords,
+      manifestEntry: {
+        filePath,
+        sourceHash: contentHash,
+        rulesHash,
+        lastUpdated: now,
+      },
+    };
   }
 
   /**

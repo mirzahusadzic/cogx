@@ -792,14 +792,22 @@ async function analyzePatterns(
   let staleVectors = 0;
 
   const allVectors = await vectorDB.getAllVectors();
-  const vectorsBySymbol = new Map(
-    allVectors.map((v) => [v.symbol as string, v])
+  const vectorsByUniqueId = new Map(
+    allVectors.map((v) => {
+      const path = (v.filePath as string) || '';
+      return [path ? `${path}#${v.symbol}` : (v.symbol as string), v];
+    })
   );
 
-  for (const [symbol, manifestEntry] of Object.entries(manifest)) {
+  for (const [key, manifestEntry] of Object.entries(manifest)) {
     const parsed = pgc.overlays.parseManifestEntry(manifestEntry);
     const filePath = parsed.filePath || '';
-    const vector = vectorsBySymbol.get(symbol);
+    const symbol = (key.includes('#') ? key.split('#').pop() : key) || key;
+
+    // Try lookup by full key first, then fallback to symbol name for legacy manifests
+    const vector =
+      vectorsByUniqueId.get(key) ||
+      vectorsByUniqueId.get(`${filePath}#${symbol}`);
 
     if (vector) {
       const role = (vector.architectural_role as string) || 'unknown';

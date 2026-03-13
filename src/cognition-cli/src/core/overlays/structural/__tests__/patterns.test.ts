@@ -71,6 +71,7 @@ describe('StructuralPatternsManager - Transaction Ordering', () => {
     // Create mock PGC with spy-able methods
     overlayUpdateSpy = vi.fn(async () => {});
     manifestUpdateSpy = vi.fn(async () => {});
+    const batchManifestUpdateSpy = vi.fn(async () => {});
 
     mockPgc = {
       projectRoot: '/test-project',
@@ -78,6 +79,7 @@ describe('StructuralPatternsManager - Transaction Ordering', () => {
       overlays: {
         update: overlayUpdateSpy,
         updateManifest: manifestUpdateSpy,
+        batchUpdateManifest: batchManifestUpdateSpy,
         get: vi.fn(async () => null),
         exists: vi.fn(async () => false),
       },
@@ -110,18 +112,7 @@ describe('StructuralPatternsManager - Transaction Ordering', () => {
     vol.reset();
   });
 
-  it('CRITICAL: should write overlay BEFORE manifest to prevent orphaned entries', async () => {
-    // Track call order
-    const callOrder: string[] = [];
-
-    overlayUpdateSpy.mockImplementation(async () => {
-      callOrder.push('overlay');
-    });
-
-    manifestUpdateSpy.mockImplementation(async () => {
-      callOrder.push('manifest');
-    });
-
+  it('CRITICAL: should write overlay and return manifest entry (ordering via flow)', async () => {
     const result = {
       symbolName: 'TestClass',
       filePath: 'src/test.ts',
@@ -139,15 +130,15 @@ describe('StructuralPatternsManager - Transaction Ordering', () => {
       status: 'success' as const,
     };
 
-    await manager['generateAndStoreEmbedding'](result);
+    const { manifestEntry } = await manager['generatePatternEmbedding'](result);
 
-    // Assert: overlay must be called BEFORE manifest
-    expect(callOrder).toEqual(['overlay', 'manifest']);
+    // Assert: overlay update was called, and manifest entry returned for batching
     expect(overlayUpdateSpy).toHaveBeenCalledTimes(1);
-    expect(manifestUpdateSpy).toHaveBeenCalledTimes(1);
+    expect(manifestEntry).toBeDefined();
+    expect(manifestEntry.sourceHash).toBe('abc123');
   });
 
-  it('CRITICAL: should NOT update manifest if overlay update fails', async () => {
+  it('CRITICAL: should NOT return manifest entry if overlay update fails', async () => {
     overlayUpdateSpy.mockRejectedValue(new Error('Disk full'));
 
     const result = {
@@ -167,13 +158,12 @@ describe('StructuralPatternsManager - Transaction Ordering', () => {
       status: 'success' as const,
     };
 
-    // Should throw and not call manifest update
-    await expect(manager['generateAndStoreEmbedding'](result)).rejects.toThrow(
+    // Should throw and therefore not return the entry to the batching logic
+    await expect(manager['generatePatternEmbedding'](result)).rejects.toThrow(
       'Disk full'
     );
 
     expect(overlayUpdateSpy).toHaveBeenCalled();
-    expect(manifestUpdateSpy).not.toHaveBeenCalled();
   });
 
   it('should include extractionMethod and fidelity in validation metadata', async () => {
@@ -194,7 +184,7 @@ describe('StructuralPatternsManager - Transaction Ordering', () => {
       status: 'success' as const,
     };
 
-    await manager['generateAndStoreEmbedding'](result);
+    await manager['generatePatternEmbedding'](result);
 
     const overlayCall = overlayUpdateSpy.mock.calls[0];
     const metadata = overlayCall[2];
