@@ -374,6 +374,49 @@ export class LineagePatternsManager implements PatternManager {
         `[LineagePatterns] Embedding complete: ${embeddedCount} succeeded, ${embedFailedCount} failed`
       )
     );
+
+    // Phase 3: Cleanup stale manifest entries and vectors
+    const lineageManifest = await this.pgc.overlays.getManifest(
+      'lineage_patterns'
+    );
+    if (lineageManifest) {
+      const discoveredLineageSymbols = new Set(
+        successfulMines.map((m) => `${m.filePath}#${m.symbolName}`)
+      );
+      const staleLineageSymbols = Object.keys(lineageManifest).filter(
+        (s) => !discoveredLineageSymbols.has(s)
+      );
+
+      if (staleLineageSymbols.length > 0) {
+        console.log(
+          chalk.blue(
+            `[LineagePatterns] Cleaning up ${staleLineageSymbols.length} stale symbols...`
+          )
+        );
+        for (const symbol of staleLineageSymbols) {
+          const entry = this.pgc.overlays.parseManifestEntry(
+            lineageManifest[symbol]
+          );
+          const filePath = entry.filePath;
+
+          // Delete manifest entry
+          await this.pgc.overlays.deleteManifestEntry(
+            'lineage_patterns',
+            symbol
+          );
+
+          // Delete vector
+          const parts = symbol.split('#');
+          const name = parts.length > 1 ? parts[1] : symbol;
+
+          let filter = `symbol = '${name.replace(/'/g, "''")}'`;
+          if (filePath) {
+            filter += ` AND filePath = '${filePath.replace(/'/g, "''")}'`;
+          }
+          await this.vectorDB.delete(filter);
+        }
+      }
+    }
   }
 
   /**
@@ -413,6 +456,7 @@ export class LineagePatternsManager implements PatternManager {
     // Store vector
     await this.vectorDB.storeVector(vectorId, embedding, {
       symbol: symbolName,
+      filePath: filePath,
       symbolType: symbolType,
       structural_signature: signature,
       architectural_role: 'lineage_pattern',

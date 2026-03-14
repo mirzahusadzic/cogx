@@ -799,9 +799,20 @@ async function analyzePatterns(
     })
   );
 
+  const manifestKeys = Object.keys(manifest);
+  const uniqueKeys = new Set(manifestKeys.filter((k) => k.includes('#')));
+
   for (const [key, manifestEntry] of Object.entries(manifest)) {
     const parsed = pgc.overlays.parseManifestEntry(manifestEntry);
     const filePath = parsed.filePath || '';
+
+    // Safeguard: If this is a legacy key (symbol only) and a unique key exists, skip it
+    // to avoid doubled counts during the migration phase.
+    if (!key.includes('#') && filePath) {
+      const uniqueKey = `${filePath}#${key}`;
+      if (uniqueKeys.has(uniqueKey)) continue;
+    }
+
     const symbol = (key.includes('#') ? key.split('#').pop() : key) || key;
 
     // Try lookup by full key first, then fallback to symbol name for legacy manifests

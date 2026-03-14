@@ -465,6 +465,29 @@ export class LanceVectorStore extends AbstractLanceStore<VectorRecord> {
       }
     });
 
+    // Second pass: Legacy pruning
+    // If we have a vector WITH a filePath, prune any vector with the SAME symbol/type/hash
+    // that has NO filePath (legacy format or 'unknown').
+    const uniqueKeysWithPaths = new Set<string>();
+    vectorMap.forEach((vec) => {
+      if (vec.filePath && vec.filePath !== 'unknown') {
+        const type = (vec.type as string) || 'structural';
+        const lookupKey = `${vec.symbol}::${type}::${vec.document_hash || vec.structuralHash}`;
+        uniqueKeysWithPaths.add(lookupKey);
+      }
+    });
+
+    vectorMap.forEach((vec, key) => {
+      if (!vec.filePath || vec.filePath === 'unknown') {
+        const type = (vec.type as string) || 'structural';
+        const lookupKey = `${vec.symbol}::${type}::${vec.document_hash || vec.structuralHash}`;
+        if (uniqueKeysWithPaths.has(lookupKey)) {
+          duplicatesToDelete.push(vec.id);
+          vectorMap.delete(key);
+        }
+      }
+    });
+
     // Batch delete all duplicates (Massive speedup: 1 atomic delete instead of 1000)
     if (duplicatesToDelete.length > 0) {
       // LanceDB filter for multiple IDs (escaped to prevent injection)

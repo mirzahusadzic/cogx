@@ -155,6 +155,66 @@ describe('LanceVectorStore', () => {
       // vec1 should be the most similar (exact match with query)
       expect(results[0].id).toBe('vec1');
     });
+
+    it('should remove legacy duplicate vectors when a newer one with filePath exists', async () => {
+      const symbol = 'DuplicateSymbol';
+      const hash = 'same-hash';
+      const embedding = Array(DEFAULT_EMBEDDING_DIMENSIONS).fill(0.1);
+
+      // 1. Store legacy vector (no filePath)
+      const legacyId = 'legacy-1';
+      const legacyMetadata = {
+        symbol,
+        computed_at: new Date('2024-01-01').toISOString(),
+        document_hash: hash,
+        type: 'structural',
+        architectural_role: 'function',
+        lineage_hash: 'legacy-hash',
+      };
+      await store.storeVector(legacyId, embedding, legacyMetadata);
+
+      // 2. Store new vector (with filePath)
+      const newId = 'new-unique-1';
+      const newMetadata = {
+        symbol,
+        filePath: 'src/file.ts',
+        computed_at: new Date('2024-01-02').toISOString(),
+        document_hash: hash,
+        type: 'structural',
+        architectural_role: 'function',
+        lineage_hash: 'new-hash',
+      };
+      await store.storeVector(newId, embedding, newMetadata);
+
+      // 3. Store another new vector (different file, same symbol/hash - SHOULD BE KEPT)
+      const otherFileId = 'other-file-1';
+      const otherFileMetadata = {
+        symbol,
+        filePath: 'src/other.ts',
+        computed_at: new Date('2024-01-03').toISOString(),
+        document_hash: hash,
+        type: 'structural',
+        architectural_role: 'function',
+        lineage_hash: 'new-hash',
+      };
+      await store.storeVector(otherFileId, embedding, otherFileMetadata);
+
+      // Verify all 3 exist before deduplication
+      const allBefore = await store.getAllVectors();
+      expect(allBefore.length).toBe(3);
+
+      // Run deduplication
+      const removedCount = await store.removeDuplicateVectors();
+      expect(removedCount).toBe(1); // Only legacy-1 should be removed
+
+      const allAfter = await store.getAllVectors();
+      expect(allAfter.length).toBe(2);
+
+      const ids = allAfter.map((v) => v.id);
+      expect(ids).toContain(newId);
+      expect(ids).toContain(otherFileId);
+      expect(ids).not.toContain(legacyId);
+    });
   });
 
   describe('SQL injection prevention (CRITICAL)', () => {

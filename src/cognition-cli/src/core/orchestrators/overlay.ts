@@ -768,8 +768,9 @@ export class OverlayOrchestrator extends BaseOrchestrator {
         }
 
         // Monument 4.9: Clean up stale manifest entries and vectors
-        // Only if we discovered all files (not a partial run)
-        if (!force && !actualOptions.force) {
+        // We now always run this if not skipping GC, because discoveredSymbols
+        // represents the full set of symbols that SHOULD exist in the project.
+        if (!skipGc) {
           const manifestSymbols = Object.keys(manifest);
           const staleSymbols = manifestSymbols.filter(
             (s) => !discoveredSymbols.has(s)
