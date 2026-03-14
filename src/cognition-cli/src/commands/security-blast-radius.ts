@@ -98,12 +98,40 @@ export async function analyzeSecurityBlastRadius(
   }
 
   try {
-    // Step 1: Determine if target is a file path or symbol name
-    const isFilePath = target.includes('/') || target.includes('.');
+    // Step 1: Determine if target is a unique key, file path, or symbol name
+    const isUniqueKey = target.includes('#');
+    const isFilePath =
+      !isUniqueKey && (target.includes('/') || target.includes('.'));
     let targetSymbol: string;
     let targetFile: string;
 
-    if (isFilePath) {
+    if (isUniqueKey) {
+      // Target is a unique manifest key (filePath#symbolName)
+      const [filePath, symbolName] = target.split('#');
+      targetFile = filePath;
+      targetSymbol = symbolName;
+
+      // Verify the item exists
+      const structuralItems = await structuralManager.getAllItems();
+      const symbolItem = structuralItems.find(
+        (item: any) =>
+          item.metadata.symbol === targetSymbol &&
+          item.metadata.filePath === targetFile
+      );
+
+      if (!symbolItem) {
+        if (!options.json) {
+          console.error(
+            chalk.red(
+              `\n❌ Unique key '${target}' not found in structural patterns.`
+            )
+          );
+        } else {
+          console.log(JSON.stringify([], null, 2));
+        }
+        process.exit(1);
+      }
+    } else if (isFilePath) {
       // Target is a file path - need to find symbols in that file
       targetFile = target;
       const symbolsInFile = await structuralManager.getItemsByFile(targetFile);
@@ -191,7 +219,8 @@ export async function analyzeSecurityBlastRadius(
     if (!options.json) {
       console.log(chalk.bold('🎯 Querying O3 (Lineage Patterns)...\n'));
     }
-    const blastResult = await traversal.getBlastRadius(targetSymbol, {
+    const targetUniqueKey = `${targetFile}#${targetSymbol}`;
+    const blastResult = await traversal.getBlastRadius(targetUniqueKey, {
       maxDepth: parseInt(options.maxDepth || '3'),
       direction: 'both',
       includeTransitive: true,

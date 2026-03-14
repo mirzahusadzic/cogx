@@ -1032,6 +1032,11 @@ export class StructuralPatternsManager implements PatternManager {
     return `Shared patterns: ${common.slice(0, 3).join(', ')}`;
   }
 
+  /**
+   * Get vector for a specific symbol
+   * @param symbol - Symbol name or unique manifest key (filePath#symbolName)
+   * @returns Vector record or undefined
+   */
   public async getVectorForSymbol(
     symbol: string
   ): Promise<VectorRecord | undefined> {
@@ -1042,24 +1047,27 @@ export class StructuralPatternsManager implements PatternManager {
       return undefined;
     }
 
-    const manifestEntry = manifest[symbol];
-    const filePath =
-      typeof manifestEntry === 'string'
-        ? manifestEntry
-        : manifestEntry?.filePath;
+    // Use helper to resolve manifest entry (handles unique keys and suffix matches)
+    const entry = await this.pgc.overlays.getManifestEntry(
+      'structural_patterns',
+      symbol
+    );
 
-    if (!filePath) {
+    if (!entry || !entry.filePath) {
       console.log(chalk.yellow(`No pattern found for symbol: ${symbol}`));
       return undefined;
     }
 
-    const overlayKey = `${filePath}#${symbol}`;
+    // Extract raw symbol name from key if it's a unique key
+    const rawName = symbol.includes('#') ? symbol.split('#')[1] : symbol;
+    const overlayKey = `${entry.filePath}#${rawName}`;
 
     const targetMetadata = await this.pgc.overlays.get(
       'structural_patterns',
       overlayKey,
       PatternMetadataSchema
     );
+
     if (!targetMetadata) {
       console.log(chalk.yellow(`No pattern found for symbol: ${symbol}`));
       return undefined;

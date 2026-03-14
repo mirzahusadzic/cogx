@@ -99,12 +99,13 @@ export class GraphTraversal {
    *
    * ALGORITHM:
    * 1. Load structural overlay manifest (symbol → file mapping)
-   * 2. For each symbol:
+   * 2. Build a symbol index (name -> uniqueKey[]) for fast dependency resolution
+   * 3. For each symbol (unique key):
    *    a. Load structural metadata (types, methods, params)
    *    b. Parse imports to identify direct dependencies
    *    c. Extract type usage from method signatures
    *    d. Follow inheritance (extends/implements)
-   * 3. Build adjacency lists for O(1) traversal
+   * 4. Build adjacency lists for O(1) traversal
    *
    * EDGE TYPES:
    * - imports: Direct import statements (strongest coupling)
@@ -118,13 +119,6 @@ export class GraphTraversal {
    * - Optimization: Structural hashes enable incremental updates
    *
    * @returns Complete directed graph with nodes, edges, and adjacency lists
-   *
-   * @example
-   * const graph = await traversal.buildGraph();
-   * console.log(`Graph statistics:`);
-   * console.log(`- Nodes: ${graph.nodes.size}`);
-   * console.log(`- Edges: ${graph.edges.length}`);
-   * console.log(`- Avg fan-out: ${graph.edges.length / graph.nodes.size}`);
    */
   async buildGraph(): Promise<DirectedGraph> {
     const nodes = new Map<string, GraphNode>();
@@ -135,19 +129,33 @@ export class GraphTraversal {
     // Load manifest
     const manifest = await this.pgc.overlays.getManifest('structural_patterns');
 
-    // For each symbol in manifest
-    for (const [symbol, manifestEntry] of Object.entries(manifest)) {
-      // Parse manifest entry (handles both old string and new object formats)
-      const filePath =
-        typeof manifestEntry === 'string'
-          ? manifestEntry
-          : manifestEntry.filePath || '';
+    // Build symbol index (raw name -> unique keys)
+    const symbolIndex = new Map<string, string[]>();
+    for (const key of Object.keys(manifest)) {
+      const name = key.includes('#') ? key.split('#')[1] : key;
+      if (!symbolIndex.has(name)) symbolIndex.set(name, []);
+      symbolIndex.get(name)!.push(key);
+    }
+
+    // Helper to resolve a symbol name to a unique key from the manifest
+    const resolveToKey = (name: string): string | null => {
+      if (manifest[name]) return name; // Direct match (unique key or legacy)
+      const matches = symbolIndex.get(name);
+      return matches && matches.length > 0 ? matches[0] : null; // Pick first if multiple
+    };
+
+    // For each unique key in manifest
+    for (const [uniqueKey, manifestEntry] of Object.entries(manifest)) {
+      const parsedEntry = this.pgc.overlays.parseManifestEntry(manifestEntry);
+      const filePath = parsedEntry.filePath || '';
+      const symbolName = uniqueKey.includes('#')
+        ? uniqueKey.split('#')[1]
+        : uniqueKey;
 
       // Load structural pattern metadata
-      const overlayKey = `${filePath}#${symbol}`;
       const metadata = await this.pgc.overlays.get(
         'structural_patterns',
-        overlayKey,
+        uniqueKey,
         StructuralPatternMetadataSchema
       );
 
@@ -155,13 +163,13 @@ export class GraphTraversal {
 
       // Add node
       const node: GraphNode = {
-        symbol,
+        symbol: symbolName, // Keep the raw name for display
         filePath,
         type: this.inferSymbolType(metadata.structuralSignature),
         structuralHash: metadata.symbolStructuralDataHash,
         architecturalRole: metadata.architecturalRole,
       };
-      nodes.set(symbol, node);
+      nodes.set(uniqueKey, node);
 
       // Load structural data to find dependencies
       const structuralDataBuffer = await this.pgc.objectStore.retrieve(
@@ -175,11 +183,6 @@ export class GraphTraversal {
       // Extract dependencies from imports
       const imports = structuralData.imports || [];
       for (const imp of imports) {
-        // Parse import statement to extract symbols
-        // Examples:
-        // import { Foo, Bar } from './file'
-        // import Foo from './file'
-        // import * as Foo from './file'
         const namedImportMatch = imp.match(/import\s+\{([^}]+)\}/);
         const defaultImportMatch = imp.match(/import\s+(\w+)\s+from/);
 
@@ -189,33 +192,29 @@ export class GraphTraversal {
           const names = namedImportMatch[1]
             .split(',')
             .map((s: string) => s.trim())
-            .map((s: string) => s.split(' as ')[0].trim()); // Handle "Foo as Bar"
+            .map((s: string) => s.split(' as ')[0].trim());
           importedSymbols.push(...names);
         } else if (defaultImportMatch) {
           importedSymbols.push(defaultImportMatch[1]);
         }
 
-        // Add edges for each imported symbol that exists in manifest
-        for (const importedSymbol of importedSymbols) {
-          if (manifest[importedSymbol]) {
+        for (const importedSymbolName of importedSymbols) {
+          const targetKey = resolveToKey(importedSymbolName);
+          if (targetKey) {
             const edge: GraphEdge = {
-              from: symbol,
-              to: importedSymbol,
+              from: uniqueKey,
+              to: targetKey,
               type: 'imports',
               fromFile: filePath,
-              toFile: this.getFilePathFromManifestEntry(
-                manifest[importedSymbol]
-              ),
+              toFile: this.getFilePathFromManifestEntry(manifest[targetKey]),
             };
             edges.push(edge);
 
-            // Update adjacency lists
-            if (!outgoing.has(symbol)) outgoing.set(symbol, new Set());
-            if (!incoming.has(importedSymbol))
-              incoming.set(importedSymbol, new Set());
+            if (!outgoing.has(uniqueKey)) outgoing.set(uniqueKey, new Set());
+            if (!incoming.has(targetKey)) incoming.set(targetKey, new Set());
 
-            outgoing.get(symbol)!.add(importedSymbol);
-            incoming.get(importedSymbol)!.add(symbol);
+            outgoing.get(uniqueKey)!.add(targetKey);
+            incoming.get(targetKey)!.add(uniqueKey);
           }
         }
       }
@@ -223,126 +222,128 @@ export class GraphTraversal {
       // Extract dependencies from type usage (classes, functions, interfaces)
       if (structuralData.classes) {
         for (const cls of structuralData.classes) {
-          // base_classes
           for (const base of cls.base_classes || []) {
-            if (manifest[base]) {
+            const targetKey = resolveToKey(base);
+            if (targetKey) {
               edges.push({
-                from: symbol,
-                to: base,
+                from: uniqueKey,
+                to: targetKey,
                 type: 'extends',
                 fromFile: filePath,
-                toFile: this.getFilePathFromManifestEntry(manifest[base]),
+                toFile: this.getFilePathFromManifestEntry(manifest[targetKey]),
               });
-              if (!outgoing.has(symbol)) outgoing.set(symbol, new Set());
-              if (!incoming.has(base)) incoming.set(base, new Set());
-              outgoing.get(symbol)!.add(base);
-              incoming.get(base)!.add(symbol);
+              if (!outgoing.has(uniqueKey)) outgoing.set(uniqueKey, new Set());
+              if (!incoming.has(targetKey)) incoming.set(targetKey, new Set());
+              outgoing.get(uniqueKey)!.add(targetKey);
+              incoming.get(targetKey)!.add(uniqueKey);
             }
           }
 
-          // implements_interfaces
           for (const iface of cls.implements_interfaces || []) {
-            if (manifest[iface]) {
+            const targetKey = resolveToKey(iface);
+            if (targetKey) {
               edges.push({
-                from: symbol,
-                to: iface,
+                from: uniqueKey,
+                to: targetKey,
                 type: 'implements',
                 fromFile: filePath,
-                toFile: this.getFilePathFromManifestEntry(manifest[iface]),
+                toFile: this.getFilePathFromManifestEntry(manifest[targetKey]),
               });
-              if (!outgoing.has(symbol)) outgoing.set(symbol, new Set());
-              if (!incoming.has(iface)) incoming.set(iface, new Set());
-              outgoing.get(symbol)!.add(iface);
-              incoming.get(iface)!.add(symbol);
+              if (!outgoing.has(uniqueKey)) outgoing.set(uniqueKey, new Set());
+              if (!incoming.has(targetKey)) incoming.set(targetKey, new Set());
+              outgoing.get(uniqueKey)!.add(targetKey);
+              incoming.get(targetKey)!.add(uniqueKey);
             }
           }
 
-          // Method parameter and return types
           for (const method of cls.methods || []) {
             for (const param of method.params || []) {
               const cleanType = this.cleanTypeName(param.type);
-              if (cleanType && manifest[cleanType]) {
+              const targetKey = cleanType ? resolveToKey(cleanType) : null;
+              if (targetKey) {
                 if (
                   !edges.find(
                     (e) =>
-                      e.from === symbol &&
-                      e.to === cleanType &&
+                      e.from === uniqueKey &&
+                      e.to === targetKey &&
                       e.type === 'uses'
                   )
                 ) {
                   edges.push({
-                    from: symbol,
-                    to: cleanType,
+                    from: uniqueKey,
+                    to: targetKey,
                     type: 'uses',
                     fromFile: filePath,
                     toFile: this.getFilePathFromManifestEntry(
-                      manifest[cleanType]
+                      manifest[targetKey]
                     ),
                   });
-                  if (!outgoing.has(symbol)) outgoing.set(symbol, new Set());
-                  if (!incoming.has(cleanType))
-                    incoming.set(cleanType, new Set());
-                  outgoing.get(symbol)!.add(cleanType);
-                  incoming.get(cleanType)!.add(symbol);
+                  if (!outgoing.has(uniqueKey))
+                    outgoing.set(uniqueKey, new Set());
+                  if (!incoming.has(targetKey))
+                    incoming.set(targetKey, new Set());
+                  outgoing.get(uniqueKey)!.add(targetKey);
+                  incoming.get(targetKey)!.add(uniqueKey);
                 }
               }
             }
 
             const returnType = this.cleanTypeName(method.returns);
-            if (returnType && manifest[returnType]) {
+            const targetKey = returnType ? resolveToKey(returnType) : null;
+            if (targetKey) {
               if (
                 !edges.find(
                   (e) =>
-                    e.from === symbol &&
-                    e.to === returnType &&
+                    e.from === uniqueKey &&
+                    e.to === targetKey &&
                     e.type === 'uses'
                 )
               ) {
                 edges.push({
-                  from: symbol,
-                  to: returnType,
+                  from: uniqueKey,
+                  to: targetKey,
                   type: 'uses',
                   fromFile: filePath,
                   toFile: this.getFilePathFromManifestEntry(
-                    manifest[returnType]
+                    manifest[targetKey]
                   ),
                 });
-                if (!outgoing.has(symbol)) outgoing.set(symbol, new Set());
-                if (!incoming.has(returnType))
-                  incoming.set(returnType, new Set());
-                outgoing.get(symbol)!.add(returnType);
-                incoming.get(returnType)!.add(symbol);
+                if (!outgoing.has(uniqueKey)) outgoing.set(uniqueKey, new Set());
+                if (!incoming.has(targetKey))
+                  incoming.set(targetKey, new Set());
+                outgoing.get(uniqueKey)!.add(targetKey);
+                incoming.get(targetKey)!.add(uniqueKey);
               }
             }
 
-            // Process body_dependencies (Python class instantiations)
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const bodyDeps = (method as any).body_dependencies;
             if (bodyDeps?.instantiations) {
               for (const className of bodyDeps.instantiations) {
-                if (manifest[className]) {
+                const targetKey = resolveToKey(className);
+                if (targetKey) {
                   if (
                     !edges.find(
                       (e) =>
-                        e.from === symbol &&
-                        e.to === className &&
+                        e.from === uniqueKey &&
+                        e.to === targetKey &&
                         e.type === 'uses'
                     )
                   ) {
                     edges.push({
-                      from: symbol,
-                      to: className,
+                      from: uniqueKey,
+                      to: targetKey,
                       type: 'uses',
                       fromFile: filePath,
                       toFile: this.getFilePathFromManifestEntry(
-                        manifest[className]
+                        manifest[targetKey]
                       ),
                     });
-                    if (!outgoing.has(symbol)) outgoing.set(symbol, new Set());
-                    if (!incoming.has(className))
-                      incoming.set(className, new Set());
-                    outgoing.get(symbol)!.add(className);
-                    incoming.get(className)!.add(symbol);
+                    if (!outgoing.has(uniqueKey))
+                      outgoing.set(uniqueKey, new Set());
+                    if (!incoming.has(targetKey))
+                      incoming.set(targetKey, new Set());
+                    outgoing.get(uniqueKey)!.add(targetKey);
+                    incoming.get(targetKey)!.add(uniqueKey);
                   }
                 }
               }
@@ -351,88 +352,87 @@ export class GraphTraversal {
         }
       }
 
-      // Process body_dependencies in standalone functions
       if (structuralData.functions) {
         for (const func of structuralData.functions) {
-          // Process function parameters and return types (same as methods)
           for (const param of func.params || []) {
             const cleanType = this.cleanTypeName(param.type);
-            if (cleanType && manifest[cleanType]) {
+            const targetKey = cleanType ? resolveToKey(cleanType) : null;
+            if (targetKey) {
               if (
                 !edges.find(
                   (e) =>
-                    e.from === symbol && e.to === cleanType && e.type === 'uses'
+                    e.from === uniqueKey && e.to === targetKey && e.type === 'uses'
                 )
               ) {
                 edges.push({
-                  from: symbol,
-                  to: cleanType,
+                  from: uniqueKey,
+                  to: targetKey,
                   type: 'uses',
                   fromFile: filePath,
                   toFile: this.getFilePathFromManifestEntry(
-                    manifest[cleanType]
+                    manifest[targetKey]
                   ),
                 });
-                if (!outgoing.has(symbol)) outgoing.set(symbol, new Set());
-                if (!incoming.has(cleanType))
-                  incoming.set(cleanType, new Set());
-                outgoing.get(symbol)!.add(cleanType);
-                incoming.get(cleanType)!.add(symbol);
+                if (!outgoing.has(uniqueKey)) outgoing.set(uniqueKey, new Set());
+                if (!incoming.has(targetKey))
+                  incoming.set(targetKey, new Set());
+                outgoing.get(uniqueKey)!.add(targetKey);
+                incoming.get(targetKey)!.add(uniqueKey);
               }
             }
           }
 
           const returnType = this.cleanTypeName(func.returns);
-          if (returnType && manifest[returnType]) {
+          const targetKey = returnType ? resolveToKey(returnType) : null;
+          if (targetKey) {
             if (
               !edges.find(
                 (e) =>
-                  e.from === symbol && e.to === returnType && e.type === 'uses'
+                  e.from === uniqueKey && e.to === targetKey && e.type === 'uses'
               )
             ) {
               edges.push({
-                from: symbol,
-                to: returnType,
+                from: uniqueKey,
+                to: targetKey,
                 type: 'uses',
                 fromFile: filePath,
-                toFile: this.getFilePathFromManifestEntry(manifest[returnType]),
+                toFile: this.getFilePathFromManifestEntry(manifest[targetKey]),
               });
-              if (!outgoing.has(symbol)) outgoing.set(symbol, new Set());
-              if (!incoming.has(returnType))
-                incoming.set(returnType, new Set());
-              outgoing.get(symbol)!.add(returnType);
-              incoming.get(returnType)!.add(symbol);
+              if (!outgoing.has(uniqueKey)) outgoing.set(uniqueKey, new Set());
+              if (!incoming.has(targetKey)) incoming.set(targetKey, new Set());
+              outgoing.get(uniqueKey)!.add(targetKey);
+              incoming.get(targetKey)!.add(uniqueKey);
             }
           }
 
-          // Process body_dependencies (Python class instantiations)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const bodyDeps = (func as any).body_dependencies;
           if (bodyDeps?.instantiations) {
             for (const className of bodyDeps.instantiations) {
-              if (manifest[className]) {
+              const targetKey = resolveToKey(className);
+              if (targetKey) {
                 if (
                   !edges.find(
                     (e) =>
-                      e.from === symbol &&
-                      e.to === className &&
+                      e.from === uniqueKey &&
+                      e.to === targetKey &&
                       e.type === 'uses'
                   )
                 ) {
                   edges.push({
-                    from: symbol,
-                    to: className,
+                    from: uniqueKey,
+                    to: targetKey,
                     type: 'uses',
                     fromFile: filePath,
                     toFile: this.getFilePathFromManifestEntry(
-                      manifest[className]
+                      manifest[targetKey]
                     ),
                   });
-                  if (!outgoing.has(symbol)) outgoing.set(symbol, new Set());
-                  if (!incoming.has(className))
-                    incoming.set(className, new Set());
-                  outgoing.get(symbol)!.add(className);
-                  incoming.get(className)!.add(symbol);
+                  if (!outgoing.has(uniqueKey))
+                    outgoing.set(uniqueKey, new Set());
+                  if (!incoming.has(targetKey))
+                    incoming.set(targetKey, new Set());
+                  outgoing.get(uniqueKey)!.add(targetKey);
+                  incoming.get(targetKey)!.add(uniqueKey);
                 }
               }
             }
@@ -455,45 +455,10 @@ export class GraphTraversal {
    * Computes the complete impact of modifying a symbol by traversing
    * both upstream (consumers) and downstream (dependencies).
    *
-   * ALGORITHM:
-   * 1. Build the complete dependency graph
-   * 2. Locate the target symbol node
-   * 3. Traverse upstream via BFS (find consumers)
-   * 4. Traverse downstream via BFS (find dependencies)
-   * 5. Calculate metrics:
-   *    - Total impact: unique symbols in consumers + dependencies
-   *    - Max depths: longest path in each direction
-   *    - Critical paths: shortest paths to high-leverage symbols
-   *
-   * USE CASES:
-   * - Pre-refactoring impact assessment
-   * - Test scope planning (which tests to run)
-   * - Architectural analysis (identifying bottlenecks)
-   * - Code review prioritization
-   *
    * @param symbol - The symbol name to analyze (e.g., 'AuthManager')
    * @param options - Traversal configuration (depth, direction, transitivity)
    * @returns Complete blast radius analysis with metrics
    * @throws Error if symbol not found in graph
-   *
-   * @example
-   * // Full blast radius (consumers + dependencies, depth 3)
-   * const blast = await traversal.getBlastRadius('AuthManager');
-   *
-   * @example
-   * // Only consumers (what needs retesting)
-   * const blast = await traversal.getBlastRadius('validateToken', {
-   *   direction: 'up',
-   *   maxDepth: 5
-   * });
-   *
-   * @example
-   * // Only direct dependencies (no transitive)
-   * const blast = await traversal.getBlastRadius('UserService', {
-   *   direction: 'down',
-   *   maxDepth: 1,
-   *   includeTransitive: false
-   * });
    */
   async getBlastRadius(
     symbol: string,
@@ -508,18 +473,32 @@ export class GraphTraversal {
     // Build the graph
     const graph = await this.buildGraph();
 
-    // Find the node
-    const node = graph.nodes.get(symbol);
-    if (!node) {
+    // Resolve target symbol to unique key
+    let targetKey: string | undefined;
+    if (graph.nodes.has(symbol)) {
+      targetKey = symbol; // Direct match (unique key or legacy)
+    } else {
+      // Try suffix match (raw symbol name)
+      for (const key of graph.nodes.keys()) {
+        if (key.endsWith(`#${symbol}`)) {
+          targetKey = key;
+          break;
+        }
+      }
+    }
+
+    if (!targetKey) {
       throw new Error(`Symbol '${symbol}' not found in graph`);
     }
+
+    const node = graph.nodes.get(targetKey)!;
 
     // Traverse upstream (consumers)
     const consumers: GraphNode[] = [];
     if (direction === 'up' || direction === 'both') {
       const visited = new Set<string>();
       await this.traverseUp(
-        symbol,
+        targetKey,
         graph,
         consumers,
         visited,
@@ -533,7 +512,7 @@ export class GraphTraversal {
     if (direction === 'down' || direction === 'both') {
       const visited = new Set<string>();
       await this.traverseDown(
-        symbol,
+        targetKey,
         graph,
         dependencies,
         visited,
@@ -545,21 +524,21 @@ export class GraphTraversal {
     // Calculate metrics
     const totalImpacted = consumers.length + dependencies.length + 1; // +1 for the symbol itself
     const maxConsumerDepth = this.calculateMaxDepth(
-      symbol,
+      targetKey,
       graph,
       'up',
       maxDepth
     );
     const maxDependencyDepth = this.calculateMaxDepth(
-      symbol,
+      targetKey,
       graph,
       'down',
       maxDepth
     );
-    const criticalPaths = this.findCriticalPaths(symbol, graph, maxDepth);
+    const criticalPaths = this.findCriticalPaths(targetKey, graph, maxDepth);
 
     return {
-      symbol,
+      symbol: node.symbol,
       filePath: node.filePath,
       consumers,
       dependencies,
@@ -578,11 +557,6 @@ export class GraphTraversal {
    *
    * Finds all symbols that depend on the given symbol (upstream impact).
    * Uses the incoming adjacency list for O(1) neighbor lookup.
-   *
-   * ALGORITHM:
-   * - BFS traversal following incoming edges (reverse dependencies)
-   * - Depth-limited to prevent unbounded searches
-   * - Visited set prevents cycles and duplicates
    *
    * @param symbol - Starting symbol
    * @param graph - The complete dependency graph
@@ -609,7 +583,7 @@ export class GraphTraversal {
 
     for (const consumer of consumers) {
       const node = graph.nodes.get(consumer);
-      if (node && !result.find((n) => n.symbol === consumer)) {
+      if (node && !result.find((n) => n.symbol === node.symbol && n.filePath === node.filePath)) {
         result.push(node);
       }
 
@@ -632,11 +606,6 @@ export class GraphTraversal {
    *
    * Finds all symbols that this symbol depends on (downstream risk).
    * Uses the outgoing adjacency list for O(1) neighbor lookup.
-   *
-   * ALGORITHM:
-   * - BFS traversal following outgoing edges (direct dependencies)
-   * - Depth-limited to prevent unbounded searches
-   * - Visited set prevents cycles and duplicates
    *
    * @param symbol - Starting symbol
    * @param graph - The complete dependency graph
@@ -663,7 +632,7 @@ export class GraphTraversal {
 
     for (const dep of dependencies) {
       const node = graph.nodes.get(dep);
-      if (node && !result.find((n) => n.symbol === dep)) {
+      if (node && !result.find((n) => n.symbol === node.symbol && n.filePath === node.filePath)) {
         result.push(node);
       }
 
@@ -684,22 +653,11 @@ export class GraphTraversal {
   /**
    * Calculate maximum depth reached during traversal.
    *
-   * Finds the longest path from the starting symbol in the specified direction.
-   * Used to measure how far impact propagates through the dependency graph.
-   *
-   * INTERPRETATION:
-   * - High upstream depth: Impact propagates far (many levels of consumers)
-   * - High downstream depth: Complex dependency tree (fragile architecture)
-   *
    * @param symbol - Starting symbol
    * @param graph - The complete dependency graph
    * @param direction - 'up' for consumers, 'down' for dependencies
    * @param maxDepth - Maximum depth to search
    * @returns The deepest level reached
-   *
-   * @example
-   * const depth = calculateMaxDepth('AuthManager', graph, 'up', 10);
-   * console.log(`Impact propagates ${depth} levels upstream`);
    */
   private calculateMaxDepth(
     symbol: string,
@@ -734,31 +692,10 @@ export class GraphTraversal {
   /**
    * Find critical paths (high-impact dependency chains).
    *
-   * Identifies paths from the target symbol to architectural bottlenecks
-   * (symbols with many consumers). These paths deserve special attention
-   * during refactoring because changes propagate widely.
-   *
-   * ALGORITHM:
-   * 1. Calculate consumer count for all symbols (fan-in)
-   * 2. Identify top 5 symbols by consumer count
-   * 3. Find shortest path from target to each high-impact symbol
-   * 4. Return paths sorted by impact
-   *
-   * RANKING CRITERIA:
-   * - Primary: Consumer count (more consumers = higher impact)
-   * - Secondary: Path length (shorter = more direct impact)
-   *
    * @param symbol - Starting symbol
    * @param graph - The complete dependency graph
    * @param maxDepth - Maximum path length to consider
    * @returns Array of critical paths sorted by impact
-   *
-   * @example
-   * const paths = findCriticalPaths('LoginButton', graph, 5);
-   * for (const path of paths) {
-   *   console.log(`${path.path.join(' → ')}`);
-   *   console.log(`  ${path.reason}`);
-   * }
    */
   private findCriticalPaths(
     symbol: string,
@@ -785,7 +722,7 @@ export class GraphTraversal {
         paths.push({
           path,
           depth: path.length - 1,
-          reason: `${targetSymbol} has ${consumerCount} consumers`,
+          reason: `${targetSymbol.includes('#') ? targetSymbol.split('#')[1] : targetSymbol} has ${consumerCount} consumers`,
         });
       }
     }
@@ -796,25 +733,11 @@ export class GraphTraversal {
   /**
    * Find shortest path between two symbols using BFS.
    *
-   * Explores the graph bidirectionally (both incoming and outgoing edges)
-   * to find the shortest path regardless of dependency direction.
-   *
-   * ALGORITHM:
-   * - Breadth-first search (guarantees shortest path)
-   * - Bidirectional edge following (allows traversal in both directions)
-   * - Queue-based exploration (FIFO for BFS property)
-   *
    * @param from - Starting symbol
    * @param to - Target symbol
    * @param graph - The complete dependency graph
    * @param maxDepth - Maximum path length
    * @returns Array of symbols forming the path, or null if no path exists
-   *
-   * @example
-   * const path = findPath('LoginButton', 'Database', graph, 10);
-   * if (path) {
-   *   console.log(`Path: ${path.join(' → ')}`);
-   * }
    */
   private findPath(
     from: string,
@@ -863,9 +786,6 @@ export class GraphTraversal {
   /**
    * Infer symbol type from structural signature.
    *
-   * Structural signatures encode the symbol type as a prefix.
-   * This helper extracts the type for graph node classification.
-   *
    * @param signature - Structural signature (e.g., "class:AuthManager:...")
    * @returns Symbol type or 'class' as default
    */
@@ -881,22 +801,8 @@ export class GraphTraversal {
   /**
    * Clean type name to extract the base type identifier.
    *
-   * Removes TypeScript/JavaScript type syntax to extract the core type name.
-   * Only returns user-defined types (starts with uppercase).
-   *
-   * TRANSFORMATIONS:
-   * - Array syntax: User[] → User
-   * - Generics: Promise<User> → Promise
-   * - Unions: User | Admin → User
-   * - Primitives: string, number → null (not tracked)
-   *
    * @param type - Raw type string from AST
    * @returns Clean type name or null if not a user-defined type
-   *
-   * @example
-   * cleanTypeName('User[]') // → 'User'
-   * cleanTypeName('Promise<User>') // → 'Promise'
-   * cleanTypeName('string') // → null (primitive)
    */
   private cleanTypeName(type: string | undefined): string | null {
     if (!type) return null;
