@@ -114,7 +114,7 @@ export async function analyzeSecurityBlastRadius(
       // Verify the item exists
       const structuralItems = await structuralManager.getAllItems();
       const symbolItem = structuralItems.find(
-        (item: any) =>
+        (item: OverlayItem<StructuralMetadata>) =>
           item.metadata.symbol === targetSymbol &&
           item.metadata.filePath === targetFile
       );

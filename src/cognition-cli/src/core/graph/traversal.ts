@@ -55,7 +55,10 @@
  */
 
 import { PGCManager } from '../pgc/manager.js';
-import { StructuralPatternMetadataSchema } from '../types/structural.js';
+import {
+  StructuralPatternMetadataSchema,
+  StructuralData,
+} from '../types/structural.js';
 import {
   GraphNode,
   GraphEdge,
@@ -178,7 +181,9 @@ export class GraphTraversal {
 
       if (!structuralDataBuffer) continue;
 
-      const structuralData = JSON.parse(structuralDataBuffer.toString());
+      const structuralData: StructuralData = JSON.parse(
+        structuralDataBuffer.toString()
+      );
 
       // Extract dependencies from imports
       const imports = structuralData.imports || [];
@@ -308,7 +313,8 @@ export class GraphTraversal {
                     manifest[targetKey]
                   ),
                 });
-                if (!outgoing.has(uniqueKey)) outgoing.set(uniqueKey, new Set());
+                if (!outgoing.has(uniqueKey))
+                  outgoing.set(uniqueKey, new Set());
                 if (!incoming.has(targetKey))
                   incoming.set(targetKey, new Set());
                 outgoing.get(uniqueKey)!.add(targetKey);
@@ -316,7 +322,7 @@ export class GraphTraversal {
               }
             }
 
-            const bodyDeps = (method as any).body_dependencies;
+            const bodyDeps = method.body_dependencies;
             if (bodyDeps?.instantiations) {
               for (const className of bodyDeps.instantiations) {
                 const targetKey = resolveToKey(className);
@@ -361,7 +367,9 @@ export class GraphTraversal {
               if (
                 !edges.find(
                   (e) =>
-                    e.from === uniqueKey && e.to === targetKey && e.type === 'uses'
+                    e.from === uniqueKey &&
+                    e.to === targetKey &&
+                    e.type === 'uses'
                 )
               ) {
                 edges.push({
@@ -373,7 +381,8 @@ export class GraphTraversal {
                     manifest[targetKey]
                   ),
                 });
-                if (!outgoing.has(uniqueKey)) outgoing.set(uniqueKey, new Set());
+                if (!outgoing.has(uniqueKey))
+                  outgoing.set(uniqueKey, new Set());
                 if (!incoming.has(targetKey))
                   incoming.set(targetKey, new Set());
                 outgoing.get(uniqueKey)!.add(targetKey);
@@ -388,7 +397,9 @@ export class GraphTraversal {
             if (
               !edges.find(
                 (e) =>
-                  e.from === uniqueKey && e.to === targetKey && e.type === 'uses'
+                  e.from === uniqueKey &&
+                  e.to === targetKey &&
+                  e.type === 'uses'
               )
             ) {
               edges.push({
@@ -405,7 +416,7 @@ export class GraphTraversal {
             }
           }
 
-          const bodyDeps = (func as any).body_dependencies;
+          const bodyDeps = func.body_dependencies;
           if (bodyDeps?.instantiations) {
             for (const className of bodyDeps.instantiations) {
               const targetKey = resolveToKey(className);
@@ -583,7 +594,12 @@ export class GraphTraversal {
 
     for (const consumer of consumers) {
       const node = graph.nodes.get(consumer);
-      if (node && !result.find((n) => n.symbol === node.symbol && n.filePath === node.filePath)) {
+      if (
+        node &&
+        !result.find(
+          (n) => n.symbol === node.symbol && n.filePath === node.filePath
+        )
+      ) {
         result.push(node);
       }
 
@@ -632,7 +648,12 @@ export class GraphTraversal {
 
     for (const dep of dependencies) {
       const node = graph.nodes.get(dep);
-      if (node && !result.find((n) => n.symbol === node.symbol && n.filePath === node.filePath)) {
+      if (
+        node &&
+        !result.find(
+          (n) => n.symbol === node.symbol && n.filePath === node.filePath
+        )
+      ) {
         result.push(node);
       }
 
