@@ -12,7 +12,7 @@ Cognition Σ is a portable cognitive layer designed for verifiable human-AI symb
 - `src/llm`: Multi-provider abstraction layer for Gemini, Claude, and OpenAI agents.
 - `src/ipc`: ZeroMQ-based communication bus for multi-agent coordination.
 - `src/core`: Core foundations, algebra, and shared utilities.
-- `src/core/pgc`: Project Knowledge Store management.
+- `src/core/pgc`: Grounded Context Pool management.
 
 ## Self-Sufficient Loops
 

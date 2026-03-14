@@ -61,6 +61,17 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 
 ## 🎯 Latest Release
 
+**March 16, 2026** — [v2.7.4: Service-Oriented Transformation & Intelligence](https://github.com/mirzahusadzic/cogx/releases/tag/v2.7.4):
+
+- 🏛️ **Major Architectural Overhaul** — Complete transition from procedural "Utility Soup" to domain-driven services: `TerminalFormatterService`, `EnvironmentService`, `SystemDiagnosticsService`, and `LatticeQueryService`.
+- 📦 **PGC Deconstruction** — Deconstructed the monolithic `PGCManager` into specialized indexing, query, and context services for better scalability and modularity.
+- ⚙️ **Session State Machine** — Formalized session lifecycles with a robust state machine (`INITIALIZING`, `ACTIVE`, `TASK_PROCESSING`, etc.) for mission-critical reliability.
+- 🧬 **Granular Architectural Roles** — Implemented a project-aware, JSON-based role classification system (`roles.json`) for high-fidelity codebase analysis.
+- 📡 **Rich Agent Messaging (DTOs)** — Refactored the IPC layer to use strict Data Transfer Objects, decoupling infrastructure from agent logic.
+- 🛡️ **Tool Output Safety Limits** — Implemented token-aware safety limits for tool outputs to prevent context flooding and ensure high-fidelity reasoning.
+- 🔑 **Unique Manifest Keys** — Migrated to unique symbol tracking (`filePath#symbolName`), enabling precise lineage resolution across complex repositories.
+- 🧱 **Clean Slate Protocol** — Automated context and state pruning between atomic tasks to maintain a lean reasoning environment.
+
 **March 9, 2026** — [v2.7.3: Siggy Mascot & TUI Polish](https://github.com/mirzahusadzic/cogx/releases/tag/v2.7.3):
 
 - 🐧 **Siggy Mascot & Animated Feedback** — Introduced an integrated mascot system with non-flickering animated thinking states and tool execution indicators.
@@ -390,7 +401,7 @@ If you use this work in research, please cite:
   author = {Husadžić, Mirza},
   title = {CogX: A Blueprint for Verifiable, Agentic AI},
   year = {2026},
-  version = {2.7.3},
+  version = {2.7.4},
   doi = {10.5281/zenodo.18012832},
   url = {https://github.com/mirzahusadzic/cogx}
 }

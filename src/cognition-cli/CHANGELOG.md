@@ -5,6 +5,57 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.4] - 2026-03-16
+
+### Summary
+
+**Major Architectural Milestone: Service-Oriented Transformation & Intelligence.** This release marks the transition from a monolithic "Utility Soup" to a robust, service-oriented architecture. It includes a complete overhaul of core utilities, the introduction of formal state machines for session management, a deconstructed Grounded Context Pool (PGC), and granular architectural intelligence via a project-aware role classification system.
+
+### 🏛️ Major Architectural Overhaul
+
+- 🧩 **"Utility Soup" Consolidation** — Consolidated over 400+ disconnected procedural symbols into four primary domain services to improve maintainability and state management:
+  - `TerminalFormatterService`: Centralized ANSI manipulation, Markdown rendering, and JSON/Table formatting for the CLI.
+  - `EnvironmentService`: Centralized resolution of project roots, shell types, and environment variables.
+  - `SystemDiagnosticsService`: Unified error formatting, progress protocol emission, and noise suppression.
+  - `LatticeQueryService`: Decoupled graph-walking, symbol queries, and token estimation from the core engine for better modularity.
+- ⚙️ **Formal Session State Machine** — Implemented a robust, domain-driven state machine (`INITIALIZING` -> `ACTIVE` -> `TASK_PROCESSING` -> `PRUNING` -> `PERSISTING` -> `TERMINATED`) to manage session lifecycles, improving reliability and preventing state-desync during long-running agent interactions.
+- 📦 **PGC God-Object Deconstruction** — Deconstructed the monolithic `PGCManager` into specialized, single-responsibility services:
+  - `PGCStoreContext`: Handles path resolution and directory initialization.
+  - `PGCQueryService`: Provides read-only access for symbol search and lineage lookup.
+  - `PGCIndexerService`: Manages write-heavy indexing and dependency graph maintenance.
+- 📡 **Domain/Network Model Separation (DTOs)** — Implemented a strict boundary between IPC network messages (`AgentMessageDTO`) and internal rich domain models, ensuring that infrastructure requirements (like protocol versioning) do not leak into business logic.
+
+### 🚀 Intelligence & Features
+
+- 🧹 **Patterns Compaction CLI** — Added a new `patterns compact` command to reclaim storage space by physically pruning old LanceDB transaction versions (via `optimize()`).
+- ⌨️ **Shell Completion for Compaction** — Implemented comprehensive, context-aware shell completion (Bash/Zsh/Fish) for the `patterns compact --type <type>` command.
+- 🧬 **Granular Architectural Roles** — Implemented a JSON-based configuration system (`roles.json`) that provides path-aware roles (e.g., `orchestrator`, `provider`, `service`, `view`) for high-fidelity codebase analysis and structural mining.
+- 🤖 **/onboard-roles Command** — Added a new slash command for automated, project-wide architectural role classification and onboarding.
+- 🛡️ **Tool Output Safety Limits** — Implemented strict token-aware safety limits for tool outputs to prevent context flooding and ensure high-fidelity reasoning.
+- 🔑 **Unique Manifest Keys** — Migrated the `structural_patterns` and `lineage_patterns` overlays to use unique keys (`filePath#symbolName`), enabling precise tracking of duplicate symbols across different files and solving lineage traversal regressions.
+- 🖥️ **TUI Synchronization** — Implemented TUI state synchronization and consolidation, reducing UI lag and ensuring consistent rendering of agent actions during high-volume event streams.
+
+### 🐛 Resilience & Bug Fixes
+
+- 📉 **Storage Bloat Remediation** — Fixed a major regression (3.5G+ bloat) in `.open_cognition` by implementing automatic compaction at the end of every generation run and refactoring the `LineagePatternsManager` to use batched vector storage, reducing transaction overhead by 99.9%.
+- 🧱 **Clean Slate Protocol** — Implemented a protocol to purge tool logs and reset internal state between atomic tasks, significantly reducing task flakiness and maintaining a lean context window.
+- 🩹 **Manifest & Vector Stability** — Fixed manifest staleness in the `OverlayOrchestrator` and optimized orphaned vector cleanup to prevent "MANIFEST INCOMPLETE" errors.
+- 📡 **Vertex SDK Resilience** — Added auto-retry logic for JSON parse errors and silent server-side timeouts in the Vertex SDK provider.
+- 🧬 **Lineage Traversal Fixes** — Restored and stabilized dependency resolution in `LineageWorker` for the new unique-key architecture.
+- ⚡ **LLM Orchestration** — Optimized agent orchestration to prevent turn explosion and improved batching for embedding generation.
+- 🧪 **CI/CD Reliability** — Fixed brittle integration tests for Gemini (AbortSignal) and CI environment detection.
+
+### ⚠️ Migration Note (Required)
+
+Because of the architectural shift to unique manifest keys and the new role classification system, **it is highly recommended to run a full rebuild of your overlays.** After updating to v2.7.4, please run:
+
+```bash
+cognition-cli overlay generate structural_patterns --force
+cognition-cli overlay generate lineage_patterns --force
+```
+
+This ensures your vector database and manifests are perfectly synchronized with the new format and classification rules.
+
 ## [2.7.3] - 2026-03-09
 
 ### Summary
@@ -55,7 +106,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 🐛 Bug Fixes & Improvements
 
 - 🩹 **Edit-File Robustness** — Added error handling for invalid regex patterns in `edit_file`, allowing agent self-correction during multi-turn editing.
-- 📦 **PGC Manifest Fixes** — Resolved critical bugs in the Project Knowledge Store (PGC) related to new object-based manifest formats and improved patterns analysis commands.
+- 📦 **PGC Manifest Fixes** — Resolved critical bugs in the Grounded Context Pool (PGC) related to new object-based manifest formats and improved patterns analysis commands.
 - ⚡ **Multi-Provider Schema Parity** — Refined and unified tool execution across Gemini, OpenAI, and Minimax, ensuring schema parity and consistent behavior.
 
 ## [2.7.0] - 2026-02-26

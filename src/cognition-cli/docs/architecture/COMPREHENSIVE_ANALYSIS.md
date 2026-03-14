@@ -6,7 +6,7 @@
 
 **At a Glance:**
 
-- **Current Version:** 2.7.3 (March 9, 2026)
+- **Current Version:** 2.7.4 (March 16, 2026)
 - **Production Lines:** ~100,204 TypeScript (excl. tests), ~150,036 total
 - **Test Coverage:** ~92% across 177 test files
 - **Architecture:** 7 cognitive overlays (O₁-O₇), dual-lattice Σ system, ZeroMQ agent messaging
@@ -955,7 +955,7 @@ The same architecture that understands code can preserve human identity through 
 | Core Commands         | 40+ (with tab completion)          |
 | Test Files            | 177 (comprehensive coverage)       |
 | Test Coverage         | ~92% (security, compression, UX)   |
-| Current Version       | 2.7.3 (March 9, 2026)              |
+| Current Version       | 2.7.4 (March 16, 2026)             |
 | License               | AGPL-3.0-or-later                  |
 | Zenodo DOI            | 10.5281/zenodo.18012832            |
 | Innovations Published | 49 (defensive patent publication)  |
@@ -964,7 +964,17 @@ The same architecture that understands code can preserve human identity through 
 
 ## Version History & Changelog
 
-### Version 2.7.3 (Current - Siggy Mascot & TUI Polish)
+### Version 2.7.4 (Current - Infrastructure & Intelligence)
+
+- **Session Lifecycle Formalization**: Formalized session lifecycles with a dedicated state machine and domain services, improving reliability during long-running agent interactions.
+- **Tool Output Safety Limits**: Implemented strict token-aware safety limits for tool outputs to prevent context flooding.
+- **TUI Synchronization**: Implemented TUI state synchronization and consolidation, reducing UI lag.
+- **Clean Slate Protocol**: Implemented a "Clean Slate" protocol to reduce task flakiness by purging tool logs between atomic tasks.
+- **Vertex SDK Resilience**: Added auto-retry logic for JSON parse errors and server-side timeouts in the Vertex SDK provider.
+- **LatticeQueryService**: Introduced a dedicated service for cross-overlay semantic queries.
+- **Unique Manifest Keys**: Migrated structural and lineage overlays to use unique `filePath#symbolName` keys.
+
+### Version 2.7.3 (Siggy Mascot & TUI Polish)
 
 - **Siggy Mascot & Animated Thinking States**: Introduced "Siggy," a friendly terminal mascot that provides visual feedback during agent thinking and tool execution, optimized with direct terminal writes for zero-flicker performance.
 - **TUI Visual Enhancements**: Added a new gradient ASCII logo and refined terminal notification styles for improved readability.
@@ -1230,7 +1240,7 @@ _For previous release history, see [CHANGELOG.md](https://github.com/mirzahusadz
 
 ## Conclusion
 
-Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.7.3** focuses on the **introduction of the Siggy mascot** for improved UX feedback, significant **TUI optimizations** for output density and flicker prevention, and the **hardening of the Sigma Task Protocol** for mission-critical reliability. This release marks a significant step towards a more transparent and resilient cognitive interface.
+Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.7.4** focuses on **Core Infrastructure Refactor & Architectural Intelligence**, featuring a complete overhaul of the core service architecture, the introduction of the **LatticeQueryService**, and the implementation of the **Unique Key Architecture** for overlays. This release marks a significant milestone in enabling precise tracking of symbols and more robust multi-agent orchestration.
 
 It combines:
 
