@@ -154,7 +154,7 @@ describe('LineagePatternWorker - Symbol Resolution Bug', () => {
     // Setup structural patterns manifest (updateManifest ensures directory exists)
     await pgc.overlays.updateManifest(
       'structural_patterns',
-      'GenesisJobResult',
+      'src/core/orchestrators/genesis-worker.ts#GenesisJobResult',
       'src/core/orchestrators/genesis-worker.ts'
     );
 

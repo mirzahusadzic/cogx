@@ -172,12 +172,12 @@ describe('Interface Lineage Extraction', () => {
     // Create structural patterns manifest
     await pgc.overlays.updateManifest(
       'structural_patterns',
-      'StructuralData',
+      'src/types/structural.ts#StructuralData',
       'src/types/structural.ts'
     );
     await pgc.overlays.updateManifest(
       'structural_patterns',
-      'JobResult',
+      'src/types/job.ts#JobResult',
       'src/types/job.ts'
     );
 
@@ -306,12 +306,12 @@ describe('Interface Lineage Extraction', () => {
 
     await pgc.overlays.updateManifest(
       'structural_patterns',
-      'DatabaseConfig',
+      'src/config/db.ts#DatabaseConfig',
       'src/config/db.ts'
     );
     await pgc.overlays.updateManifest(
       'structural_patterns',
-      'AppConfig',
+      'src/config/app.ts#AppConfig',
       'src/config/app.ts'
     );
 
@@ -426,12 +426,12 @@ describe('Interface Lineage Extraction', () => {
 
     await pgc.overlays.updateManifest(
       'structural_patterns',
-      'Item',
+      'src/item.ts#Item',
       'src/item.ts'
     );
     await pgc.overlays.updateManifest(
       'structural_patterns',
-      'Collection',
+      'src/collection.ts#Collection',
       'src/collection.ts'
     );
 
@@ -546,12 +546,12 @@ describe('Interface Lineage Extraction', () => {
 
     await pgc.overlays.updateManifest(
       'structural_patterns',
-      'Success',
+      'src/success.ts#Success',
       'src/success.ts'
     );
     await pgc.overlays.updateManifest(
       'structural_patterns',
-      'Result',
+      'src/result.ts#Result',
       'src/result.ts'
     );
 
@@ -637,7 +637,7 @@ describe('Interface Lineage Extraction', () => {
     });
     await pgc.overlays.updateManifest(
       'structural_patterns',
-      'Simple',
+      'src/simple.ts#Simple',
       'src/simple.ts'
     );
 
@@ -735,12 +735,12 @@ describe('Interface Lineage Extraction', () => {
 
     await pgc.overlays.updateManifest(
       'structural_patterns',
-      'Response',
+      'src/response.ts#Response',
       'src/response.ts'
     );
     await pgc.overlays.updateManifest(
       'structural_patterns',
-      'AsyncOperation',
+      'src/async.ts#AsyncOperation',
       'src/async.ts'
     );
 
@@ -895,17 +895,17 @@ describe('Interface Lineage Extraction', () => {
 
     await pgc.overlays.updateManifest(
       'structural_patterns',
-      'Config',
+      'src/config.ts#Config',
       'src/config.ts'
     );
     await pgc.overlays.updateManifest(
       'structural_patterns',
-      'Logger',
+      'src/logger.ts#Logger',
       'src/logger.ts'
     );
     await pgc.overlays.updateManifest(
       'structural_patterns',
-      'Service',
+      'src/service.ts#Service',
       'src/service.ts'
     );
 

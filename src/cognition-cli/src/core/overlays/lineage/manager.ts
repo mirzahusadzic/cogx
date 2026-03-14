@@ -204,9 +204,15 @@ export class LineagePatternsManager implements PatternManager {
     }
 
     const targetEntries = Object.entries(structuralManifest)
-      .map(([symbol, entry]) => {
-        const filePath = typeof entry === 'string' ? entry : entry.filePath;
-        return [symbol, filePath] as [string, string];
+      .map(([symbolKey, entry]) => {
+        const filePath =
+          (typeof entry === 'string' ? entry : entry.filePath) || '';
+        // Extract raw symbol name from unique key (filePath#symbolName)
+        const rawName =
+          filePath && symbolKey.startsWith(`${filePath}#`)
+            ? symbolKey.slice(filePath.length + 1)
+            : symbolKey;
+        return [rawName, filePath] as [string, string];
       })
       .filter(([, filePath]) => files.length === 0 || files.includes(filePath));
 
@@ -561,24 +567,22 @@ export class LineagePatternsManager implements PatternManager {
       explanation: string;
     }>
   > {
-    const manifest = await this.pgc.overlays.getManifest('lineage_patterns');
+    const entry = await this.pgc.overlays.getManifestEntry(
+      'lineage_patterns',
+      symbol
+    );
 
-    if (!manifest || Object.keys(manifest).length === 0) {
-      console.log(chalk.yellow(`No lineage patterns manifest found.`));
-      return [];
-    }
-
-    const entry = this.pgc.overlays.parseManifestEntry(manifest[symbol]);
-    const filePath = entry.filePath;
-
-    if (!filePath) {
+    if (!entry || !entry.filePath) {
       console.log(
         chalk.yellow(`No lineage pattern found for symbol: ${symbol}`)
       );
       return [];
     }
 
-    const overlayKey = `${filePath}#${symbol}`;
+    const filePath = entry.filePath;
+    // Extract raw name for metadata lookup if symbol is a unique key
+    const rawName = symbol.includes('#') ? symbol.split('#').pop()! : symbol;
+    const overlayKey = `${filePath}#${rawName}`;
 
     const targetMetadata = await this.pgc.overlays.get<LineagePatternMetadata>(
       'lineage_patterns',
@@ -612,11 +616,12 @@ export class LineagePatternsManager implements PatternManager {
       .filter((result) => result.id !== targetMetadata.vectorId)
       .map((result) => {
         const resultSymbol = result.metadata.symbol as string;
-        const resultFilePath = result.metadata.anchor as string;
+        const resultFilePath = result.metadata.filePath as string;
+        const resultKey = `${resultFilePath}#${resultSymbol}`;
 
         // Try to get architectural role from structural patterns
         let architecturalRole = 'component'; // default
-        if (structuralManifest && structuralManifest[resultSymbol]) {
+        if (structuralManifest && structuralManifest[resultKey]) {
           // We have structural data for this symbol, but we'll just use default for now
           // Could enhance this by loading the structural metadata
           architecturalRole = 'component';
@@ -629,7 +634,7 @@ export class LineagePatternsManager implements PatternManager {
           architecturalRole,
           explanation: this.generateSimilarityExplanation(
             targetMetadata.lineageSignature,
-            result.metadata.lineage_signature as string
+            result.metadata.structural_signature as string
           ),
         };
       });
@@ -638,19 +643,20 @@ export class LineagePatternsManager implements PatternManager {
   public async getVectorForSymbol(
     symbol: string
   ): Promise<VectorRecord | undefined> {
-    const manifest = await this.pgc.overlays.getManifest('lineage_patterns');
+    const entry = await this.pgc.overlays.getManifestEntry(
+      'lineage_patterns',
+      symbol
+    );
 
-    if (!manifest) {
+    if (!entry || !entry.filePath) {
       return undefined;
     }
 
-    const entry = this.pgc.overlays.parseManifestEntry(manifest[symbol]);
     const filePath = entry.filePath;
-    if (!filePath) {
-      return undefined;
-    }
+    // Extract raw name for metadata lookup if symbol is a unique key
+    const rawName = symbol.includes('#') ? symbol.split('#').pop()! : symbol;
+    const overlayKey = `${filePath}#${rawName}`;
 
-    const overlayKey = `${filePath}#${symbol}`;
     const metadata = await this.pgc.overlays.get<LineagePatternMetadata>(
       'lineage_patterns',
       overlayKey,

@@ -43,7 +43,19 @@ export class WorkerLogic {
     >();
 
     for (const dep of lineageResult.dependencies) {
+      // Find the specific symbol in the dependency's structural data
+      // (Since one file might contain multiple symbols, we need to find the one that matches)
       const depSymbol =
+        dep.structuralData.classes?.find((c) =>
+          dep.path.endsWith(` -> ${c.name}`)
+        )?.name ||
+        dep.structuralData.functions?.find((f) =>
+          dep.path.endsWith(` -> ${f.name}`)
+        )?.name ||
+        dep.structuralData.interfaces?.find((i) =>
+          dep.path.endsWith(` -> ${i.name}`)
+        )?.name ||
+        // Fallback to first if only one exists or if match fails
         dep.structuralData.classes?.[0]?.name ||
         dep.structuralData.functions?.[0]?.name ||
         dep.structuralData.interfaces?.[0]?.name ||
@@ -124,6 +136,26 @@ export class WorkerLogic {
       );
     }
 
+    // Build a symbol name index for fast lookups during dependency traversal
+    // We map symbolName -> [{ key: filePath#symbolName, filePath: filePath }]
+    const symbolIndex = new Map<
+      string,
+      Array<{ key: string; filePath: string }>
+    >();
+    for (const [key, entry] of Object.entries(structuralManifest)) {
+      const filePath =
+        (typeof entry === 'string' ? entry : entry.filePath) || '';
+      const symbolName =
+        filePath && key.startsWith(`${filePath}#`)
+          ? key.slice(filePath.length + 1)
+          : key;
+
+      if (!symbolIndex.has(symbolName)) {
+        symbolIndex.set(symbolName, []);
+      }
+      symbolIndex.get(symbolName)!.push({ key, filePath });
+    }
+
     const dependencies: Dependency[] = [];
     const initialContext: StructuralData[] = [];
     const processedSymbols = new Set<string>([startSymbol.symbolName]);
@@ -160,20 +192,19 @@ export class WorkerLogic {
         const transformIds = await this.pgc.reverseDeps.getTransformIds(
           result.structural_hash
         );
-        if (!transformIds || transformIds.length === 0) {
-          console.warn(
-            `[LineageWorker] No transform IDs for ${result.symbol} (${result.structural_hash}) - symbol may not have PGC history`
-          );
-          continue;
-        }
-        const transformId = transformIds[0];
+        let sourceStructuralHash = result.structural_hash;
 
-        // 3. THE RECEIPT: Get the manifest from that moment.
-        const transformData =
-          await this.pgc.transformLog.getTransformData(transformId);
-        // We need the input that created the full file structure, which is the source for this symbol.
-        if (!transformData || transformData.outputs.length === 0) continue;
-        const sourceStructuralHash = transformData.outputs[0].hash;
+        if (transformIds && transformIds.length > 0) {
+          const transformId = transformIds[0];
+
+          // 3. THE RECEIPT: Get the manifest from that moment.
+          const transformData =
+            await this.pgc.transformLog.getTransformData(transformId);
+          // We need the input that created the full file structure, which is the source for this symbol.
+          if (transformData && transformData.outputs.length > 0) {
+            sourceStructuralHash = transformData.outputs[0].hash;
+          }
+        }
 
         // 4. THE PAYLOAD: Retrieve the entire file's structure from that moment.
         const structuralDataBuffer =
@@ -285,7 +316,19 @@ export class WorkerLogic {
           };
 
           // Iterate through all structures in the file to find where our symbol is defined and what it uses
-          structuralData.classes?.forEach((c: ClassData) => {
+          const structuresToProcess = {
+            classes: structuralData.classes?.filter(
+              (c) => c.name === result.symbol
+            ),
+            functions: structuralData.functions?.filter(
+              (f) => f.name === result.symbol
+            ),
+            interfaces: structuralData.interfaces?.filter(
+              (i) => i.name === result.symbol
+            ),
+          };
+
+          structuresToProcess.classes?.forEach((c: ClassData) => {
             const classLineage = `${parentLineage} -> ${c.name}`;
             c.base_classes?.forEach((s) =>
               dependencySymbolToLineage.set(s, classLineage)
@@ -309,7 +352,7 @@ export class WorkerLogic {
             });
           });
 
-          structuralData.functions?.forEach((f: FunctionData) => {
+          structuresToProcess.functions?.forEach((f: FunctionData) => {
             const funcLineage = `${parentLineage} -> ${f.name}`;
             f.params?.forEach((p) => processType(p.type, funcLineage));
             processType(f.returns, funcLineage);
@@ -324,36 +367,30 @@ export class WorkerLogic {
             }
           });
 
-          structuralData.interfaces?.forEach((i: InterfaceData) => {
+          structuresToProcess.interfaces?.forEach((i: InterfaceData) => {
             const interfaceLineage = `${parentLineage} -> ${i.name}`;
             i.properties?.forEach((p) => processType(p.type, interfaceLineage));
           });
         }
       }
 
-      // NOW LOOK UP SYMBOLS IN THE MANIFEST (NO INDEX SEARCH!)
+      // NOW LOOK UP SYMBOLS IN THE MANIFEST (INDEX SEARCH!)
       for (const [depSymbol] of dependencySymbolToLineage.entries()) {
         if (processedSymbols.has(depSymbol)) continue;
 
-        // Check if this symbol exists in the structural_patterns manifest
-        const manifestEntry = structuralManifest[depSymbol];
-
-        if (!manifestEntry) {
+        // Check if this symbol exists in our structural_patterns index
+        const candidates = symbolIndex.get(depSymbol);
+        if (!candidates || candidates.length === 0) {
           continue;
         }
 
-        // Parse manifest entry (handles both old string and new object formats)
-        const filePath =
-          typeof manifestEntry === 'string'
-            ? manifestEntry
-            : manifestEntry.filePath || '';
-
-        if (!filePath) {
-          continue;
-        }
+        // For now, pick the first candidate (best effort without import resolution)
+        // TODO: Heuristic - prefer candidates in the same directory/file
+        const bestCandidate = candidates[0];
+        const filePath = bestCandidate.filePath;
+        const overlayKey = bestCandidate.key;
 
         // Load the structural pattern metadata for this symbol
-        const overlayKey = `${filePath}#${depSymbol}`;
         const structuralPatternMeta =
           await this.pgc.overlays.get<StructuralPatternMetadata>(
             'structural_patterns',
@@ -456,13 +493,25 @@ async function processJob(job: PatternJobPacket): Promise<PatternResultPacket> {
 
   try {
     // Check if overlay exists BEFORE mining
-    const overlayKey = `${filePath}#${symbolName}`;
+    // symbolName may be the full unique key or just the raw name
+    // We want the full identity for the overlay key
+    const fullIdentity = symbolName.includes('#')
+      ? symbolName
+      : `${filePath}#${symbolName}`;
 
-    if (!force && (await pgc.overlays.exists('lineage_patterns', overlayKey))) {
+    // Extract raw name for mining if it was a unique key
+    const rawSymbolName = symbolName.includes('#')
+      ? symbolName.split('#').pop()!
+      : symbolName;
+
+    if (
+      !force &&
+      (await pgc.overlays.exists('lineage_patterns', fullIdentity))
+    ) {
       return {
         status: 'skipped',
-        message: `Pattern for ${symbolName} already exists.`,
-        symbolName,
+        message: `Pattern for ${fullIdentity} already exists.`,
+        symbolName: rawSymbolName,
         filePath,
       };
     }
@@ -473,12 +522,12 @@ async function processJob(job: PatternJobPacket): Promise<PatternResultPacket> {
     const structuralPatternMeta =
       await pgc.overlays.get<StructuralPatternMetadata>(
         'structural_patterns',
-        `${filePath}#${symbolName}`,
+        fullIdentity,
         StructuralPatternMetadataSchema
       );
 
     if (!structuralPatternMeta) {
-      throw new Error(`Structural metadata not found for ${symbolName}.`);
+      throw new Error(`Structural metadata not found for ${fullIdentity}.`);
     }
 
     const structuralDataBuffer = await pgc.objectStore.retrieve(
@@ -486,7 +535,7 @@ async function processJob(job: PatternJobPacket): Promise<PatternResultPacket> {
     );
 
     if (!structuralDataBuffer) {
-      throw new Error(`Structural data object not found for ${symbolName}.`);
+      throw new Error(`Structural data object not found for ${fullIdentity}.`);
     }
 
     const structuralData = JSON.parse(
@@ -495,7 +544,7 @@ async function processJob(job: PatternJobPacket): Promise<PatternResultPacket> {
 
     // Mine the lineage pattern (expensive work)
     const miningResult = await logic.mineLineagePattern(
-      symbolName,
+      rawSymbolName,
       symbolType,
       structuralData,
       filePath,
@@ -505,8 +554,8 @@ async function processJob(job: PatternJobPacket): Promise<PatternResultPacket> {
 
     return {
       status: 'success',
-      message: `Successfully mined lineage for ${symbolName}.`,
-      symbolName,
+      message: `Successfully mined lineage for ${fullIdentity}.`,
+      symbolName: rawSymbolName,
       filePath,
       miningResult: {
         ...miningResult,

@@ -771,7 +771,11 @@ export class OverlayOrchestrator extends BaseOrchestrator {
         // We now always run this if not skipping GC, because discoveredSymbols
         // represents the full set of symbols that SHOULD exist in the project.
         if (!skipGc) {
-          const manifestSymbols = Object.keys(manifest);
+          // Re-load manifest to ensure we have the most up-to-date version
+          // after patterns were generated/embedded.
+          const currentManifest =
+            await this.pgc.overlays.getManifest(actualType);
+          const manifestSymbols = Object.keys(currentManifest);
           const staleSymbols = manifestSymbols.filter(
             (s) => !discoveredSymbols.has(s)
           );
@@ -796,6 +800,9 @@ export class OverlayOrchestrator extends BaseOrchestrator {
                 'structural_patterns',
                 symbol
               );
+
+              // Update our local tracking so orphaned vector cleanup is accurate
+              delete currentManifest[symbol];
             }
             this.logSuccess(
               `[Overlay] Cleaned up ${staleSymbols.length} stale symbols.`
@@ -817,7 +824,8 @@ export class OverlayOrchestrator extends BaseOrchestrator {
           const orphanedVectorIds = vectorEntries
             .filter(
               (e) =>
-                !discoveredSymbols.has(e.uniqueKey) && !manifest[e.uniqueKey]
+                !discoveredSymbols.has(e.uniqueKey) &&
+                !currentManifest[e.uniqueKey]
             )
             .map((e) => e.id);
 
