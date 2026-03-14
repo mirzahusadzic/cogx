@@ -877,6 +877,7 @@ describe('OpenAIAgentProvider', () => {
 
       mockRun.mockResolvedValue({
         [Symbol.asyncIterator]: async function* () {
+          // Parallel tool calls - should be 1 turn
           yield {
             type: 'run_item_stream_event',
             name: 'tool_called',
@@ -891,6 +892,15 @@ describe('OpenAIAgentProvider', () => {
             item: {
               type: 'tool_call_item',
               rawItem: { name: 'write_file', arguments: '{}' },
+            },
+          };
+          // Tool output - should increment turn to 2
+          yield {
+            type: 'run_item_stream_event',
+            name: 'tool_output',
+            item: {
+              type: 'tool_call_output_item',
+              output: 'Success',
             },
           };
         },
@@ -909,7 +919,8 @@ describe('OpenAIAgentProvider', () => {
         lastNumTurns = response.numTurns;
       }
 
-      expect(lastNumTurns).toBeGreaterThanOrEqual(2);
+      // 1 for tool calls (assistant group), 2 for tool output (user group)
+      expect(lastNumTurns).toBe(2);
     });
   });
 });

@@ -47,6 +47,7 @@ import { getActiveTaskId } from '../../../sigma/session-state.js';
 
 import { systemDiagnosticsService } from '../../../core/services/diagnostics/SystemDiagnosticsService.js';
 import { archiveTaskLogs } from '../../core/utils/eviction-utils.js';
+import { AsyncMutex } from '../../../sigma/utils/AsyncMutex.js';
 import type { AgentRequest } from '../../core/interfaces/agent-provider.js';
 import type {
   CompletionRequest,
@@ -109,6 +110,7 @@ export class GeminiAgentProvider extends BaseAgentProvider {
   private sessionService = new InMemorySessionService();
   private currentGenerator: AsyncGenerator<unknown> | null = null;
   private sessionSignatures = new Map<string, string>();
+  private sessionMutex = new AsyncMutex();
 
   /**
    * Create Gemini Agent Provider
@@ -216,118 +218,121 @@ export class GeminiAgentProvider extends BaseAgentProvider {
     threshold: number = 20,
     activeSession?: Session
   ) {
-    try {
-      const session =
-        activeSession ||
-        (await this.sessionService.getSession({
-          appName: 'cognition-cli',
-          userId: 'cognition-user',
-          sessionId: sessionId,
-        }));
+    return this.sessionMutex.runLocked(async () => {
+      try {
+        const session =
+          activeSession ||
+          (await this.sessionService.getSession({
+            appName: 'cognition-cli',
+            userId: 'cognition-user',
+            sessionId: sessionId,
+          }));
 
-      if (!session) return;
+        if (!session) return;
 
-      const events = (session as AdkSession).events;
-      if (!events || events.length === 0) return;
+        const events = (session as AdkSession).events;
+        if (!events || events.length === 0) return;
 
-      const tag = `<!-- sigma-task: ${taskId} -->`;
+        const tag = `<!-- sigma-task: ${taskId} -->`;
 
-      // Find all events that have this task tag in their parts
-      const taggedEventIndices: number[] = [];
-      for (let i = 0; i < events.length; i++) {
-        const event = events[i];
-        const parts = event.content?.parts || [];
-        const hasTag = parts.some((p) => {
-          if (p.text?.includes(tag)) return true;
-          if (p.functionResponse?.response) {
-            return JSON.stringify(p.functionResponse.response).includes(tag);
+        // Find all events that have this task tag in their parts
+        const taggedEventIndices: number[] = [];
+        for (let i = 0; i < events.length; i++) {
+          const event = events[i];
+          const parts = event.content?.parts || [];
+          const hasTag = parts.some((p) => {
+            if (p.text?.includes(tag)) return true;
+            if (p.functionResponse?.response) {
+              return JSON.stringify(p.functionResponse.response).includes(tag);
+            }
+            return false;
+          });
+          if (hasTag) {
+            taggedEventIndices.push(i);
           }
-          return false;
-        });
-        if (hasTag) {
-          taggedEventIndices.push(i);
         }
-      }
 
-      if (taggedEventIndices.length <= threshold) return;
+        if (taggedEventIndices.length <= threshold) return;
 
-      // We need to prune oldest events to reach the threshold
-      const toPruneCount = taggedEventIndices.length - threshold;
-      const indicesToPrune = taggedEventIndices.slice(0, toPruneCount);
+        // We need to prune oldest events to reach the threshold
+        const toPruneCount = taggedEventIndices.length - threshold;
+        const indicesToPrune = taggedEventIndices.slice(0, toPruneCount);
 
-      const evictedLogs: string[] = [];
-      const newEvents = [...events];
+        const evictedLogs: string[] = [];
+        const newEvents = [...events];
 
-      for (const idx of indicesToPrune) {
-        const event = newEvents[idx];
-        evictedLogs.push(JSON.stringify(event, null, 2));
+        for (const idx of indicesToPrune) {
+          const event = newEvents[idx];
+          evictedLogs.push(JSON.stringify(event, null, 2));
 
-        const toolTombstone = `[Tool output for task ${taskId} evicted (Rolling Prune) to keep context small. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`;
+          const toolTombstone = `[Tool output for task ${taskId} evicted (Rolling Prune) to keep context small. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`;
 
-        const newParts = event.content?.parts?.map((p) => {
-          if (p.functionResponse) {
-            return {
-              ...p,
-              functionResponse: {
-                name: p.functionResponse.name,
-                response: {
-                  result: toolTombstone,
+          const newParts = event.content?.parts?.map((p) => {
+            if (p.functionResponse) {
+              return {
+                ...p,
+                functionResponse: {
+                  name: p.functionResponse.name,
+                  response: {
+                    result: toolTombstone,
+                  },
                 },
-              },
-            };
-          }
-          if (p.text?.includes(tag)) {
-            return {
-              text: toolTombstone,
-              thoughtSignature: (p as { thoughtSignature?: string })
-                .thoughtSignature,
-            };
-          }
-          return p;
+              };
+            }
+            if (p.text?.includes(tag)) {
+              return {
+                text: toolTombstone,
+                thoughtSignature: (p as { thoughtSignature?: string })
+                  .thoughtSignature,
+              };
+            }
+            return p;
+          });
+
+          newEvents[idx] = {
+            ...event,
+            content: {
+              ...event.content,
+              parts: newParts,
+            },
+          };
+        }
+
+        // Archive the pruned logs before deleting them from memory
+        await archiveTaskLogs({
+          projectRoot,
+          sessionId,
+          taskId,
+          evictedLogs,
         });
 
-        newEvents[idx] = {
-          ...event,
-          content: {
-            ...event.content,
-            parts: newParts,
-          },
-        };
+        // Update session history in memory
+        (session as unknown as AdkSession).events = newEvents;
+
+        // Update internal storage if using InMemorySessionService
+        const internalStorage = (
+          this.sessionService as unknown as AdkSessionService
+        ).sessions;
+        if (
+          internalStorage?.['cognition-cli']?.['cognition-user']?.[sessionId]
+        ) {
+          internalStorage['cognition-cli']['cognition-user'][sessionId].events =
+            [...newEvents];
+        }
+
+        systemDiagnosticsService.systemLog(
+          'sigma',
+          `Rolling prune: Evicted ${toPruneCount} oldest tool logs for task ${taskId} (threshold: ${threshold}). ${process.env.DEBUG_ARCHIVE ? 'Archived to disk.' : ''}`
+        );
+      } catch (err) {
+        systemDiagnosticsService.systemLog(
+          'sigma',
+          `Failed rolling prune for task ${taskId}`,
+          { error: err instanceof Error ? err.message : String(err) },
+          'error'
+        );
       }
-
-      // Archive the pruned logs before deleting them from memory
-      await archiveTaskLogs({
-        projectRoot,
-        sessionId,
-        taskId,
-        evictedLogs,
-      });
-
-      // Update session history in memory
-      (session as unknown as AdkSession).events = newEvents;
-
-      // Update internal storage if using InMemorySessionService
-      const internalStorage = (
-        this.sessionService as unknown as AdkSessionService
-      ).sessions;
-      if (internalStorage?.['cognition-cli']?.['cognition-user']?.[sessionId]) {
-        internalStorage['cognition-cli']['cognition-user'][sessionId].events = [
-          ...newEvents,
-        ];
-      }
-
-      systemDiagnosticsService.systemLog(
-        'sigma',
-        `Rolling prune: Evicted ${toPruneCount} oldest tool logs for task ${taskId} (threshold: ${threshold}). ${process.env.DEBUG_ARCHIVE ? 'Archived to disk.' : ''}`
-      );
-    } catch (err) {
-      systemDiagnosticsService.systemLog(
-        'sigma',
-        `Failed rolling prune for task ${taskId}`,
-        { error: err instanceof Error ? err.message : String(err) },
-        'error'
-      );
-    }
+    });
   }
 
   /**
@@ -346,214 +351,219 @@ export class GeminiAgentProvider extends BaseAgentProvider {
     projectRoot: string,
     activeSession?: Session
   ) {
-    try {
-      const session =
-        activeSession ||
-        (await this.sessionService.getSession({
-          appName: 'cognition-cli',
-          userId: 'cognition-user',
-          sessionId: sessionId,
-        }));
+    return this.sessionMutex.runLocked(async () => {
+      try {
+        const session =
+          activeSession ||
+          (await this.sessionService.getSession({
+            appName: 'cognition-cli',
+            userId: 'cognition-user',
+            sessionId: sessionId,
+          }));
 
-      if (!session) return;
+        if (!session) return;
 
-      const events = (session as AdkSession).events;
-      if (!events || events.length === 0) return;
+        const events = (session as AdkSession).events;
+        if (!events || events.length === 0) return;
 
-      const tag = `<!-- sigma-task: ${taskId} -->`;
-      const evictedLogs: string[] = [];
-      const newEvents: NonNullable<AdkSession['events']> = [];
-      let evictedCount = 0;
+        const tag = `<!-- sigma-task: ${taskId} -->`;
+        const evictedLogs: string[] = [];
+        const newEvents: NonNullable<AdkSession['events']> = [];
+        let evictedCount = 0;
 
-      // Pass 1: Identify task range (from 'in_progress' to 'completed')
-      let startIndex = -1;
-      for (let i = 0; i < events.length; i++) {
-        const parts = events[i].content?.parts || [];
-        const taskInProgress = parts.some(
-          (p) =>
-            p.functionCall?.name === 'SigmaTaskUpdate' &&
-            (p.functionCall.args as Record<string, unknown>)?.todos &&
-            Array.isArray(
-              (p.functionCall.args as Record<string, unknown>).todos
-            ) &&
-            (
-              (p.functionCall.args as Record<string, unknown>).todos as Array<{
-                id: string;
-                status: string;
-              }>
-            ).some((t) => t.id === taskId && t.status === 'in_progress')
-        );
-        if (taskInProgress) {
-          startIndex = i;
-          break;
-        }
-      }
-
-      // Pass 2: Find last evicted index to inject summary
-      let lastEvictedIndex = -1;
-      for (let i = 0; i < events.length; i++) {
-        const event = events[i];
-        const parts = event.content?.parts || [];
-        const hasTag = parts.some((p) => {
-          if (p.text?.includes(tag)) return true;
-          if (p.functionResponse?.response) {
-            return JSON.stringify(p.functionResponse.response).includes(tag);
+        // Pass 1: Identify task range (from 'in_progress' to 'completed')
+        let startIndex = -1;
+        for (let i = 0; i < events.length; i++) {
+          const parts = events[i].content?.parts || [];
+          const taskInProgress = parts.some(
+            (p) =>
+              p.functionCall?.name === 'SigmaTaskUpdate' &&
+              (p.functionCall.args as Record<string, unknown>)?.todos &&
+              Array.isArray(
+                (p.functionCall.args as Record<string, unknown>).todos
+              ) &&
+              (
+                (p.functionCall.args as Record<string, unknown>)
+                  .todos as Array<{
+                  id: string;
+                  status: string;
+                }>
+              ).some((t) => t.id === taskId && t.status === 'in_progress')
+          );
+          if (taskInProgress) {
+            startIndex = i;
+            break;
           }
-          return false;
-        });
-        const isAssistantTurnInRange =
-          startIndex !== -1 &&
-          i >= startIndex &&
-          event.author === 'cognition_agent';
-        if (hasTag || isAssistantTurnInRange) {
-          lastEvictedIndex = i;
         }
-      }
 
-      for (let i = 0; i < events.length; i++) {
-        const event = events[i];
-        const parts = event.content?.parts || [];
-        const hasTag = parts.some((p) => {
-          if (p.text?.includes(tag)) return true;
-          if (p.functionResponse?.response) {
-            return JSON.stringify(p.functionResponse.response).includes(tag);
+        // Pass 2: Find last evicted index to inject summary
+        let lastEvictedIndex = -1;
+        for (let i = 0; i < events.length; i++) {
+          const event = events[i];
+          const parts = event.content?.parts || [];
+          const hasTag = parts.some((p) => {
+            if (p.text?.includes(tag)) return true;
+            if (p.functionResponse?.response) {
+              return JSON.stringify(p.functionResponse.response).includes(tag);
+            }
+            return false;
+          });
+          const isAssistantTurnInRange =
+            startIndex !== -1 &&
+            i >= startIndex &&
+            event.author === 'cognition_agent';
+          if (hasTag || isAssistantTurnInRange) {
+            lastEvictedIndex = i;
           }
-          return false;
-        });
+        }
 
-        // Turn-Range Eviction: Prune assistant turns (thinking/text) within the task window.
-        const isAssistantTurnInRange =
-          startIndex !== -1 &&
-          i >= startIndex &&
-          event.author === 'cognition_agent';
+        for (let i = 0; i < events.length; i++) {
+          const event = events[i];
+          const parts = event.content?.parts || [];
+          const hasTag = parts.some((p) => {
+            if (p.text?.includes(tag)) return true;
+            if (p.functionResponse?.response) {
+              return JSON.stringify(p.functionResponse.response).includes(tag);
+            }
+            return false;
+          });
 
-        if (hasTag || isAssistantTurnInRange) {
-          evictedLogs.push(JSON.stringify(event, null, 2));
-          evictedCount++;
+          // Turn-Range Eviction: Prune assistant turns (thinking/text) within the task window.
+          const isAssistantTurnInRange =
+            startIndex !== -1 &&
+            i >= startIndex &&
+            event.author === 'cognition_agent';
 
-          // Only inject summary into the last evicted turn to avoid token bloat
-          const shouldInjectSummary = i === lastEvictedIndex && result_summary;
+          if (hasTag || isAssistantTurnInRange) {
+            evictedLogs.push(JSON.stringify(event, null, 2));
+            evictedCount++;
 
-          // Replace with tombstone
-          const toolTombstone = shouldInjectSummary
-            ? `[Task ${taskId} completed. Raw logs evicted to archive. \nSUMMARY: ${result_summary}]`
-            : `[Task ${taskId} completed: output evicted to archive. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`;
+            // Only inject summary into the last evicted turn to avoid token bloat
+            const shouldInjectSummary =
+              i === lastEvictedIndex && result_summary;
 
-          const assistantTombstone = shouldInjectSummary
-            ? `[Assistant thinking/text for task ${taskId} evicted to save tokens. \nSUMMARY: ${result_summary}]`
-            : `[Assistant thinking/text for task ${taskId} evicted to save tokens.]`;
+            // Replace with tombstone
+            const toolTombstone = shouldInjectSummary
+              ? `[Task ${taskId} completed. Raw logs evicted to archive. \nSUMMARY: ${result_summary}]`
+              : `[Task ${taskId} completed: output evicted to archive. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`;
 
-          let hasAssistantTombstonePart = false;
-          let collectedSignature: string | undefined = undefined;
+            const assistantTombstone = shouldInjectSummary
+              ? `[Assistant thinking/text for task ${taskId} evicted to save tokens. \nSUMMARY: ${result_summary}]`
+              : `[Assistant thinking/text for task ${taskId} evicted to save tokens.]`;
 
-          // Pre-scan for thought signature in assistant turns being evicted
-          if (isAssistantTurnInRange) {
-            for (const p of parts) {
-              if (p.thoughtSignature) {
-                collectedSignature = p.thoughtSignature;
-                break;
+            let hasAssistantTombstonePart = false;
+            let collectedSignature: string | undefined = undefined;
+
+            // Pre-scan for thought signature in assistant turns being evicted
+            if (isAssistantTurnInRange) {
+              for (const p of parts) {
+                if (p.thoughtSignature) {
+                  collectedSignature = p.thoughtSignature;
+                  break;
+                }
               }
             }
-          }
 
-          const tombstoneParts = parts
-            .map((p) => {
-              if (p.functionResponse) {
-                // Surgical Tool Eviction
-                return {
-                  ...p,
-                  functionResponse: {
-                    name: p.functionResponse.name,
-                    response: {
-                      result: toolTombstone,
-                    },
-                  },
-                };
-              }
-
-              if (isAssistantTurnInRange && (p.thought || p.text)) {
-                // Turn-Range Assistant Eviction (Prune thinking/text)
-                if (!hasAssistantTombstonePart) {
-                  hasAssistantTombstonePart = true;
+            const tombstoneParts = parts
+              .map((p) => {
+                if (p.functionResponse) {
+                  // Surgical Tool Eviction
                   return {
-                    text: assistantTombstone,
-                    thought: true, // Use thinking mode for tombstone to format correctly in TUI
-                    thoughtSignature: collectedSignature, // Preserve reasoning state for Gemini 3
+                    ...p,
+                    functionResponse: {
+                      name: p.functionResponse.name,
+                      response: {
+                        result: toolTombstone,
+                      },
+                    },
                   };
                 }
-                return null; // Remove extra parts (multiple thinking/text parts)
-              }
 
-              // Surgical Tag Eviction for non-assistant turns or non-range turns
-              if (hasTag && p.text?.includes(tag)) {
-                return {
-                  text: toolTombstone,
-                  thoughtSignature: (p as { thoughtSignature?: string })
-                    .thoughtSignature,
-                };
-              }
+                if (isAssistantTurnInRange && (p.thought || p.text)) {
+                  // Turn-Range Assistant Eviction (Prune thinking/text)
+                  if (!hasAssistantTombstonePart) {
+                    hasAssistantTombstonePart = true;
+                    return {
+                      text: assistantTombstone,
+                      thought: true, // Use thinking mode for tombstone to format correctly in TUI
+                      thoughtSignature: collectedSignature, // Preserve reasoning state for Gemini 3
+                    };
+                  }
+                  return null; // Remove extra parts (multiple thinking/text parts)
+                }
 
-              return p; // Keep tool calls and other parts
-            })
-            .filter((p): p is NonNullable<typeof p> => p !== null);
+                // Surgical Tag Eviction for non-assistant turns or non-range turns
+                if (hasTag && p.text?.includes(tag)) {
+                  return {
+                    text: toolTombstone,
+                    thoughtSignature: (p as { thoughtSignature?: string })
+                      .thoughtSignature,
+                  };
+                }
 
-          newEvents.push({
-            ...event,
-            content: {
-              ...event.content,
-              parts: tombstoneParts,
-            },
+                return p; // Keep tool calls and other parts
+              })
+              .filter((p): p is NonNullable<typeof p> => p !== null);
+
+            newEvents.push({
+              ...event,
+              content: {
+                ...event.content,
+                parts: tombstoneParts,
+              },
+            });
+          } else {
+            newEvents.push(event);
+          }
+        }
+
+        if (evictedCount > 0) {
+          await archiveTaskLogs({
+            projectRoot,
+            sessionId,
+            taskId,
+            evictedLogs,
+            result_summary,
           });
+
+          // Update session history in memory
+          (session as unknown as AdkSession).events = newEvents;
+
+          // CRITICAL: InMemorySessionService.getSession() returns a deep clone!
+          // We must also update the internal storage so the eviction persists across turns.
+          const internalStorage = (
+            this.sessionService as unknown as AdkSessionService
+          ).sessions;
+          if (
+            internalStorage?.['cognition-cli']?.['cognition-user']?.[sessionId]
+          ) {
+            internalStorage['cognition-cli']['cognition-user'][
+              sessionId
+            ].events = [...newEvents];
+          }
+
+          systemDiagnosticsService.systemLog(
+            'sigma',
+            `Evicted ${evictedCount} log messages (Turn-Range + Surgical) for task ${taskId}. ${process.env.DEBUG_ARCHIVE ? 'Archived to disk.' : ''}`
+          );
         } else {
-          newEvents.push(event);
+          // Fallback logging: Why did we not evict anything?
+          systemDiagnosticsService.systemLog(
+            'sigma',
+            `No logs found for eviction for task ${taskId}. (startIndex=${startIndex}, events=${events.length})`,
+            { taskId, sessionId, startIndex },
+            'warn'
+          );
         }
-      }
-
-      if (evictedCount > 0) {
-        await archiveTaskLogs({
-          projectRoot,
-          sessionId,
-          taskId,
-          evictedLogs,
-          result_summary,
-        });
-
-        // Update session history in memory
-        (session as unknown as AdkSession).events = newEvents;
-
-        // CRITICAL: InMemorySessionService.getSession() returns a deep clone!
-        // We must also update the internal storage so the eviction persists across turns.
-        const internalStorage = (
-          this.sessionService as unknown as AdkSessionService
-        ).sessions;
-        if (
-          internalStorage?.['cognition-cli']?.['cognition-user']?.[sessionId]
-        ) {
-          internalStorage['cognition-cli']['cognition-user'][sessionId].events =
-            [...newEvents];
-        }
-
+      } catch (err) {
         systemDiagnosticsService.systemLog(
           'sigma',
-          `Evicted ${evictedCount} log messages (Turn-Range + Surgical) for task ${taskId}. ${process.env.DEBUG_ARCHIVE ? 'Archived to disk.' : ''}`
-        );
-      } else {
-        // Fallback logging: Why did we not evict anything?
-        systemDiagnosticsService.systemLog(
-          'sigma',
-          `No logs found for eviction for task ${taskId}. (startIndex=${startIndex}, events=${events.length})`,
-          { taskId, sessionId, startIndex },
-          'warn'
+          `Failed to prune task logs for ${taskId}`,
+          { error: err instanceof Error ? err.message : String(err) },
+          'error'
         );
       }
-    } catch (err) {
-      systemDiagnosticsService.systemLog(
-        'sigma',
-        `Failed to prune task logs for ${taskId}`,
-        { error: err instanceof Error ? err.message : String(err) },
-        'error'
-      );
-    }
+    });
   }
 
   protected getAdditionalTools(request: AgentRequest): unknown[] {

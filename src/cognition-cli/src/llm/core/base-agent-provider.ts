@@ -427,6 +427,17 @@ export abstract class BaseAgentProvider implements AgentProvider {
     } else if (chunk.type === 'thinking' && chunk.thought) {
       this.accumulateThought(chunk.thought, chunk.thoughtSignature);
     } else if (chunk.type === 'tool_call' && chunk.toolCall) {
+      const lastMsg = this.messages[this.messages.length - 1];
+      // Only increment turn if the previous message was NOT from the assistant.
+      // This prevents "turn explosion" during parallel tool calls in a single turn.
+      if (lastMsg && lastMsg.role !== 'assistant') {
+        this.numTurns++;
+        // Reset completion usage for the new turn
+        this.usage.completion = 0;
+      } else if (!lastMsg) {
+        this.numTurns++;
+      }
+
       this.messages.push({
         id: `msg-${Date.now()}-tool-${this.numTurns}`,
         type: 'tool_use',
@@ -437,10 +448,16 @@ export abstract class BaseAgentProvider implements AgentProvider {
         toolInput: chunk.toolCall.args,
         thoughtSignature: chunk.thoughtSignature,
       });
-      this.numTurns++;
-      // Reset completion usage for next turn (matches Gemini turn tracking)
-      this.usage.completion = 0;
     } else if (chunk.type === 'tool_response' && chunk.toolResponse) {
+      const lastMsg = this.messages[this.messages.length - 1];
+      // Only increment turn if the previous message was NOT from the user.
+      // This prevents "turn explosion" during multiple tool responses in a single turn.
+      if (lastMsg && lastMsg.role !== 'user') {
+        this.numTurns++;
+        // Reset completion usage for the new user turn (tool responses)
+        this.usage.completion = 0;
+      }
+
       this.messages.push({
         id: `msg-${Date.now()}-result-${this.numTurns}`,
         type: 'tool_result',
@@ -452,9 +469,6 @@ export abstract class BaseAgentProvider implements AgentProvider {
         timestamp: new Date(),
         toolName: chunk.toolResponse.name,
       });
-      this.numTurns++;
-      // Reset completion usage for next turn (matches Gemini turn tracking)
-      this.usage.completion = 0;
     }
   }
 
@@ -463,9 +477,23 @@ export abstract class BaseAgentProvider implements AgentProvider {
     content: string,
     thoughtSignature?: string
   ): void {
-    // For streaming deltas, we push a NEW message object each time.
-    // This allows the TUI to detect "newMessages" and process deltas correctly.
-    // The TUI's processAgentMessage will handle accumulation into its own state.
+    // Optimization: If the last message is of the same type/role and has the same thought signature,
+    // we append to it instead of pushing a new message object.
+    // This significantly reduces the number of messages the TUI has to process during streaming.
+    const lastMsg = this.messages[this.messages.length - 1];
+    const targetType = role === 'user' ? 'user' : 'assistant';
+    if (
+      lastMsg &&
+      lastMsg.type === targetType &&
+      lastMsg.role === role &&
+      lastMsg.thoughtSignature === thoughtSignature
+    ) {
+      if (typeof lastMsg.content === 'string') {
+        lastMsg.content += content;
+        return;
+      }
+    }
+
     this.messages.push({
       id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       type: role === 'user' ? 'user' : 'assistant',
@@ -480,6 +508,21 @@ export abstract class BaseAgentProvider implements AgentProvider {
     thought: string,
     thoughtSignature?: string
   ): void {
+    const lastMsg = this.messages[this.messages.length - 1];
+    if (
+      lastMsg &&
+      lastMsg.type === 'thinking' &&
+      lastMsg.thoughtSignature === thoughtSignature
+    ) {
+      if (typeof lastMsg.content === 'string') {
+        lastMsg.content += thought;
+      }
+      if (typeof lastMsg.thinking === 'string') {
+        lastMsg.thinking += thought;
+      }
+      return;
+    }
+
     this.messages.push({
       id: `msg-${Date.now()}-thinking-${Math.random().toString(36).substring(2, 7)}`,
       type: 'thinking',

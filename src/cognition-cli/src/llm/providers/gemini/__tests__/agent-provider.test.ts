@@ -406,20 +406,16 @@ describe('GeminiAgentProvider', () => {
           (m) => m.type === 'thinking'
         );
         if (thinkingMsgs.length > 0) {
-          // The provider yields new messages for each delta
-          // We want to capture the content of the NEWEST thinking message in this response
+          // The provider now accumulates messages of the same type.
+          // We check the final content of the thinking message.
           const latestMsg = thinkingMsgs[thinkingMsgs.length - 1];
-          // Only add if it's not the same message object we already processed
-          // (Wait, response.messages is a new array [...messages] each time,
-          // but the message objects inside might be the same if not newly created)
-          // Actually, the provider creates a NEW message for each delta.
           allDeltas.push(latestMsg.content);
         }
       }
 
-      // First chunk delta: "**Analyzing**"
-      // Second chunk delta: "\\n\\nI am thinking" should be normalized to "\n\nI am thinking"
-      expect(allDeltas).toContain('\n\nI am thinking');
+      // We check if the thinking content contains the normalized text
+      const finalThinkingContent = allDeltas[allDeltas.length - 1];
+      expect(finalThinkingContent).toContain('\n\nI am thinking');
     });
 
     it('should normalize literal \\n in first chunk of assistant message', async () => {
