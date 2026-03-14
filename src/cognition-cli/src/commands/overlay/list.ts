@@ -155,8 +155,7 @@ export const createListCommand = () =>
         console.log('\nAvailable Overlay Types:\n');
       }
 
-      // Initialize vector store once
-      const vectorStore = new LanceVectorStore(pgcRoot);
+      // Initialize vector store
       const results = [];
 
       for (const overlay of OVERLAY_TYPES) {
@@ -184,9 +183,12 @@ export const createListCommand = () =>
           overlay.name === 'lineage_patterns'
         ) {
           try {
-            await vectorStore.initialize(overlay.name);
-            const vectors = await vectorStore.getAllVectors();
+            // Create a fresh instance for each overlay to avoid initialization state conflicts
+            const currentVectorStore = new LanceVectorStore(pgcRoot);
+            await currentVectorStore.initialize(overlay.name);
+            const vectors = await currentVectorStore.getAllVectors();
             vectorCount = vectors.length;
+            await currentVectorStore.close();
           } catch {
             // Vector DB doesn't exist or error reading
             vectorCount = 0;
@@ -264,8 +266,14 @@ export const createListCommand = () =>
             // Keep error status
           } else if (manifestCount === 0 && vectorCount === 0) {
             status = 'not generated';
-          } else if (manifestCount === vectorCount && manifestCount > 0) {
-            status = `${manifestCount} patterns`;
+          } else if (
+            manifestCount > 0 &&
+            (vectorCount === manifestCount || vectorCount === 2 * manifestCount)
+          ) {
+            // Success: either single (legacy) or dual (Monument 4.7+) embeddings match
+            const typeLabel =
+              vectorCount === 2 * manifestCount ? ' (dual)' : '';
+            status = `${manifestCount} patterns${typeLabel}`;
           } else if (manifestCount > 0 || vectorCount > 0) {
             // Mismatch or partial generation
             status = `${chalk.yellow('⚠')} manifest: ${manifestCount}, embeddings: ${vectorCount}`;
@@ -292,8 +300,6 @@ export const createListCommand = () =>
           console.log(`    Status: ${status}\n`);
         }
       }
-
-      await vectorStore.close();
 
       if (useJson) {
         console.log(JSON.stringify(results, null, 2));

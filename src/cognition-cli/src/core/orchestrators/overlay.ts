@@ -781,35 +781,15 @@ export class OverlayOrchestrator extends BaseOrchestrator {
               `\n[Overlay] Cleaning up ${staleSymbols.length} stale symbols from manifest...`
             );
             for (const symbol of staleSymbols) {
-              const parsed = this.pgc.overlays.parseManifestEntry(
-                manifest[symbol]
-              );
-              const filePath = parsed.filePath;
-
-              if (filePath) {
-                // Delete overlay metadata (handles both legacy and new unique keys)
-                const overlayKey = symbol.includes('#')
-                  ? symbol
-                  : `${filePath}#${symbol}`;
+              // Only delete overlay metadata file if the key is already unique (contains #)
+              // This prevents accidentally deleting new unique metadata when cleaning up legacy symbols
+              if (symbol.includes('#')) {
                 await this.pgc.overlays.update(
                   'structural_patterns',
-                  overlayKey,
+                  symbol,
                   null
                 );
               }
-
-              // Robust cleanup: Delete ALL vectors for this symbol from LanceDB
-              // Use both symbol name and file path for precise deletion
-              const symbolName = symbol.includes('#')
-                ? symbol.split('#').pop()!
-                : symbol;
-
-              let filter = `symbol = '${symbolName.replace(/'/g, "''")}'`;
-              if (filePath) {
-                filter += ` AND filePath = '${filePath.replace(/'/g, "''")}'`;
-              }
-
-              await this.vectorDB.delete(filter);
 
               // Delete manifest entry
               await this.pgc.overlays.deleteManifestEntry(
@@ -825,21 +805,36 @@ export class OverlayOrchestrator extends BaseOrchestrator {
           // Monument 4.9.5: Clean up orphaned vectors (In DB but NOT in manifest)
           // This fixes the MANIFEST INCOMPLETE error
           const allVectors = await this.vectorDB.getAllVectors();
-          const vectorSymbols = new Set(allVectors.map((v) => v.symbol));
-          const orphanedSymbols = [...vectorSymbols].filter(
-            (s) =>
-              s && !discoveredSymbols.has(s as string) && !manifest[s as string]
-          );
+          // Map vectors to their unique identity (handles both new and legacy formats)
+          const vectorEntries = allVectors.map((v) => ({
+            id: v.id,
+            uniqueKey:
+              v.filePath && v.filePath !== 'unknown'
+                ? `${v.filePath}#${v.symbol}`
+                : v.symbol,
+          }));
 
-          if (orphanedSymbols.length > 0) {
+          const orphanedVectorIds = vectorEntries
+            .filter(
+              (e) =>
+                !discoveredSymbols.has(e.uniqueKey) && !manifest[e.uniqueKey]
+            )
+            .map((e) => e.id);
+
+          if (orphanedVectorIds.length > 0) {
             this.logStep(
-              `[Overlay] Cleaning up ${orphanedSymbols.length} orphaned vectors missing from manifest...`
+              `[Overlay] Cleaning up ${orphanedVectorIds.length} orphaned vectors missing from manifest...`
             );
-            for (const symbol of orphanedSymbols) {
-              await this.vectorDB.delete(
-                `symbol = '${(symbol as string).replace(/'/g, "''")}'`
-              );
+            // Batch delete by ID (safest and fastest)
+            const BATCH_SIZE = 100;
+            for (let i = 0; i < orphanedVectorIds.length; i += BATCH_SIZE) {
+              const batch = orphanedVectorIds.slice(i, i + BATCH_SIZE);
+              const filter = `id IN (${batch.map((id) => `'${id.replace(/'/g, "''")}'`).join(', ')})`;
+              await this.vectorDB.delete(filter);
             }
+            this.logSuccess(
+              `[Overlay] Cleaned up ${orphanedVectorIds.length} orphaned vectors.`
+            );
           }
         }
 

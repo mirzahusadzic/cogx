@@ -123,6 +123,12 @@ export class Overlays {
     data: T
   ): Promise<void> {
     const overlayPath = this.getOverlayPath(overlayType, sourceFilePath);
+    if (data === null) {
+      if (await fs.pathExists(overlayPath)) {
+        await fs.remove(overlayPath);
+      }
+      return;
+    }
     await fs.ensureDir(path.dirname(overlayPath));
     await fs.writeJSON(overlayPath, data, { spaces: 2 });
   }

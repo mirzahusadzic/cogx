@@ -376,9 +376,8 @@ export class LineagePatternsManager implements PatternManager {
     );
 
     // Phase 3: Cleanup stale manifest entries and vectors
-    const lineageManifest = await this.pgc.overlays.getManifest(
-      'lineage_patterns'
-    );
+    const lineageManifest =
+      await this.pgc.overlays.getManifest('lineage_patterns');
     if (lineageManifest) {
       const discoveredLineageSymbols = new Set(
         successfulMines.map((m) => `${m.filePath}#${m.symbolName}`)
@@ -399,6 +398,9 @@ export class LineagePatternsManager implements PatternManager {
           );
           const filePath = entry.filePath;
 
+          // Delete overlay metadata file
+          await this.pgc.overlays.update('lineage_patterns', symbol, null);
+
           // Delete manifest entry
           await this.pgc.overlays.deleteManifestEntry(
             'lineage_patterns',
@@ -411,7 +413,7 @@ export class LineagePatternsManager implements PatternManager {
 
           let filter = `symbol = '${name.replace(/'/g, "''")}'`;
           if (filePath) {
-            filter += ` AND filePath = '${filePath.replace(/'/g, "''")}'`;
+            filter += ` AND "filePath" = '${filePath.replace(/'/g, "''")}'`;
           }
           await this.vectorDB.delete(filter);
         }

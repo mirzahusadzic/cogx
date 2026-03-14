@@ -211,15 +211,31 @@ export class MaintenanceStep extends BaseStep {
         const vectorDB = new LanceVectorStore(context.pgc.pgcRoot);
         await vectorDB.initialize(overlayType);
         const allVectors = (await vectorDB.getAllVectors()) as Array<{
+          id: string;
           symbol: string;
+          filePath?: string;
         }>;
 
-        for (const vector of allVectors) {
-          if (!manifestSymbols.has(vector.symbol)) {
-            await vectorDB.delete(
-              `symbol = '${vector.symbol.replace(/'/g, "''")}'`
-            );
-            totalPruned++;
+        // Group vectors by their unique identity
+        const vectorEntries = allVectors.map((v) => ({
+          id: v.id,
+          uniqueKey:
+            v.filePath && v.filePath !== 'unknown'
+              ? `${v.filePath}#${v.symbol}`
+              : v.symbol,
+        }));
+
+        const orphanedIds = vectorEntries
+          .filter((e) => !manifestSymbols.has(e.uniqueKey))
+          .map((e) => e.id);
+
+        if (orphanedIds.length > 0) {
+          const BATCH_SIZE = 100;
+          for (let i = 0; i < orphanedIds.length; i += BATCH_SIZE) {
+            const batch = orphanedIds.slice(i, i + BATCH_SIZE);
+            const filter = `id IN (${batch.map((id) => `'${id.replace(/'/g, "''")}'`).join(', ')})`;
+            await vectorDB.delete(filter);
+            totalPruned += batch.length;
           }
         }
       } catch (error) {
