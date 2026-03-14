@@ -182,16 +182,16 @@ export const createListCommand = () =>
           overlay.name === 'structural_patterns' ||
           overlay.name === 'lineage_patterns'
         ) {
+          const currentVectorStore = new LanceVectorStore(pgcRoot);
           try {
-            // Create a fresh instance for each overlay to avoid initialization state conflicts
-            const currentVectorStore = new LanceVectorStore(pgcRoot);
             await currentVectorStore.initialize(overlay.name);
             const vectors = await currentVectorStore.getAllVectors();
             vectorCount = vectors.length;
-            await currentVectorStore.close();
           } catch {
             // Vector DB doesn't exist or error reading
             vectorCount = 0;
+          } finally {
+            await currentVectorStore.close();
           }
         }
 
