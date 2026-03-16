@@ -10,6 +10,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import chalk from 'chalk';
 import { terminalFormatter } from '../TerminalFormatterService.js';
 
 // Mock environment service
@@ -25,6 +26,7 @@ describe('TerminalFormatterService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Force colors on for tests
+    chalk.level = 3;
     vi.spyOn(terminalFormatter, 'useColor').mockReturnValue(true);
     vi.spyOn(terminalFormatter, 'useEmoji').mockReturnValue(true);
     vi.spyOn(terminalFormatter, 'useBoxDrawing').mockReturnValue(true);
