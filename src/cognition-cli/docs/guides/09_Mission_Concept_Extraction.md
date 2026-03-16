@@ -1260,7 +1260,7 @@ Both "cover" the document, but one is usable for navigation.
 
 ## Project Status
 
-This is a solo research project. External contributions are not accepted at this time. For more information, please see the **[Contributing Guide](../../CONTRIBUTING.md)**.
+This is a solo research project. External contributions are not accepted at this time. For more information, please see the **[Contributing Guide](https://github.com/mirzahusadzic/cogx/blob/main/CONTRIBUTING.md)**.
 
 ---
 
