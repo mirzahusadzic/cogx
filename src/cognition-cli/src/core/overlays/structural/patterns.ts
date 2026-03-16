@@ -967,25 +967,21 @@ export class StructuralPatternsManager implements PatternManager {
       explanation: string;
     }>
   > {
-    const manifest = await this.pgc.overlays.getManifest('structural_patterns');
+    const entry = await this.pgc.overlays.getManifestEntry(
+      'structural_patterns',
+      symbol
+    );
 
-    if (!manifest || Object.keys(manifest).length === 0) {
-      console.log(chalk.yellow(`No structural patterns manifest found.`));
-      return [];
-    }
-
-    const manifestEntry = manifest[symbol];
-    const filePath =
-      typeof manifestEntry === 'string'
-        ? manifestEntry
-        : manifestEntry?.filePath;
-
-    if (!filePath) {
+    if (!entry || !entry.filePath) {
       console.log(chalk.yellow(`No pattern found for symbol: ${symbol}`));
       return [];
     }
 
-    const overlayKey = `${filePath}#${symbol}`;
+    const filePath = entry.filePath;
+
+    // Extract raw symbol name from key if it's a unique key
+    const rawName = symbol.includes('#') ? symbol.split('#').pop()! : symbol;
+    const overlayKey = `${filePath}#${rawName}`;
 
     const targetMetadata = await this.pgc.overlays.get(
       'structural_patterns',
@@ -1059,7 +1055,7 @@ export class StructuralPatternsManager implements PatternManager {
     }
 
     // Extract raw symbol name from key if it's a unique key
-    const rawName = symbol.includes('#') ? symbol.split('#')[1] : symbol;
+    const rawName = symbol.includes('#') ? symbol.split('#').pop()! : symbol;
     const overlayKey = `${entry.filePath}#${rawName}`;
 
     const targetMetadata = await this.pgc.overlays.get(

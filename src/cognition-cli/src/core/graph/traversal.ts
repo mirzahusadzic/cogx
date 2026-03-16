@@ -135,7 +135,7 @@ export class GraphTraversal {
     // Build symbol index (raw name -> unique keys)
     const symbolIndex = new Map<string, string[]>();
     for (const key of Object.keys(manifest)) {
-      const name = key.includes('#') ? key.split('#')[1] : key;
+      const name = key.includes('#') ? key.split('#').pop()! : key;
       if (!symbolIndex.has(name)) symbolIndex.set(name, []);
       symbolIndex.get(name)!.push(key);
     }
@@ -152,7 +152,7 @@ export class GraphTraversal {
       const parsedEntry = this.pgc.overlays.parseManifestEntry(manifestEntry);
       const filePath = parsedEntry.filePath || '';
       const symbolName = uniqueKey.includes('#')
-        ? uniqueKey.split('#')[1]
+        ? uniqueKey.split('#').pop()!
         : uniqueKey;
 
       // Load structural pattern metadata
@@ -743,7 +743,7 @@ export class GraphTraversal {
         paths.push({
           path,
           depth: path.length - 1,
-          reason: `${targetSymbol.includes('#') ? targetSymbol.split('#')[1] : targetSymbol} has ${consumerCount} consumers`,
+          reason: `${targetSymbol.includes('#') ? targetSymbol.split('#').pop()! : targetSymbol} has ${consumerCount} consumers`,
         });
       }
     }

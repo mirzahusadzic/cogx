@@ -353,7 +353,7 @@ export function addPatternsCommands(program: Command) {
 
       // Load structural pattern metadata
       const structuralRawName = symbol.includes('#')
-        ? symbol.split('#')[1]
+        ? symbol.split('#').pop()!
         : symbol;
       const structuralOverlayKey = `${structuralFilePath}#${structuralRawName}`;
       const structuralMeta = await pgc.overlays.get(
@@ -390,7 +390,7 @@ export function addPatternsCommands(program: Command) {
 
       if (lineageFilePath) {
         const lineageRawName = symbol.includes('#')
-          ? symbol.split('#')[1]
+          ? symbol.split('#').pop()!
           : symbol;
         const lineageOverlayKey = `${lineageFilePath}#${lineageRawName}`;
         const lineageMeta = await pgc.overlays.get(
@@ -521,7 +521,7 @@ export function addPatternsCommands(program: Command) {
       }
 
       // Load lineage pattern
-      const rawName = symbol.includes('#') ? symbol.split('#')[1] : symbol;
+      const rawName = symbol.includes('#') ? symbol.split('#').pop()! : symbol;
       const overlayKey = `${filePath}#${rawName}`;
       const lineageMeta = await pgc.overlays.get(
         'lineage_patterns',
