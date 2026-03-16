@@ -1261,7 +1261,6 @@ await bootstrapSecurity();
 
 // Global error handler for uncaught exceptions
 import { CognitionError, getExitCode } from './utils/errors.js';
-import { formatError, formatGenericError } from './utils/error-formatter.js';
 
 process.on('uncaughtException', (error) => {
   const verbose = getVerboseState({});
@@ -1273,7 +1272,7 @@ process.on('uncaughtException', (error) => {
       message: error.message,
     });
     systemDiagnosticsService.finalizeDebugLog(false, getExitCode(error));
-    console.error(formatError(error, verbose));
+    console.error(systemDiagnosticsService.formatError(error, verbose));
     if (debugPath) {
       console.error(`\nDebug log: ${debugPath}`);
     }
@@ -1285,7 +1284,7 @@ process.on('uncaughtException', (error) => {
     message: String(error),
   });
   systemDiagnosticsService.finalizeDebugLog(false, 1);
-  console.error(formatGenericError(error, verbose));
+  console.error(systemDiagnosticsService.formatGenericError(error, verbose));
   if (debugPath) {
     console.error(`\nDebug log: ${debugPath}`);
   }
@@ -1302,7 +1301,7 @@ process.on('unhandledRejection', (reason) => {
       message: reason.message,
     });
     systemDiagnosticsService.finalizeDebugLog(false, getExitCode(reason));
-    console.error(formatError(reason, verbose));
+    console.error(systemDiagnosticsService.formatError(reason, verbose));
     if (debugPath) {
       console.error(`\nDebug log: ${debugPath}`);
     }
@@ -1314,7 +1313,7 @@ process.on('unhandledRejection', (reason) => {
     reason: String(reason),
   });
   systemDiagnosticsService.finalizeDebugLog(false, 1);
-  console.error(formatGenericError(reason, verbose));
+  console.error(systemDiagnosticsService.formatGenericError(reason, verbose));
   if (debugPath) {
     console.error(`\nDebug log: ${debugPath}`);
   }

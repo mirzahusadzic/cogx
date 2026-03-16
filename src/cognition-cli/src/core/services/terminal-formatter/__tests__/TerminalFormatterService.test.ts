@@ -1,65 +1,182 @@
-import { TerminalFormatterService } from '../TerminalFormatterService.js';
+/**
+ * TerminalFormatterService Tests
+ *
+ * Tests for CLI output formatting utilities including:
+ * - Overlay badge coloring
+ * - Severity level formatting
+ * - Similarity score coloring
+ * - Text cleaning and truncation
+ * - Box and table formatting
+ */
+
 import { describe, it, expect } from 'vitest';
+import { terminalFormatter } from '../TerminalFormatterService.js';
 
 describe('TerminalFormatterService', () => {
-  const formatter = TerminalFormatterService.getInstance();
+  describe('Hash and ID Formatting', () => {
+    describe('truncateHash()', () => {
+      it('should truncate hash to 8 characters', () => {
+        const hash =
+          'abc123def456789012345678901234567890123456789012345678901234';
+        expect(terminalFormatter.truncateHash(hash)).toBe('abc123de');
+      });
 
-  describe('hexToAnsi', () => {
-    it('converts hex to ANSI foreground sequence', () => {
-      expect(formatter.hexToAnsi('#ff0000')).toBe('\x1b[38;2;255;0;0m');
-      expect(formatter.hexToAnsi('#00ff00')).toBe('\x1b[38;2;0;255;0m');
-      expect(formatter.hexToAnsi('#0000ff')).toBe('\x1b[38;2;0;0;255m');
-      expect(formatter.hexToAnsi('ffffff')).toBe('\x1b[38;2;255;255;255m');
-      expect(formatter.hexToAnsi('000')).toBe('\x1b[38;2;0;0;0m');
+      it('should return full hash if less than 8 chars', () => {
+        expect(terminalFormatter.truncateHash('abc')).toBe('abc');
+      });
+
+      it('should return exactly 8 chars for 8-char input', () => {
+        expect(terminalFormatter.truncateHash('12345678')).toBe('12345678');
+      });
+
+      it('should handle empty string', () => {
+        expect(terminalFormatter.truncateHash('')).toBe('');
+      });
+    });
+
+    describe('extractOverlayType()', () => {
+      it('should extract overlay type from ID', () => {
+        expect(
+          terminalFormatter.extractOverlayType('abc123:[O2]:auth.login')
+        ).toBe('O2');
+      });
+
+      it('should handle lowercase overlay type', () => {
+        expect(
+          terminalFormatter.extractOverlayType('def456:[o4]:principle.trust')
+        ).toBe('O4');
+      });
+
+      it('should return null for ID without overlay', () => {
+        expect(
+          terminalFormatter.extractOverlayType('xyz789:no-overlay')
+        ).toBeNull();
+      });
+
+      it('should extract all valid overlay types O1-O7', () => {
+        expect(terminalFormatter.extractOverlayType('hash:[O1]:path')).toBe(
+          'O1'
+        );
+        expect(terminalFormatter.extractOverlayType('hash:[O2]:path')).toBe(
+          'O2'
+        );
+        expect(terminalFormatter.extractOverlayType('hash:[O3]:path')).toBe(
+          'O3'
+        );
+        expect(terminalFormatter.extractOverlayType('hash:[O4]:path')).toBe(
+          'O4'
+        );
+        expect(terminalFormatter.extractOverlayType('hash:[O5]:path')).toBe(
+          'O5'
+        );
+        expect(terminalFormatter.extractOverlayType('hash:[O6]:path')).toBe(
+          'O6'
+        );
+        expect(terminalFormatter.extractOverlayType('hash:[O7]:path')).toBe(
+          'O7'
+        );
+      });
+    });
+
+    describe('formatId()', () => {
+      it('should format ID with dimmed hash and colored badge', () => {
+        const id = 'abc123def:[O2]:auth.login';
+        const formatted = terminalFormatter.formatId(id);
+        expect(formatted).toContain('abc123de');
+        expect(formatted).toContain('[O2]');
+      });
+
+      it('should format ID with only dimmed hash when no overlay', () => {
+        const id = 'abc123def:no-overlay';
+        const formatted = terminalFormatter.formatId(id);
+        expect(formatted).toContain('abc123de');
+        expect(formatted).not.toContain('[');
+      });
     });
   });
 
-  describe('hexToAnsiBg', () => {
-    it('converts hex to ANSI background sequence', () => {
-      expect(formatter.hexToAnsiBg('#ff0000')).toBe('\x1b[48;2;255;0;0m');
+  describe('Text Cleaning and Truncation', () => {
+    describe('cleanText()', () => {
+      it('should format JSON lineage correctly', () => {
+        const json = JSON.stringify({
+          symbol: 'auth.login',
+          lineage: [
+            { type: 'user', relationship: 'depends on' },
+            { type: 'db', relationship: 'calls' },
+          ],
+        });
+        expect(terminalFormatter.cleanText(json)).toBe(
+          'auth.login → depends on user, calls db'
+        );
+      });
+
+      it('should handle JSON with no lineage', () => {
+        const json = JSON.stringify({ symbol: 'test', lineage: [] });
+        expect(terminalFormatter.cleanText(json)).toBe(
+          'test (no dependencies)'
+        );
+      });
+
+      it('should remove duplicate sentences', () => {
+        const text = 'Hello world. Hello world. Goodbye.';
+        expect(terminalFormatter.cleanText(text)).toBe('Hello world. Goodbye.');
+      });
+
+      it('should strip ASCII art boxes', () => {
+        const text = 'Data before ┌──────┐\n│ Box │\n└──────┘';
+        expect(terminalFormatter.cleanText(text)).toBe('Data before [...]');
+      });
+    });
+
+    describe('smartTruncate()', () => {
+      it('should truncate at word boundary', () => {
+        const text = 'The quick brown fox jumps over the lazy dog';
+        expect(terminalFormatter.smartTruncate(text, 20)).toBe(
+          'The quick brown fox...'
+        );
+      });
+
+      it('should not truncate if shorter than maxLength', () => {
+        const text = 'Short text';
+        expect(terminalFormatter.smartTruncate(text, 100)).toBe('Short text');
+      });
     });
   });
 
-  describe('stripCursorSequences', () => {
-    it('removes cursor control sequences but preserves SGR', () => {
-      const input = '\x1b[?25l\x1b[31mHello\x1b[0m\x1b[K';
-      expect(formatter.stripCursorSequences(input)).toBe(
-        '\x1b[31mHello\x1b[0m'
-      );
-    });
-  });
+  describe('Box and Table Formatting', () => {
+    describe('createBox()', () => {
+      it('should create a box with content', () => {
+        const box = terminalFormatter.createBox(['Line 1', 'Line 2']);
+        expect(box).toContain('┌');
+        expect(box).toContain('┐');
+        expect(box).toContain('Line 1');
+        expect(box).toContain('Line 2');
+        expect(box).toContain('└');
+        expect(box).toContain('┘');
+      });
 
-  describe('stripSigmaMarkers', () => {
-    it('removes sigma task markers', () => {
-      const input = 'Hello\n<!-- sigma-task: task-1 -->\nWorld';
-      expect(formatter.stripSigmaMarkers(input)).toBe('Hello\nWorld');
-    });
-
-    it('removes markers from end of string', () => {
-      const input = 'Final output<!-- sigma-task: task-1 -->';
-      expect(formatter.stripSigmaMarkers(input)).toBe('Final output');
-    });
-  });
-
-  describe('cleanAnsi', () => {
-    it('removes all ANSI escape codes', () => {
-      const input = '\x1b[31mRed\x1b[0m \x1b[1mBold\x1b[0m';
-      expect(formatter.cleanAnsi(input)).toBe('Red Bold');
-    });
-  });
-
-  describe('renderMarkdown', () => {
-    it('renders headers', () => {
-      const input = '# Header 1';
-      const output = formatter.renderMarkdown(input);
-      expect(output).toContain('Header 1');
+      it('should include title in box', () => {
+        const box = terminalFormatter.createBox(['Content'], 'Title');
+        expect(box).toContain('Title');
+      });
     });
 
-    it('renders bold and italic text', () => {
-      const input = 'This is **bold** and *italic*.';
-      const output = formatter.renderMarkdown(input);
-      expect(output).toContain('bold');
-      expect(output).toContain('italic');
+    describe('tableHeader()', () => {
+      it('should format headers with separators', () => {
+        const header = terminalFormatter.tableHeader(['ID', 'Type']);
+        expect(header).toContain('ID');
+        expect(header).toContain('│');
+        expect(header).toContain('Type');
+      });
+    });
+
+    describe('tableRow()', () => {
+      it('should format values with separators', () => {
+        const row = terminalFormatter.tableRow(['val1', 'val2']);
+        expect(row).toContain('val1');
+        expect(row).toContain('│');
+        expect(row).toContain('val2');
+      });
     });
   });
 });

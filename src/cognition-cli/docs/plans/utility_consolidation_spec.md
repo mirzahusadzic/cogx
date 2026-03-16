@@ -56,11 +56,11 @@ The current architecture suffers from "Utility Soup" (442 disconnected symbols) 
 
 ## 5. Implementation Phases
 
-### Phase 1: Service Extraction & Core Utilities (85% DONE)
+### Phase 1: Service Extraction & Core Utilities (100% DONE)
 
 - [x] Implement `TerminalFormatterService`, `EnvironmentService`, and `SystemDiagnosticsService` as singletons.
 - [x] Migrate major utility files (`home-dir.ts`, `terminal-capabilities.ts`, `string-utils.ts`, `debug-logger.ts`).
-- [ ] Migrate remaining complex rendering logic from `src/utils/formatter.ts` (e.g., `createBox`, `tableRow`, `cleanText`) and `src/utils/error-formatter.ts` to their respective services.
+- [x] Migrate remaining complex rendering logic from `src/utils/formatter.ts` (e.g., `createBox`, `tableRow`, `cleanText`) and `src/utils/error-formatter.ts` to their respective services.
 - [x] Replace original utility implementations with `@deprecated` wrappers (mostly removed now).
 
 ### Phase 2: Lattice & Engine Decoupling (100% DONE)
@@ -82,7 +82,7 @@ The current architecture suffers from "Utility Soup" (442 disconnected symbols) 
 ### Phase 5: Verification & Cleanup (IN PROGRESS)
 
 - [ ] Run E2E tests for UI/Daemon synchronization.
-- [x] Remove deprecated wrappers once all internal references are updated (partially completed).
+- [x] Remove deprecated wrappers once all internal references are updated.
 
 ## 6. Refactoring Strategy & Safety
 
@@ -93,7 +93,7 @@ The current architecture suffers from "Utility Soup" (442 disconnected symbols) 
 
 ## 7. Success Criteria
 
-- [x] **Zero Procedural Soup**: Core infrastructure is DONE. 85% of patterns migrated to Core Services. Legacy wrappers removed in most cases.
+- [x] **Zero Procedural Soup**: Core infrastructure is DONE. 100% of patterns migrated to Core Services. Legacy wrappers removed.
 - [x] **Type Safety**: All migrated code uses strict typing; zero `any` usage.
 - [ ] **State Integrity**: Session lifecycle transitions are managed exclusively by the `SessionStateMachine`. (PENDING Phase 3)
 - [ ] **UI/Daemon Synchronization**: TUI displays reflect current state without race conditions during event bursts. (PENDING Phase 3/4)

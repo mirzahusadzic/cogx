@@ -44,14 +44,7 @@ import {
   MeetResult,
 } from '../core/algebra/overlay-algebra.js';
 import { WorkspaceManager } from '../core/workspace-manager.js';
-import {
-  formatId,
-  cleanText,
-  colorSimilarity,
-  colorSeverity,
-  createBox,
-  formatKeyValue,
-} from '../utils/formatter.js';
+import { terminalFormatter } from '../core/services/terminal-formatter/TerminalFormatterService.js';
 
 interface LatticeOptions {
   projectRoot: string;
@@ -259,15 +252,22 @@ function displayItemList(
   );
 
   for (const item of items.slice(0, limit)) {
-    const content = [formatId(item.id)];
+    const content = [terminalFormatter.formatId(item.id)];
 
     // Type
     if (item.metadata.type) {
-      content.push(formatKeyValue('Type', item.metadata.type));
+      content.push(
+        terminalFormatter.formatKeyValue('Type', item.metadata.type)
+      );
     }
 
     // Text (clean up, box will wrap)
-    content.push(formatKeyValue('Text', cleanText(item.metadata.text)));
+    content.push(
+      terminalFormatter.formatKeyValue(
+        'Text',
+        terminalFormatter.cleanText(item.metadata.text)
+      )
+    );
 
     // Additional metadata (severity, section, etc.)
     const otherKeys = Object.keys(item.metadata).filter(
@@ -278,13 +278,13 @@ function displayItemList(
         const rawValue = item.metadata[key];
         const value =
           key === 'severity'
-            ? colorSeverity(String(rawValue))
+            ? terminalFormatter.colorSeverity(String(rawValue))
             : String(rawValue);
-        content.push(formatKeyValue(key, value));
+        content.push(terminalFormatter.formatKeyValue(key, value));
       }
     }
 
-    console.log(createBox(content));
+    console.log(terminalFormatter.createBox(content));
     console.log('');
   }
 
@@ -368,16 +368,25 @@ function displayMeetResults(
   results.slice(0, limit).forEach((result, index) => {
     const { itemA, itemB, similarity } = result;
     const content = [
-      formatKeyValue('Match', colorSimilarity(similarity)),
+      terminalFormatter.formatKeyValue(
+        'Match',
+        terminalFormatter.colorSimilarity(similarity)
+      ),
       '',
-      formatKeyValue('Item A', formatId(itemA.id)),
-      `  ${cleanText(itemA.metadata.text)}`,
+      terminalFormatter.formatKeyValue(
+        'Item A',
+        terminalFormatter.formatId(itemA.id)
+      ),
+      `  ${terminalFormatter.cleanText(itemA.metadata.text)}`,
       '',
-      formatKeyValue('Item B', formatId(itemB.id)),
-      `  ${cleanText(itemB.metadata.text)}`,
+      terminalFormatter.formatKeyValue(
+        'Item B',
+        terminalFormatter.formatId(itemB.id)
+      ),
+      `  ${terminalFormatter.cleanText(itemB.metadata.text)}`,
     ];
 
-    console.log(createBox(content, `Alignment ${index + 1}`));
+    console.log(terminalFormatter.createBox(content, `Alignment ${index + 1}`));
     console.log('');
   });
 

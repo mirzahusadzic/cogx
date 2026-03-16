@@ -132,6 +132,421 @@ export class TerminalFormatterService {
   }
 
   /**
+   * Create chalk-like object that respects accessibility settings
+   * Returns identity functions when colors are disabled
+   */
+  private get c() {
+    if (this.useColor()) return chalk;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const noop: any = new Proxy(() => {}, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      get: () => noop,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      apply: (_target: any, _thisArg: any, args: any[]) => args[0] || '',
+    });
+    return noop;
+  }
+
+  /**
+   * Color schemes for different overlay types
+   * Maps overlay identifier (O1-O7) to chalk color function
+   */
+  private get OVERLAY_COLORS(): Record<string, (text: string) => string> {
+    const c = this.c;
+    return {
+      O1: c.blue, // Structural
+      O2: c.red, // Security
+      O3: c.yellow, // Lineage
+      O4: c.magenta, // Mission
+      O5: c.cyan, // Operational
+      O6: c.green, // Mathematical
+      O7: c.white, // Strategic Coherence
+    };
+  }
+
+  /**
+   * Color schemes for severity levels
+   * Maps severity string to chalk color function
+   */
+  private get SEVERITY_COLORS(): Record<string, (text: string) => string> {
+    const c = this.c;
+    return {
+      critical: c.red.bold,
+      high: c.red,
+      medium: c.yellow,
+      low: c.blue,
+      info: c.gray,
+    };
+  }
+
+  /**
+   * Truncate hash to first 8 characters
+   *
+   * Makes hashes readable in table output while maintaining
+   * enough entropy for human disambiguation.
+   *
+   * @param hash - Full SHA-256 hash (64 chars)
+   * @returns First 8 characters of hash
+   */
+  public truncateHash(hash: string): string {
+    return hash.substring(0, 8);
+  }
+
+  /**
+   * Extract overlay type from ID
+   *
+   * Parses the overlay identifier from a PGC ID string.
+   * IDs follow the format: "hash:[O2]:semantic_path"
+   *
+   * @param id - PGC item ID
+   * @returns Overlay type (e.g., "O2") or null if not found
+   */
+  public extractOverlayType(id: string): string | null {
+    const match = id.match(/\[([O]\d+)\]/i);
+    return match ? match[1].toUpperCase() : null;
+  }
+
+  /**
+   * Color code an overlay type badge
+   *
+   * Returns the overlay identifier wrapped in brackets with
+   * the appropriate color from OVERLAY_COLORS scheme.
+   *
+   * @param type - Overlay identifier (e.g., 'O2', 'O4')
+   * @returns Colored badge string
+   */
+  public colorOverlayBadge(type: string): string {
+    const colorFn = this.OVERLAY_COLORS[type] || this.c.white;
+    return colorFn(`[${type}]`);
+  }
+
+  /**
+   * Color code a severity level
+   *
+   * Applies consistent color coding to severity strings.
+   * Case-insensitive matching against SEVERITY_COLORS.
+   *
+   * @param severity - Severity level (critical|high|medium|low|info)
+   * @returns Colored severity string
+   */
+  public colorSeverity(severity: string): string {
+    const colorFn =
+      this.SEVERITY_COLORS[severity.toLowerCase()] || this.c.white;
+    return colorFn(severity);
+  }
+
+  /**
+   * Color code a similarity score (percentage)
+   *
+   * Visual feedback for semantic similarity scores from vector search.
+   * Color intensity indicates match quality:
+   * - Green: >= 80% (strong match)
+   * - Yellow: 60-79% (moderate match)
+   * - Yellow dim: 40-59% (weak match)
+   * - Red dim: < 40% (very weak match)
+   *
+   * @param similarity - Similarity score (0.0 to 1.0)
+   * @returns Colored percentage string
+   */
+  public colorSimilarity(similarity: number): string {
+    const percent = similarity * 100;
+    const c = this.c;
+    if (percent >= 80) return c.green.bold(`${percent.toFixed(1)}%`);
+    if (percent >= 60) return c.yellow(`${percent.toFixed(1)}%`);
+    if (percent >= 40) return c.yellow.dim(`${percent.toFixed(1)}%`);
+    return c.red.dim(`${percent.toFixed(1)}%`);
+  }
+
+  /**
+   * Clean text - remove repeated sentences and ASCII art artifacts
+   *
+   * Preprocesses text before display by:
+   * 1. Detecting and inline-formatting JSON (lineage patterns)
+   * 2. Removing duplicate sentences (common in malformed data)
+   * 3. Stripping ASCII art boxes and keeping text before them
+   *
+   * Does NOT truncate - use smartTruncate() if length limit needed.
+   *
+   * @param text - Raw text to clean
+   * @returns Cleaned text (no length limit)
+   */
+  public cleanText(text: string): string {
+    let cleaned = text;
+
+    // Check if text is JSON - parse and format inline
+    if (cleaned.trim().startsWith('{') || cleaned.trim().startsWith('[')) {
+      try {
+        const parsed = JSON.parse(cleaned);
+        // Format JSON for lineage patterns
+        if (parsed.symbol && Array.isArray(parsed.lineage)) {
+          const lineageCount = parsed.lineage.length;
+          if (lineageCount === 0) {
+            return `${parsed.symbol} (no dependencies)`;
+          }
+          const relationships = parsed.lineage
+            .map(
+              (l: { type: string; relationship: string }) =>
+                `${l.relationship} ${l.type}`
+            )
+            .join(', ');
+          return `${parsed.symbol} → ${relationships}`;
+        }
+        // Fallback: inline JSON
+        return JSON.stringify(parsed);
+      } catch {
+        // Not valid JSON, continue with text processing
+      }
+    }
+
+    // Remove repeated sentences (common in malformed data)
+    const sentences = text.split(/\.\s+/);
+    if (sentences.length > 1) {
+      const uniqueSentences: string[] = [];
+      for (const sentence of sentences) {
+        if (!uniqueSentences.includes(sentence.trim()) && sentence.trim()) {
+          uniqueSentences.push(sentence.trim());
+        }
+      }
+      if (uniqueSentences.length < sentences.length) {
+        cleaned = uniqueSentences.join('. ');
+      }
+    }
+
+    // Check if text contains ASCII art (box-drawing characters)
+    if (/[─│┌┐└┘├┤┬┴┼↓▼]/.test(cleaned)) {
+      // Strip ASCII art, keep text before it
+      const beforeArt = cleaned.split(/[─│┌┐└┘├┤┬┴┼↓▼]/)[0].trim();
+      if (beforeArt) {
+        return beforeArt + ' [...]';
+      }
+      return '[ASCII diagram]';
+    }
+
+    return cleaned;
+  }
+
+  /**
+   * Smart truncate - break at word boundaries, preserve readability
+   *
+   * Truncates text to maxLength while preserving word boundaries.
+   * First cleans text using cleanText(), then truncates intelligently.
+   *
+   * @param text - Text to truncate
+   * @param maxLength - Maximum character length
+   * @returns Truncated text with '...' suffix if needed
+   */
+  public smartTruncate(text: string, maxLength: number): string {
+    const cleaned = this.cleanText(text);
+    if (cleaned.length <= maxLength) return cleaned;
+
+    // Truncate at word boundary
+    const truncated = cleaned.substring(0, maxLength);
+    const lastSpace = truncated.lastIndexOf(' ');
+
+    if (lastSpace > maxLength * 0.8) {
+      return truncated.substring(0, lastSpace) + '...';
+    }
+
+    return truncated + '...';
+  }
+
+  /**
+   * Format an ID for display (hash + overlay type if present)
+   *
+   * Formats PGC item IDs for table display:
+   * - Truncates hash to 8 chars (dimmed)
+   * - Extracts and color-codes overlay badge if present
+   *
+   * @param id - PGC item ID (format: "hash:[O2]:path")
+   * @returns Formatted ID with colored overlay badge
+   */
+  public formatId(id: string): string {
+    const parts = id.split(':');
+    const hash = this.truncateHash(parts[0]);
+    const overlayType = this.extractOverlayType(id);
+
+    if (overlayType) {
+      return `${this.c.dim(hash)} ${this.colorOverlayBadge(overlayType)}`;
+    }
+
+    return this.c.dim(hash);
+  }
+
+  /**
+   * Wrap a long line into multiple lines at word boundaries
+   *
+   * Internal helper for createBox(). Wraps text to fit within maxWidth
+   * while respecting ANSI color codes (uses stripAnsi for width calc).
+   *
+   * @param line - Line to wrap (may contain ANSI codes)
+   * @param maxWidth - Maximum display width
+   * @returns Array of wrapped lines (preserving ANSI codes)
+   */
+  private wrapLine(line: string, maxWidth: number): string[] {
+    const stripped = this.cleanAnsi(line);
+    if (stripped.length <= maxWidth) {
+      return [line];
+    }
+
+    const words = line.split(' ');
+    const wrappedLines: string[] = [];
+    let currentLine = '';
+    let currentStripped = '';
+
+    for (const word of words) {
+      const wordStripped = this.cleanAnsi(word);
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      const testStripped = currentStripped
+        ? `${currentStripped} ${wordStripped}`
+        : wordStripped;
+
+      if (testStripped.length <= maxWidth) {
+        currentLine = testLine;
+        currentStripped = testStripped;
+      } else {
+        if (currentLine) {
+          wrappedLines.push(currentLine);
+        }
+        // If single word is too long, truncate it
+        if (wordStripped.length > maxWidth) {
+          const excess = word.length - maxWidth + 3;
+          wrappedLines.push(word.substring(0, word.length - excess) + '...');
+          currentLine = '';
+          currentStripped = '';
+        } else {
+          currentLine = word;
+          currentStripped = wordStripped;
+        }
+      }
+    }
+
+    if (currentLine) {
+      wrappedLines.push(currentLine);
+    }
+
+    return wrappedLines.length > 0 ? wrappedLines : [''];
+  }
+
+  /**
+   * Create a box border for grouping related content
+   *
+   * Draws a Unicode box around content with optional title.
+   * Auto-wraps long lines to 80 chars max. Handles ANSI colors correctly.
+   *
+   * @param content - Array of content lines (may contain ANSI codes)
+   * @param title - Optional title for top border
+   * @returns Formatted box as multiline string
+   */
+  public createBox(content: string[], title?: string): string {
+    // Plain mode: simple text without box
+    if (this.isPlainMode()) {
+      const lines: string[] = [];
+      if (title) {
+        lines.push(`=== ${title} ===`);
+      }
+      lines.push(...content);
+      if (title) {
+        lines.push('='.repeat(title.length + 8));
+      }
+      return lines.join('\n');
+    }
+
+    const maxBoxWidth = 80;
+    const maxContentWidth = maxBoxWidth - 4; // Account for "│ " and " │"
+    const chars = this.getBoxChars();
+
+    // Wrap content lines that are too long
+    const wrappedContent: string[] = [];
+    for (const line of content) {
+      const wrapped = this.wrapLine(line, maxContentWidth);
+      wrappedContent.push(...wrapped);
+    }
+
+    const maxWidth = Math.max(
+      ...wrappedContent.map((line) => this.cleanAnsi(line).length),
+      title ? this.cleanAnsi(title).length + 4 : 0
+    );
+    const width = Math.min(maxWidth + 4, maxBoxWidth);
+
+    const top = title
+      ? `${chars.topLeft}${chars.horizontal} ${this.c.bold(title)} ${chars.horizontal.repeat(Math.max(0, width - this.cleanAnsi(title).length - 5))}${chars.topRight}`
+      : `${chars.topLeft}${chars.horizontal.repeat(width - 2)}${chars.topRight}`;
+    const bottom = `${chars.bottomLeft}${chars.horizontal.repeat(width - 2)}${chars.bottomRight}`;
+
+    const lines = wrappedContent.map((line) => {
+      const stripped = this.cleanAnsi(line);
+      const padding = ' '.repeat(Math.max(0, width - stripped.length - 4));
+      return `${chars.vertical} ${line}${padding} ${chars.vertical}`;
+    });
+
+    return [top, ...lines, bottom].join('\n');
+  }
+
+  /**
+   * Create a simple separator line
+   *
+   * Draws a horizontal separator using repeated characters.
+   * Output is dimmed for visual hierarchy.
+   *
+   * @param char - Character to repeat (default: box-drawing horizontal)
+   * @param length - Number of repetitions (default: 60)
+   * @returns Dimmed separator string
+   */
+  public separator(char: string = '─', length: number = 60): string {
+    const chars = this.getBoxChars();
+    const separatorChar = char === '─' ? chars.horizontal : char;
+    return this.c.dim(separatorChar.repeat(length));
+  }
+
+  /**
+   * Format a key-value pair with aligned colons
+   *
+   * Creates consistent key-value formatting with dimmed keys
+   * and aligned colons for readability.
+   *
+   * @param key - Key name (will be dimmed and padded)
+   * @param value - Value (may contain ANSI codes)
+   * @param keyWidth - Width to pad key to (default: 12)
+   * @returns Formatted "key: value" string
+   */
+  public formatKeyValue(
+    key: string,
+    value: string,
+    keyWidth: number = 12
+  ): string {
+    const paddedKey = key.padEnd(keyWidth);
+    return `${this.c.dim(paddedKey)}: ${value}`;
+  }
+
+  /**
+   * Create a table header
+   *
+   * Formats column headers with bold text and vertical separators.
+   * Used with tableRow() for consistent table formatting.
+   *
+   * @param columns - Array of column header strings
+   * @returns Bold header with separators
+   */
+  public tableHeader(columns: string[]): string {
+    const chars = this.getBoxChars();
+    return this.c.bold(columns.join(`  ${chars.vertical}  `));
+  }
+
+  /**
+   * Create a table row
+   *
+   * Formats row values with vertical separators matching tableHeader().
+   * Values may contain ANSI codes for coloring.
+   *
+   * @param values - Array of cell values
+   * @returns Row with separators
+   */
+  public tableRow(values: string[]): string {
+    const chars = this.getBoxChars();
+    return values.join(`  ${chars.vertical}  `);
+  }
+
+  /**
    * Formats a number into a compact string representation (e.g., 1.7M, 269k).
    * Useful for displaying large counts in space-constrained UI elements.
    */
