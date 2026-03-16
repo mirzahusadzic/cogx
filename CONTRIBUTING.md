@@ -1,18 +1,32 @@
 # Contributing to Cognition CLI
 
-Thank you for your interest in contributing to the **Cognition CLI** - a cryptographically-grounded knowledge graph system with seven cognitive overlays for verifiable code understanding and mission alignment!
+> **⚠️ This is a solo research project. External contributions are not accepted.**
+>
+> Cognition CLI is an active, long-term research and engineering project maintained by a single author. It is developed in close collaboration with AI agents (the intended users of the system itself) and is not structured for community contribution workflows.
+>
+> **What this means:**
+> - Pull requests will not be reviewed or merged
+> - Issues and feature requests are disabled
+> - The project is source-available for learning and forking under AGPLv3
+>
+> You are welcome to **fork** the project and build your own thing. If you have found a **security vulnerability**, please report it privately via [SECURITY.md](SECURITY.md).
+>
+> Thank you for your understanding. 🐉
 
-## Table of Contents
+## Why no contributions?
 
-- [Code of Conduct](#code-of-conduct)
-- [Getting Started](#getting-started)
-- [Development Workflow](#development-workflow)
-- [Project Architecture](#project-architecture)
-- [Commit Guidelines](#commit-guidelines)
-- [Pull Request Process](#pull-request-process)
-- [Testing Requirements](#testing-requirements)
-- [Documentation](#documentation)
-- [Licensing](#licensing)
+This project evolves through a tight human-AI collaboration loop. The architecture decisions, commit cadence, and design philosophy are deeply personal and intentional. Introducing external contribution workflows would break that loop and introduce coordination overhead that is incompatible with how this project is built.
+
+It is not a reflection of the quality of your ideas — it is a deliberate choice about how this project works best.
+
+## Licensing
+
+The project is licensed under **AGPLv3**. You are free to:
+- Read, study, and learn from the code
+- Fork and adapt it under the same license
+- Use it as inspiration for your own projects
+
+See [LICENSE](LICENSE) for full terms.
 
 ## Code of Conduct
 
