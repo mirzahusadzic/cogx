@@ -371,29 +371,44 @@ export class GeminiAgentProvider extends BaseAgentProvider {
         const newEvents: NonNullable<AdkSession['events']> = [];
         let evictedCount = 0;
 
-        // Pass 1: Identify task range (from 'in_progress' to 'completed')
+        // Pass 1: Identify task range (from 'in_progress' to 'completed').
+        // We find both startIndex and endIndex to bound the Turn-Range Eviction
+        // strictly within this task's window, preventing assistant turns from
+        // subsequent tasks from being swept into the eviction pass.
         let startIndex = -1;
+        let endIndex = events.length - 1;
         for (let i = 0; i < events.length; i++) {
           const parts = events[i].content?.parts || [];
-          const taskInProgress = parts.some(
-            (p) =>
-              p.functionCall?.name === 'SigmaTaskUpdate' &&
-              (p.functionCall.args as Record<string, unknown>)?.todos &&
-              Array.isArray(
-                (p.functionCall.args as Record<string, unknown>).todos
-              ) &&
-              (
-                (p.functionCall.args as Record<string, unknown>)
+          const todos = (p: (typeof parts)[number]) =>
+            p.functionCall?.name === 'SigmaTaskUpdate' &&
+            Array.isArray(
+              (p.functionCall.args as Record<string, unknown>)?.todos
+            )
+              ? ((p.functionCall.args as Record<string, unknown>)
                   .todos as Array<{
                   id: string;
                   status: string;
-                }>
-              ).some((t) => t.id === taskId && t.status === 'in_progress')
-          );
-          if (taskInProgress) {
-            startIndex = i;
-            break;
+                }>)
+              : null;
+          for (const p of parts) {
+            const taskTodos = todos(p);
+            if (!taskTodos) continue;
+            if (
+              startIndex === -1 &&
+              taskTodos.some(
+                (t) => t.id === taskId && t.status === 'in_progress'
+              )
+            ) {
+              startIndex = i;
+            } else if (
+              startIndex !== -1 &&
+              taskTodos.some((t) => t.id === taskId && t.status === 'completed')
+            ) {
+              endIndex = i;
+              break;
+            }
           }
+          if (startIndex !== -1 && endIndex < events.length - 1) break;
         }
 
         // Pass 2: Find last evicted index to inject summary
@@ -411,6 +426,7 @@ export class GeminiAgentProvider extends BaseAgentProvider {
           const isAssistantTurnInRange =
             startIndex !== -1 &&
             i >= startIndex &&
+            i <= endIndex &&
             event.author === 'cognition_agent';
           if (hasTag || isAssistantTurnInRange) {
             lastEvictedIndex = i;
@@ -429,9 +445,11 @@ export class GeminiAgentProvider extends BaseAgentProvider {
           });
 
           // Turn-Range Eviction: Prune assistant turns (thinking/text) within the task window.
+          // Bounded by [startIndex, endIndex] to avoid evicting turns from subsequent tasks.
           const isAssistantTurnInRange =
             startIndex !== -1 &&
             i >= startIndex &&
+            i <= endIndex &&
             event.author === 'cognition_agent';
 
           if (hasTag || isAssistantTurnInRange) {

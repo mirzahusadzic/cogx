@@ -287,6 +287,22 @@ export function getUnifiedTools(
         return `Task list updated (${processedTodos.length} items) [NOT PERSISTED]:\n${summary}`;
       }
 
+      // Capture which tasks were already completed BEFORE this update so we only
+      // fire onTaskCompleted for newly-completed tasks. The model often re-sends
+      // the full task list on every SigmaTaskUpdate call, which would otherwise
+      // trigger redundant prune/eviction passes for already-completed tasks.
+      let previouslyCompletedIds = new Set<string>();
+      if (context.onTaskCompleted) {
+        const { loadSessionState: loadPrev } =
+          await import('../../sigma/session-state.js');
+        const previousState = loadPrev(anchorId, cwd);
+        previouslyCompletedIds = new Set(
+          previousState?.todos
+            ?.filter((t) => t.status === 'completed')
+            .map((t) => t.id) ?? []
+        );
+      }
+
       const result = await executeSigmaTaskUpdate(
         processedTodos,
         cwd,
@@ -299,7 +315,10 @@ export function getUnifiedTools(
         const finalState = loadSessionState(anchorId, cwd);
 
         for (const todo of processedTodos) {
-          if (todo.status === 'completed') {
+          if (
+            todo.status === 'completed' &&
+            !previouslyCompletedIds.has(todo.id)
+          ) {
             const validatedTask = finalState?.todos?.find(
               (t) => t.id === todo.id
             );
