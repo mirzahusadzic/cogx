@@ -69,9 +69,12 @@ The current architecture suffers from "Utility Soup" (442 disconnected symbols) 
 - [x] Migrate graph-walking and token estimation logic from `src/sigma/reconstructor.ts`.
 - [x] Remove `src/sigma/reconstructor.ts` entirely.
 
-### Phase 3: State Machine Implementation (PENDING)
+### Phase 3: State Machine Implementation (IN PROGRESS)
 
-- [ ] Refactor `src/sigma/session-state.ts` to use the `SessionStateMachine`.
+- [x] Implement `SessionStateMachine` in `src/core/state/session/` to formalize the session lifecycle (INITIALIZING, ACTIVE, TASK_PROCESSING, etc.).
+- [x] Refactor legacy `src/sigma/session-state.ts` as a proxy to the new Core State system, maintaining full backward compatibility.
+- [x] Integrate session state transitions and task validation into `tool-executors.ts`.
+- [x] Implement atomic disk persistence and legacy format migration in `SessionPersistence.ts`, with zero `any` usage.
 - [ ] Implement `TUISyncStateMachine` in `src/core/state/tui-sync/`.
 
 ### Phase 4: Command & Hook Refactoring (PENDING)

@@ -810,7 +810,7 @@ export async function executeSigmaTaskUpdate(
       }
     }
 
-    return updateTasksByAnchorId(anchorId, cwd, finalTodos);
+    return await updateTasksByAnchorId(anchorId, cwd, finalTodos);
   } catch (error) {
     return `Error updating task: ${error instanceof Error ? error.message : String(error)}`;
   }

@@ -685,7 +685,7 @@ describe('session-state', () => {
     });
 
     describe('updateTasksByAnchorId', () => {
-      it('should load, update, save todos in one operation', () => {
+      it('should load, update, save todos in one operation', async () => {
         const anchorId = 'tui-todo-persist';
 
         // Create initial session
@@ -693,13 +693,15 @@ describe('session-state', () => {
         saveSessionState(state, tempDir);
 
         // Update todos
-        const result = updateTasksByAnchorId(anchorId, tempDir, [
+        const result = await updateTasksByAnchorId(anchorId, tempDir, [
           {
+            id: 'task-1',
             content: 'Build feature',
             status: 'in_progress',
             activeForm: 'Building feature',
           },
           {
+            id: 'task-2',
             content: 'Write tests',
             status: 'pending',
             activeForm: 'Writing tests',
@@ -718,23 +720,27 @@ describe('session-state', () => {
         expect(loaded?.todos![0].status).toBe('in_progress');
       });
 
-      it('should format summary with status icons', () => {
+      it('should format summary with status icons', async () => {
         const anchorId = 'tui-todo-icons';
         const state = createSessionState(anchorId, 'sdk-1');
         saveSessionState(state, tempDir);
 
-        const result = updateTasksByAnchorId(anchorId, tempDir, [
+        const result = await updateTasksByAnchorId(anchorId, tempDir, [
           {
+            id: 'task-1',
             content: 'Done task',
             status: 'completed',
+            result_summary: 'Task 1 summary',
             activeForm: 'Completing task',
           },
           {
+            id: 'task-2',
             content: 'Current task',
             status: 'in_progress',
             activeForm: 'Working on current task',
           },
           {
+            id: 'task-3',
             content: 'Future task',
             status: 'pending',
             activeForm: 'Future work',
@@ -747,26 +753,57 @@ describe('session-state', () => {
         expect(result).toContain('[○] Future task'); // pending
       });
 
-      it('should handle multiple updates (replacement behavior)', () => {
+      it('should handle multiple updates (replacement behavior)', async () => {
         const anchorId = 'tui-todo-multiple';
         const state = createSessionState(anchorId, 'sdk-1');
         saveSessionState(state, tempDir);
 
         // First update
-        updateTasksByAnchorId(anchorId, tempDir, [
-          { content: 'Task 1', status: 'pending', activeForm: 'Working 1' },
-          { content: 'Task 2', status: 'pending', activeForm: 'Working 2' },
+        await updateTasksByAnchorId(anchorId, tempDir, [
+          {
+            id: 'task-1',
+            content: 'Task 1',
+            status: 'pending',
+            activeForm: 'Working 1',
+          },
+          {
+            id: 'task-2',
+            content: 'Task 2',
+            status: 'pending',
+            activeForm: 'Working 2',
+          },
         ]);
 
         let loaded = loadSessionState(anchorId, tempDir);
         expect(loaded?.todos).toHaveLength(2);
 
         // Second update - should replace, not append
-        updateTasksByAnchorId(anchorId, tempDir, [
-          { content: 'Task 1', status: 'completed', activeForm: 'Done 1' },
-          { content: 'Task 2', status: 'in_progress', activeForm: 'Working 2' },
-          { content: 'Task 3', status: 'pending', activeForm: 'Working 3' },
-        ]);
+        await updateTasksByAnchorId(
+          anchorId,
+          tempDir,
+          [
+            {
+              id: 'task-1',
+              content: 'Task 1',
+              status: 'completed',
+              result_summary: 'Done 1',
+              activeForm: 'Done 1',
+            },
+            {
+              id: 'task-2',
+              content: 'Task 2',
+              status: 'in_progress',
+              activeForm: 'Working 2',
+            },
+            {
+              id: 'task-3',
+              content: 'Task 3',
+              status: 'pending',
+              activeForm: 'Working 3',
+            },
+          ],
+          true
+        );
 
         loaded = loadSessionState(anchorId, tempDir);
         expect(loaded?.todos).toHaveLength(3); // Not 5!
@@ -774,22 +811,31 @@ describe('session-state', () => {
         expect(loaded?.todos![2].content).toBe('Task 3');
       });
 
-      it('should return warning when session state does not exist', () => {
-        const result = updateTasksByAnchorId('non-existent-anchor', tempDir, [
-          { content: 'Task', status: 'pending', activeForm: 'Working' },
-        ]);
+      it('should return warning when session state does not exist', async () => {
+        const result = await updateTasksByAnchorId(
+          'non-existent-anchor',
+          tempDir,
+          [
+            {
+              id: 'task-1',
+              content: 'Task',
+              status: 'pending',
+              activeForm: 'Working',
+            },
+          ]
+        );
 
         expect(result).toContain('Warning');
         expect(result).toContain('No session state found');
         expect(result).toContain('non-existent-anchor');
       });
 
-      it('should handle empty todos list', () => {
+      it('should handle empty todos list', async () => {
         const anchorId = 'tui-empty-list';
         const state = createSessionState(anchorId, 'sdk-1');
         saveSessionState(state, tempDir);
 
-        const result = updateTasksByAnchorId(anchorId, tempDir, []);
+        const result = await updateTasksByAnchorId(anchorId, tempDir, []);
 
         expect(result).toContain('Task list updated (0 items)');
 
@@ -797,13 +843,18 @@ describe('session-state', () => {
         expect(loaded?.todos).toEqual([]);
       });
 
-      it('should preserve todos across compressions', () => {
+      it('should preserve todos across compressions', async () => {
         const anchorId = 'tui-todo-compression';
 
         // Initial session with todos
         let state = createSessionState(anchorId, 'sdk-1');
         state = updateSessionTasks(state, [
-          { content: 'Task 1', status: 'pending', activeForm: 'Working 1' },
+          {
+            id: 'task-1',
+            content: 'Task 1',
+            status: 'pending',
+            activeForm: 'Working 1',
+          },
         ]);
         saveSessionState(state, tempDir);
 
