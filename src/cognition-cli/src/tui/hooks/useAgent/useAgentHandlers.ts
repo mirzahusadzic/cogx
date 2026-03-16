@@ -7,6 +7,7 @@ import {
   isAuthenticationError,
   formatAuthError,
   formatSDKError,
+  isSilentTimeout,
 } from '../sdk/index.js';
 import { McpServerBuilder } from '../../services/McpServerBuilder.js';
 import { formatPendingMessages } from '../../../ipc/agent-messaging-formatters.js';
@@ -1261,9 +1262,7 @@ This triggers a semantic compression event, flushing implementation noise while 
         currentAdapterRef.current = adapter;
         abortedRef.current = false;
 
-        let previousMessageCount = 0;
-        let hasAssistantMessage = false;
-        let lastResponse: {
+        type LastResponse = {
           sessionId?: string;
           tokens: {
             prompt: number;
@@ -1275,131 +1274,171 @@ This triggers a semantic compression event, flushing implementation noise while 
           numTurns: number;
           toolResult?: { name: string };
           finishReason?: string;
-        } | null = null;
+        };
+
+        let previousMessageCount = 0;
+        let hasAssistantMessage = false;
+        let lastResponse: LastResponse | null = null;
         let turnWasSemantic = false;
 
-        const queryResult = adapter.query(finalPrompt);
-        for await (const response of queryResult) {
-          // Process responses
-          resetBoredomTimer();
+        // Silent-timeout retry: Vertex AI / Gemini close idle SSE streams after ~2min
+        // of no output (model thinking). The ADK generator completes cleanly with zero
+        // content. We auto-retry once before surfacing an error.
+        const MAX_SILENT_RETRIES = 1;
+        let silentRetryCount = 0;
 
-          // Reset to PROCESSING if we were waiting (bored)
-          if (thinkingStateRef.current === ThinkingState.WAITING) {
-            setThinkingState(ThinkingState.PROCESSING);
-          }
+        const runQuery = async (
+          prompt: string
+        ): Promise<{
+          hasAssistantMessage: boolean;
+          lastResponse: LastResponse | null;
+          turnWasSemantic: boolean;
+        }> => {
+          let runHasAssistantMessage = false;
+          let runLastResponse: LastResponse | null = null;
+          let runTurnWasSemantic = false;
+          previousMessageCount = 0;
 
-          // Update retry count if provider is retrying (Gemini specific)
-          if (response.retryCount !== undefined) {
-            setRetryCount(response.retryCount);
-          }
+          const queryResult = adapter.query(prompt);
+          for await (const response of queryResult) {
+            // Process responses
+            resetBoredomTimer();
 
-          // Update active model if it changed due to failover (Gemini specific)
-          if (response.activeModel) {
-            setActiveModel(response.activeModel);
-          }
+            // Reset to PROCESSING if we were waiting (bored)
+            if (thinkingStateRef.current === ThinkingState.WAITING) {
+              setThinkingState(ThinkingState.PROCESSING);
+            }
 
-          lastResponse = response as unknown as {
-            sessionId?: string;
-            tokens: {
-              prompt: number;
-              completion: number;
-              total: number;
-              cached?: number;
-            };
-            messages: unknown[];
-            numTurns: number;
-            toolResult?: { name: string };
-            finishReason?: string;
-          };
-          const newMessages = response.messages.slice(previousMessageCount);
-          previousMessageCount = response.messages.length;
+            // Update retry count if provider is retrying (Gemini specific)
+            if (response.retryCount !== undefined) {
+              setRetryCount(response.retryCount);
+            }
 
-          if (response.sessionId) {
-            const prevSessionId = currentSessionIdRef.current;
-            if (prevSessionId !== response.sessionId) {
-              const reason = compression.state.triggered
-                ? 'compression'
-                : prevSessionId.startsWith('tui-')
-                  ? 'initial'
-                  : 'expiration';
-              const compressedTokens =
-                reason === 'compression'
-                  ? compression.state.lastCompressedTokens ||
-                    tokenCounter.count.total
-                  : undefined;
-              sessionManager.updateSDKSession(
-                response.sessionId,
-                reason,
-                compressedTokens
-              );
-              if (compression.state.triggered) {
-                compression.reset();
-                tokenCounter.reset();
+            // Update active model if it changed due to failover (Gemini specific)
+            if (response.activeModel) {
+              setActiveModel(response.activeModel);
+            }
+
+            runLastResponse = response as unknown as LastResponse;
+            const newMessages = response.messages.slice(previousMessageCount);
+            previousMessageCount = response.messages.length;
+
+            if (response.sessionId) {
+              const prevSessionId = currentSessionIdRef.current;
+              if (prevSessionId !== response.sessionId) {
+                const reason = compression.state.triggered
+                  ? 'compression'
+                  : prevSessionId.startsWith('tui-')
+                    ? 'initial'
+                    : 'expiration';
+                const compressedTokens =
+                  reason === 'compression'
+                    ? compression.state.lastCompressedTokens ||
+                      tokenCounter.count.total
+                    : undefined;
+                sessionManager.updateSDKSession(
+                  response.sessionId,
+                  reason,
+                  compressedTokens
+                );
+                if (compression.state.triggered) {
+                  compression.reset();
+                  tokenCounter.reset();
+                }
               }
             }
-          }
 
-          tokenCounter.update({
-            input: response.tokens.prompt,
-            output: response.tokens.completion,
-            total: response.tokens.total,
-            cached: response.tokens.cached,
-          });
-          const turnCostUsd = adapter.estimateCost({
-            input: response.tokens.prompt,
-            output: response.tokens.completion,
-            total: response.tokens.total,
-            cached: response.tokens.cached,
-          });
-
-          const turnSavedCostUsd = adapter.estimateCost({
-            input: response.tokens.cached || 0,
-            output: 0,
-            total: response.tokens.cached || 0,
-            cached: 0,
-          });
-
-          sessionTokenCounter.update(
-            {
+            tokenCounter.update({
               input: response.tokens.prompt,
               output: response.tokens.completion,
               total: response.tokens.total,
               cached: response.tokens.cached,
-            },
-            turnCostUsd,
-            turnSavedCostUsd,
-            response.numTurns
-          );
+            });
+            const turnCostUsd = adapter.estimateCost({
+              input: response.tokens.prompt,
+              output: response.tokens.completion,
+              total: response.tokens.total,
+              cached: response.tokens.cached,
+            });
 
-          // Layer 15: Dynamic Task Token Tracking.
-          // Synchronize in-progress task token usage on every turn, even if SigmaTaskUpdate wasn't called.
-          // This ensures the sidebar displays real-time cost for the ongoing operation.
-          setSigmaTasks((prev) =>
-            updateSigmaTasksWithTokens(
-              prev,
-              prev,
-              sessionTokenCounter.getLatestCount().total,
-              sessionTokenCounter.getLatestCount().cached
-            )
-          );
+            const turnSavedCostUsd = adapter.estimateCost({
+              input: response.tokens.cached || 0,
+              output: 0,
+              total: response.tokens.cached || 0,
+              cached: 0,
+            });
 
-          if (
-            response.toolResult &&
-            (response.toolResult.name === 'SigmaTaskUpdate' ||
-              response.toolResult.name ===
-                'mcp__sigma-task-update__SigmaTaskUpdate')
-          ) {
-            turnWasSemantic = true;
-          }
-
-          for (const agentMessage of newMessages) {
-            if (agentMessage.type === 'assistant') hasAssistantMessage = true;
-            await processAgentMessage(
-              agentMessage,
-              sessionTokenCounter.getLatestCount().total,
-              sessionTokenCounter.getLatestCount().cached
+            sessionTokenCounter.update(
+              {
+                input: response.tokens.prompt,
+                output: response.tokens.completion,
+                total: response.tokens.total,
+                cached: response.tokens.cached,
+              },
+              turnCostUsd,
+              turnSavedCostUsd,
+              response.numTurns
             );
+
+            // Layer 15: Dynamic Task Token Tracking.
+            // Synchronize in-progress task token usage on every turn, even if SigmaTaskUpdate wasn't called.
+            // This ensures the sidebar displays real-time cost for the ongoing operation.
+            setSigmaTasks((prev) =>
+              updateSigmaTasksWithTokens(
+                prev,
+                prev,
+                sessionTokenCounter.getLatestCount().total,
+                sessionTokenCounter.getLatestCount().cached
+              )
+            );
+
+            if (
+              response.toolResult &&
+              (response.toolResult.name === 'SigmaTaskUpdate' ||
+                response.toolResult.name ===
+                  'mcp__sigma-task-update__SigmaTaskUpdate')
+            ) {
+              runTurnWasSemantic = true;
+            }
+
+            for (const agentMessage of newMessages) {
+              if (agentMessage.type === 'assistant')
+                runHasAssistantMessage = true;
+              await processAgentMessage(
+                agentMessage,
+                sessionTokenCounter.getLatestCount().total,
+                sessionTokenCounter.getLatestCount().cached
+              );
+            }
           }
+          return {
+            hasAssistantMessage: runHasAssistantMessage,
+            lastResponse: runLastResponse,
+            turnWasSemantic: runTurnWasSemantic,
+          };
+        }; // end runQuery
+
+        ({ hasAssistantMessage, lastResponse, turnWasSemantic } =
+          await runQuery(finalPrompt));
+
+        // Auto-retry on silent timeout (no content, no stderr = server closed idle stream)
+        while (
+          !hasAssistantMessage &&
+          !abortedRef.current &&
+          isSilentTimeout(stderrLines, hasAssistantMessage) &&
+          silentRetryCount < MAX_SILENT_RETRIES
+        ) {
+          silentRetryCount++;
+          setMessages((prev) => [
+            ...prev,
+            {
+              type: 'system',
+              content: `⟳ Connection timed out, retrying... (attempt ${silentRetryCount}/${MAX_SILENT_RETRIES})`,
+              timestamp: new Date(),
+            },
+          ]);
+          ({ hasAssistantMessage, lastResponse, turnWasSemantic } =
+            await runQuery(finalPrompt));
         }
 
         if (
@@ -1457,7 +1496,9 @@ This triggers a semantic compression event, flushing implementation noise while 
         if (!hasAssistantMessage && !abortedRef.current) {
           const errorMsg = isAuthenticationError(stderrLines)
             ? formatAuthError()
-            : formatSDKError(stderrLines, hasAssistantMessage);
+            : isSilentTimeout(stderrLines, hasAssistantMessage)
+              ? `SDK completed without response after ${silentRetryCount} retry attempt(s) — possible server timeout or authentication issue`
+              : formatSDKError(stderrLines, hasAssistantMessage);
           setMessages((prev) => [
             ...prev,
             {

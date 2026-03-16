@@ -87,7 +87,18 @@ export function formatSDKError(
   hadMessages: boolean
 ): string {
   if (stderrLines.length === 0 && !hadMessages) {
-    return 'SDK completed without response - check authentication';
+    return 'SDK completed without response — likely a server-side timeout. Retrying...';
   }
   return `SDK error: ${stderrLines.join(' ')}`;
+}
+
+/**
+ * Check if an SDK no-response error is a silent timeout (empty stream, no stderr).
+ * These are safe to auto-retry — the API server simply closed the idle connection.
+ */
+export function isSilentTimeout(
+  stderrLines: string[],
+  hadMessages: boolean
+): boolean {
+  return stderrLines.length === 0 && !hadMessages;
 }
