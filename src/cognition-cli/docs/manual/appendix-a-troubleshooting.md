@@ -1353,32 +1353,26 @@ cognition-cli ask "test query"
 
 ---
 
-### Community Support
+### Diagnostic Information
 
-1. **GitHub Issues**:
-   - Report bugs: <https://github.com/mirzahusadzic/cogx/issues>
-   - Search existing issues for solutions
+```bash
+# System info
+cognition-cli --version
+node --version
+docker --version
 
-2. **Diagnostic Information** (include when reporting issues):
+# PGC status
+cognition-cli status
 
-   ```bash
-   # System info
-   cognition-cli --version
-   node --version
-   docker --version
+# Overlay list
+cognition-cli overlay list
 
-   # PGC status
-   cognition-cli status
+# Workbench health
+curl http://localhost:8000/health
 
-   # Overlay list
-   cognition-cli overlay list
-
-   # Workbench health
-   curl http://localhost:8000/health
-
-   # Recent logs
-   tail -50 .open_cognition/workflow_log.jsonl
-   ```
+# Recent logs
+tail -50 .open_cognition/workflow_log.jsonl
+```
 
 3. **Minimal Reproducible Example**:
 

@@ -131,8 +131,9 @@ export function formatGenericError(error: unknown, verbose: boolean): string {
 
   lines.push('');
   lines.push(c.bold('This appears to be an unexpected error.'));
-  lines.push(c.dim('Please report this issue with the error details above.'));
-  lines.push(c.dim('Report at: https://github.com/mirzahusadzic/cogx/issues'));
+  lines.push(
+    c.dim('Check .open_cognition/workflow_log.jsonl for detailed logs.')
+  );
 
   return lines.join('\n');
 }

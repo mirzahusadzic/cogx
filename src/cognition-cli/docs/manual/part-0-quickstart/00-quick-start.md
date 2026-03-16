@@ -339,7 +339,6 @@ cognition-cli ask "what is the purpose of Y"       # Documentation questions
 - **In-CLI help**: `cognition-cli guide`
 - **Command reference**: `cognition-cli <command> --help`
 - **Full manual**: [The Lattice Book](../README.md)
-- **Issues**: <https://github.com/mirzahusadzic/cogx/issues>
 
 ---
 

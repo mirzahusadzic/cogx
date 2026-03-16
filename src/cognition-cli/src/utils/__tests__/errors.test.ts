@@ -176,8 +176,9 @@ describe('ErrorCodes', () => {
       expect(error.code).toBe('COG-E401');
       expect(error.title).toBe('Internal Error');
       expect(error.message).toContain('unexpected null value');
+      expect(error.solutions).toContain('This is likely an internal bug');
       expect(error.solutions).toContain(
-        'This is likely a bug - please report it'
+        'Check .open_cognition/workflow_log.jsonl'
       );
     });
 

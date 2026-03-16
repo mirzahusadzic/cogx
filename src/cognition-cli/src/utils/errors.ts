@@ -219,11 +219,11 @@ export const ErrorCodes = {
       'Internal Error',
       `An unexpected error occurred: ${context}`,
       [
-        'This is likely a bug - please report it',
+        'This is likely an internal bug',
         'Use --verbose to see stack trace',
-        'Include error details when reporting',
+        'Check .open_cognition/workflow_log.jsonl',
       ],
-      'https://github.com/mirzahusadzic/cogx/issues',
+      'https://github.com/mirzahusadzic/cogx',
       cause
     ),
 
