@@ -82,7 +82,7 @@ The current architecture suffers from "Utility Soup" (442 disconnected symbols) 
 - [x] Update TUI hooks (`src/tui/hooks/`) to subscribe to `TUISyncStateMachine`.
 - [x] Update `AgentContext` and sugar commands to use new Core Services.
 
-### Phase 5: Verification & Cleanup (IN PROGRESS)
+### Phase 5: Verification & Cleanup (100% DONE)
 
 - [x] Run full test suite and verification loops.
 - [x] Check for any remaining legacy `WorkspaceManager` or procedural utility usage.
@@ -99,7 +99,7 @@ The current architecture suffers from "Utility Soup" (442 disconnected symbols) 
 
 - [x] **Zero Procedural Soup**: Core infrastructure is DONE. 100% of patterns migrated to Core Services. Legacy wrappers removed.
 - [x] **Type Safety**: All migrated code uses strict typing; zero `any` usage.
-- [ ] **State Integrity**: Session lifecycle transitions are managed exclusively by the `SessionStateMachine`. (PENDING Phase 3)
-- [ ] **UI/Daemon Synchronization**: TUI displays reflect current state without race conditions during event bursts. (PENDING Phase 3/4)
+- [x] **State Integrity**: Session lifecycle transitions are managed exclusively by the `SessionStateMachine`.
+- [x] **UI/Daemon Synchronization**: TUI displays reflect current state without race conditions during event bursts.
 - [x] **Backward Compatibility**: Most deprecated wrappers are already removed as internal references were updated.
 - [x] **Architectural Health**: Full build and E2E test suite pass without regressions.
