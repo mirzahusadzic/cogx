@@ -220,24 +220,20 @@ export function getSigmaTaskUpdateDescription(
   mode: 'solo' | 'full' = 'full'
 ): string {
   if (mode === 'solo') {
-    // Strip IPC and PGC sections for solo mode to save ~500 tokens
+    // Strip IPC/Delegation sections for solo mode to save tokens, but KEEP grounding
     return SIGMA_TASK_UPDATE_DESCRIPTION.replace(
       /## Delegation \(Manager\/Worker Pattern\)[\s\S]*?## PGC Grounding/m,
       '## PGC Grounding'
     )
+      .replace(/Benefits of delegation:/m, 'Benefits of task tracking:')
       .replace(
-        /## PGC Grounding \(v2\.0 Protocol\)[\s\S]*?Benefits of delegation:/m,
-        'Benefits of task tracking:'
-      )
-      .replace(
-        /Benefits of delegation:[\s\S]*?Worker agents handle implementation details/m,
-        ''
+        /Worker agents handle implementation details/m,
+        'Captures key insights for subsequent tasks'
       )
       .replace(
         /### IPC Message Format for Delegation[\s\S]*?\*\*Example 4:/m,
         '**Example 4:'
       )
-      .replace(/- Use 'grounding' and 'grounding_evidence'[\s\S]*?\n/m, '')
       .replace(
         /- delegated: Task assigned to another agent via IPC \(Manager\/Worker pattern\)\n/m,
         ''

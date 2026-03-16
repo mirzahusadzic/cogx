@@ -238,16 +238,16 @@ export const SigmaTaskUpdateSchema = z.object({
         status: z
           .enum(['pending', 'in_progress', 'completed', 'delegated'])
           .describe(
-            'Task status. Use "delegated" when assigning task to another agent via IPC'
+            'Task status. Use "completed" to trigger log eviction and reclaim tokens. Use "delegated" when assigning task to another agent via IPC'
           ),
         result_summary: z
           .string()
           .min(15)
-          .nullable()
-          .optional()
           .describe(
             "REQUIRED when status is 'completed'. A concise summary of the essential findings, code changes, or decisions made during this task. This summary will survive log eviction."
-          ),
+          )
+          .nullable()
+          .optional(),
         delegated_to: z
           .string()
           .nullable()

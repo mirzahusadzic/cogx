@@ -88,7 +88,10 @@ export async function performRollingPrune({
       const event = newEvents[idx];
       evictedLogs.push(JSON.stringify(event, null, 2));
 
-      const toolTombstone = `[Tool output for task ${taskId} evicted (Rolling Prune) to keep context small. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`;
+      const isArchiveEnabled = !!process.env.DEBUG_ARCHIVE;
+      const toolTombstone = isArchiveEnabled
+        ? `[Tool output for task ${taskId} evicted (Rolling Prune) to keep context small. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`
+        : `[Tool output for task ${taskId} evicted (Rolling Prune) to keep context small. Previous logs are no longer available in the context window.]`;
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const newParts = event.content?.parts?.map((p: any) => {

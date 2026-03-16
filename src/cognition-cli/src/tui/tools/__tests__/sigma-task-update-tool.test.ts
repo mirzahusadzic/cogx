@@ -188,6 +188,7 @@ describe('SigmaTaskUpdateTool', () => {
           content: 'Review evidence',
           activeForm: 'Reviewing evidence',
           status: 'completed',
+          result_summary: 'Test summary with enough length',
         },
       ],
       grounding: [
@@ -234,6 +235,7 @@ describe('SigmaTaskUpdateTool', () => {
           content: 'Review evidence',
           activeForm: 'Reviewing evidence',
           status: 'completed',
+          result_summary: 'Test summary with enough length',
           grounding_evidence: {
             queries_executed: ['q1'],
             overlays_consulted: ['O1'],

@@ -118,8 +118,14 @@ export function createSigmaTaskUpdateMcpServer(
       )
       .describe(
         solo
-          ? 'Task status.'
-          : 'Task status. Use "delegated" when assigning task to another agent via IPC'
+          ? 'Task status. Use "completed" to trigger log eviction and reclaim tokens.'
+          : 'Task status. Use "delegated" when assigning task to another agent via IPC. Use "completed" to trigger log eviction.'
+      ),
+    result_summary: z
+      .string()
+      .optional()
+      .describe(
+        "REQUIRED when status is 'completed'. A concise summary of the essential findings, code changes, or decisions made during this task. This summary will survive log eviction."
       ),
   };
 
@@ -147,18 +153,11 @@ export function createSigmaTaskUpdateMcpServer(
       .string()
       .optional()
       .describe("Worker's session ID (for audit trail)");
-    todoSchema.result_summary = z
-      .string()
-      .optional()
-      .describe("Worker's completion report");
   }
 
   const parameters: Record<string, z.ZodTypeAny> = {
     todos: z.array(z.object(todoSchema)).describe('The updated task list'),
-  };
-
-  if (!solo) {
-    parameters.grounding = z
+    grounding: z
       .array(
         z.object({
           id: z.string(),
@@ -180,11 +179,11 @@ export function createSigmaTaskUpdateMcpServer(
         })
       )
       .nullable()
+      .optional()
       .describe(
         'Grounding strategy and hints for tasks (correlate via id). Optional PGC Grounding Instructions for the worker'
-      );
-
-    parameters.grounding_evidence = z
+      ),
+    grounding_evidence: z
       .array(
         z.object({
           id: z.string(),
@@ -205,8 +204,9 @@ export function createSigmaTaskUpdateMcpServer(
         })
       )
       .nullable()
-      .describe('Structured evidence returned by worker (correlate via id)');
-  }
+      .optional()
+      .describe('Structured evidence returned by worker (correlate via id)'),
+  };
 
   const sigmaTaskUpdateTool = tool(
     'SigmaTaskUpdate',
@@ -215,8 +215,23 @@ export function createSigmaTaskUpdateMcpServer(
     async (args: Record<string, unknown>) => {
       const typedArgs = args as unknown as ToolArgs;
       try {
-        // Validate delegation requirements (moved from .refine() for cross-provider compatibility)
+        // Validate requirements (moved from .refine() for cross-provider compatibility)
         for (const task of typedArgs.todos || []) {
+          if (task.status === 'completed') {
+            if (
+              !task.result_summary ||
+              task.result_summary.length <
+                (process.env.SIGMA_MIN_SUMMARY_LENGTH
+                  ? parseInt(process.env.SIGMA_MIN_SUMMARY_LENGTH)
+                  : 15)
+            ) {
+              throw new Error(
+                `Validation Error: You cannot mark task "${task.id}" as 'completed' without providing a detailed 'result_summary' (min 15 chars). ` +
+                  "Raw tool logs for this task will be evicted. Please summarize your findings so you don't lose context."
+              );
+            }
+          }
+
           if (task.status === 'delegated') {
             if (
               !task.acceptance_criteria ||
@@ -259,8 +274,6 @@ export function createSigmaTaskUpdateMcpServer(
             if (todo.context) cleanTodo.context = todo.context;
             if (todo.delegate_session_id)
               cleanTodo.delegate_session_id = todo.delegate_session_id;
-            if (todo.result_summary)
-              cleanTodo.result_summary = todo.result_summary;
 
             const grounding = typedArgs.grounding?.find(
               (g) => g.id === todo.id
