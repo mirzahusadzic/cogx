@@ -102,15 +102,15 @@ export async function smartCompressOutput(
   let dynamicLimit = maxChars;
   if (currentPromptTokens) {
     if (currentPromptTokens > 150000) {
-      // High pressure: Aggressive 10k limit
-      dynamicLimit = Math.min(maxChars || 10000, 10000);
+      // High pressure: Aggressive 5k limit
+      dynamicLimit = Math.min(maxChars || 5000, 5000);
     } else if (currentPromptTokens > 50000) {
-      // Medium pressure: 20k limit
-      dynamicLimit = Math.min(maxChars || 20000, 20000);
+      // Medium pressure: 10k limit
+      dynamicLimit = Math.min(maxChars || 10000, 10000);
     } else {
-      // Low pressure: Standard 30k limit for bash
+      // Low pressure: Standard limit
       dynamicLimit =
-        maxChars || (toolType === 'bash' ? 30000 : MAX_TOOL_OUTPUT_CHARS);
+        maxChars || (toolType === 'bash' ? 10000 : MAX_TOOL_OUTPUT_CHARS);
     }
   }
 

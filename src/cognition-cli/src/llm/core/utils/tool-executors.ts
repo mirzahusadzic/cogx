@@ -200,7 +200,7 @@ export async function executeGrep(
       if (output.length + chunk.length > MAX_OUTPUT_SIZE) {
         if (output.length < MAX_OUTPUT_SIZE) {
           output += chunk.substring(0, MAX_OUTPUT_SIZE - output.length);
-          output += `\n... (output truncated at ${MAX_OUTPUT_SIZE / (1024 * 1024)}MB)`;
+          output += `\n... (output truncated at ${MAX_OUTPUT_SIZE / 1024}KB)`;
         }
         proc.kill('SIGTERM');
       } else {
@@ -865,7 +865,14 @@ export async function executeWebSearch(
       )
       .join('\n\n');
 
-    return `Search results for "${query}":\n\n${formatted}`;
+    const result = `Search results for "${query}":\n\n${formatted}`;
+
+    return await smartCompressOutput(
+      result,
+      'glob', // Use glob as proxy for generic list truncation
+      TOOL_CONFIG.GLOBAL.MAX_TOOL_OUTPUT_CHARS,
+      workbenchUrl
+    );
   } catch (error) {
     // Handle timeout or network errors gracefully
     if (
