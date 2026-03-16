@@ -272,12 +272,17 @@ function getToolInstructions(isSolo: boolean): string {
 ### Task State Rules
 1. **Task States**: ${taskStates}
 2. **One at a Time**: Exactly ONE task can be \`in_progress\` at any time.
+3. **Clean Slate Protocol**: To switch tasks, you MUST:
+   a. Mark current task as \`completed\` (with detailed \`result_summary\`).
+   b. **END YOUR TURN**.
+   c. Start the next task in your **NEXT** turn.
 
 ### Task State Recovery (CRITICAL)
 If a \`SigmaTaskUpdate\` call fails (e.g., "Only one task can be in_progress"):
-1. **Summarize Current Work**: Immediately mark the *existing* \`in_progress\` task as \`completed\` with a \`result_summary\`.
-2. **Start New Task**: In your *next* tool call, start your new task.
-3. **Emergency Yield**: If truly stuck, you are permitted to "Yield" (respond to the user) ONLY to ask for a task list reset.
+1. **Follow Repair Templates**: Use the JSON **REPAIR ACTION** in the error message immediately to fix the state.
+2. **Summarize Current Work**: Immediately mark the *existing* \`in_progress\` task as \`completed\` with a \`result_summary\`.
+3. **Start New Task**: In your *next* tool call, start your new task.
+4. **Emergency Yield**: If truly stuck, you are permitted to "Yield" (respond to the user) ONLY to ask for a task list reset.
 `;
 }
 

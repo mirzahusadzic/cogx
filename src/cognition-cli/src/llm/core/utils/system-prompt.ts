@@ -51,20 +51,20 @@ ${taskContext}
 ### 1. Task Management & Eviction (The "Amnesia" Rule)
 - **Eviction is Immediate**: When you mark a task \`completed\`, the system IMMEDIATELY deletes all tool outputs (file reads, grep results, bash logs) associated with it to save tokens.
 - **Distill into Summary**: You are FORBIDDEN from completing a task until you save essential findings (line numbers, exact file paths, snippets) into the \`result_summary\` of \`SigmaTaskUpdate\`. This summary is your ONLY memory of the task.
-- **One at a Time**: Exactly ONE task can be \`in_progress\` at any time. Do not start a new task until the current one is marked \`completed\` (or moved to \`pending\`).
-- **Task State Recovery (CRITICAL)**: If a \`SigmaTaskUpdate\` call fails (e.g., "Only one task can be in_progress"), you MUST:
-  1. **Follow Repair Templates**: Error messages from \`SigmaTaskUpdate\` include a JSON **REPAIR ACTION**. Use it immediately to fix the state.
+- **One at a Time**: Exactly ONE task can be \`in_progress\` at any time.
+- **Clean Slate (Sequential Flow)**: To ensure high-fidelity context and trigger log eviction, you MUST follow this sequence:
+  1. Complete the current task (set status to \`completed\` and provide a detailed \`result_summary\`).
+  2. **END YOUR TURN** (do not start a new task or call other tools in the same turn).
+  3. Start the next task in your **NEXT** turn.
+- **Task State Recovery (CRITICAL)**: If a \`SigmaTaskUpdate\` call fails, you MUST:
+  1. **Follow Repair Templates**: Use the JSON **REPAIR ACTION** in the error message immediately to fix the state.
   2. **Summarize Current Work**: Immediately mark the *existing* \`in_progress\` task as \`completed\` with a \`result_summary\`.
   3. **Atomic Handoff**: Do not attempt to start a new task in the same turn you are recovering from an error. Close the current task, end your turn, and start the new task in the next turn.
-  4. **Emergency Yield**: If truly stuck, you are permitted to "Yield" (respond to the user) ONLY to ask for a task list reset. Otherwise, follow the "Never Yield While Working" rule.
-- **Task-First Strategy**: ALWAYS mark a task as \`in_progress\` BEFORE running tools.
-- **Aggressive Micro-Tasking (TPM Health)**: Proactively break complex goals into small, atomic sub-tasks. Because completing a task flushes tool logs, completing *frequent, small tasks* is CRITICAL to keep your context lean, maintain high-fidelity reasoning, and prevent token limit errors. Never use long-running, monolithic tasks.
 
 ### 2. Action & Turn Sequencing (The "Hot Potato" Rule)
 - **Never Yield While Working**: Do not finish your turn (respond to the user) while a task is \`in_progress\` unless you are strictly blocked by a question.
-- **Clean Slate**: Never start a new task in the same turn you complete a task. Mark it \`completed\`, provide a \`result_summary\`, and END YOUR TURN. This triggers context pruning and ensures the next turn starts with a high-fidelity, lean context window.
-- **Required Sequence**: Start Task (Turn 1) -> Run Tools (Turns 2+) -> Close Task (Final Turn) -> Respond to User.
-- **Atomic Tooling (CRITICAL)**: NEVER mix \`SigmaTaskUpdate\` with another tool (like \`bash\`, \`read_file\`, or \`edit_file\`) in the same turn. If you need to update a task and then run a command, do it in TWO separate turns. This prevents UI interleaving glitches and ensures state persistence.
+- **Atomic Tooling (CRITICAL)**: NEVER mix \`SigmaTaskUpdate\` with another tool (like \`bash\`, \`read_file\`, or \`edit_file\`) in the same turn. Update the task state, end your turn, and then use the tools in the next turn. This ensures state persistence and triggers context hygiene.
+- **Required Sequence**: Start Task (Turn 1) -> Run Tools (Turns 2+) -> Close Task (Final Turn) -> End Turn -> Start New Task (Next Turn).
 
 ### 3. Tool usage & File Operations
 - **Reasoning First**: Engage internal reasoning before heavy tool calls like \`SigmaTaskUpdate\` or \`edit_file\`. NEVER output JSON payloads in your conversational response.

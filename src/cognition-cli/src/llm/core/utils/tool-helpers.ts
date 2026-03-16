@@ -453,6 +453,15 @@ Skip using this tool when:
 - completed: Task finished successfully (REQUIRES result_summary)
 - delegated: Task assigned to another agent via IPC (Manager/Worker pattern)
 
+## Sequential Workflow & Task Transitions (CRITICAL)
+Cognition Σ enforces a strict sequential workflow. You can only have ONE task \`in_progress\` at a time.
+- **Clean Slate Protocol**: To switch tasks, you MUST:
+  1. Set the current \`in_progress\` task to \`status: "completed"\` and provide a detailed \`result_summary\`.
+  2. **END YOUR TURN** after this call.
+  3. Start the next task as \`in_progress\` in your **NEXT** turn.
+- **Why**: This triggers immediate context pruning, ensuring your next turn starts with a clean context window and maximum token efficiency.
+- **Error Recovery**: If you violate this, the tool will return an error and provide a RECOVERY template. Follow that template exactly.
+
 ## Token Health (Surgical Eviction)
 Cognition Σ uses task IDs to tag tool outputs for context pruning. To maximize context efficiency, follow these three rules:
 1. **Always Start First**: Mark a task as 'in_progress' BEFORE running tools. This ensures logs are tagged and can be surgically evicted upon task completion.
