@@ -933,7 +933,10 @@ export class GeminiAgentProvider extends BaseAgentProvider {
           errorMessage.includes('Service Unavailable') ||
           errorMessage.includes('Deadline exceeded') ||
           errorMessage.includes('ECONNRESET') ||
-          errorMessage.includes('ETIMEDOUT');
+          errorMessage.includes('ETIMEDOUT') ||
+          // Server returned non-JSON (e.g. "exception ...") before any content — transient
+          (errorMessage.includes('Unexpected token') &&
+            accumulatedAssistant.length === 0);
 
         if (isRetryable && attempt < maxRetries) {
           attempt++;

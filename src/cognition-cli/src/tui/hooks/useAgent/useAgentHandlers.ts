@@ -1421,10 +1421,13 @@ This triggers a semantic compression event, flushing implementation noise while 
         ({ hasAssistantMessage, lastResponse, turnWasSemantic } =
           await runQuery(finalPrompt));
 
-        // Auto-retry on silent timeout (no content, no stderr = server closed idle stream)
+        // Auto-retry on silent timeout (no content, no stderr = server closed idle stream).
+        // Skip if provider already yielded finishReason:'error' — that means SDK-level retries
+        // were exhausted, so TUI-level retry won't help.
         while (
           !hasAssistantMessage &&
           !abortedRef.current &&
+          lastResponse?.finishReason !== 'error' &&
           isSilentTimeout(stderrLines, hasAssistantMessage) &&
           silentRetryCount < MAX_SILENT_RETRIES
         ) {
