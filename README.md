@@ -205,11 +205,18 @@ This blueprint is the foundational document for that future. It provides the arc
 
 ---
 
-## 🤝 Contributing
+## 🔬 Solo Research Project
 
-This is a blueprint in active design. Contributions to the architectural discussion are welcome. Please open an issue to propose changes or discuss a specific component.
-
-**[Read the Contributing Guide](CONTRIBUTING.md)** — How to contribute to CogX
+> **⚠️ This is a solo research project. External contributions are not accepted.**
+>
+> CogX is an active, long-term research and engineering project maintained by a single author. It is developed in close collaboration with AI agents and is not structured for community contribution workflows.
+>
+> **What this means:**
+> - Pull requests will not be reviewed or merged
+> - Issues and feature requests are disabled
+> - The project is source-available for learning and forking under AGPLv3
+>
+> For details, see **[CONTRIBUTING.md](CONTRIBUTING.md)**.
 
 ---
 
@@ -386,8 +393,6 @@ Organizations requiring closed-source commercial implementations should contact 
 
 - **[Documentation Hub](docs/README.md)** — Central navigation for all docs
 - **[Documentation Site](https://mirzahusadzic.github.io/cogx/)** — Rendered online docs
-- **[GitHub Discussions](https://github.com/mirzahusadzic/cogx/discussions)** — Community discussions
-- **[Issues](https://github.com/mirzahusadzic/cogx/issues)** — Bug reports and feature requests
 - **[Releases](https://github.com/mirzahusadzic/cogx/releases)** — Release history
 
 ---

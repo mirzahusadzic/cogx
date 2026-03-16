@@ -208,7 +208,6 @@ If you're researching security aspects of cryptographically-grounded knowledge s
 ## Contact
 
 - **Security issues**: <mirza.husadzic@proton.me>
-- **General questions**: <https://github.com/mirzahusadzic/cogx/issues>
 - **Project maintainer**: Mirza Husadžić
 
 ## Attribution
@@ -221,4 +220,4 @@ This security policy is inspired by best practices from:
 
 ---
 
-**Last updated**: November 9, 2025
+**Last updated**: March 16, 2026

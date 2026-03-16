@@ -1,11 +1,11 @@
 blank_issues_enabled: false
 contact_links:
+  - name: 🔬 Solo Research Project
+    url: https://github.com/mirzahusadzic/cogx/blob/main/CONTRIBUTING.md
+    about: This is a solo research project. Issues and PRs are disabled.
   - name: 📖 Documentation
     url: https://mirzahusadzic.github.io/cogx/
     about: Check the comprehensive documentation site
-  - name: 💬 GitHub Discussions
-    url: https://github.com/mirzahusadzic/cogx/discussions
-    about: Ask questions and discuss ideas with the community
   - name: 🔒 Security Vulnerability
     url: https://github.com/mirzahusadzic/cogx/security/policy
     about: Please report security vulnerabilities via email (see SECURITY.md)

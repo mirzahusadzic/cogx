@@ -1258,17 +1258,9 @@ Both "cover" the document, but one is usable for navigation.
 
 ---
 
-## Contributing
+## Project Status
 
-To improve the extraction patterns:
-
-1. **Document your use case**: What document type are you working with?
-2. **Share examples**: Provide sample markdown showing missed concepts
-3. **Propose patterns**: Describe the structural marker you want to extract
-4. **Test thoroughly**: Ensure your pattern doesn't create noise
-5. **Submit PR**: Include tests showing before/after extraction quality
-
-**Discussion**: Open an issue tagged `concept-extraction` to discuss patterns.
+This is a solo research project. External contributions are not accepted at this time. For more information, please see the **[Contributing Guide](../../CONTRIBUTING.md)**.
 
 ---
 
