@@ -326,71 +326,107 @@ export class LineagePatternsManager implements PatternManager {
     // Phase 2: Generate embeddings sequentially
     const successfulMines = miningResults.filter((r) => r.status === 'success');
 
-    if (successfulMines.length === 0) {
-      console.log(chalk.yellow('[LineagePatterns] No patterns to embed.'));
-      return;
-    }
-
-    console.log(
-      chalk.blue(
-        `[LineagePatterns] Phase 2: Generating embeddings for ${successfulMines.length} patterns...`
-      )
-    );
-
     await this.vectorDB.initialize('lineage_patterns');
 
-    let embeddedCount = 0;
-    let embedFailedCount = 0;
+    if (successfulMines.length === 0) {
+      console.log(chalk.yellow('[LineagePatterns] No patterns to embed.'));
+    } else {
+      console.log(
+        chalk.blue(
+          `[LineagePatterns] Phase 2: Generating embeddings for ${successfulMines.length} patterns...`
+        )
+      );
 
-    for (let i = 0; i < successfulMines.length; i++) {
-      const result = successfulMines[i];
-      try {
-        await this.generateAndStoreEmbedding(result);
-        embeddedCount++;
+      let embeddedCount = 0;
+      let embedFailedCount = 0;
 
-        // Show progress every 10 patterns
-        if (embeddedCount % 10 === 0) {
-          EmbedLogger.progress(
-            embeddedCount,
-            successfulMines.length,
+      for (let i = 0; i < successfulMines.length; i++) {
+        const result = successfulMines[i];
+        try {
+          await this.generateAndStoreEmbedding(result);
+          embeddedCount++;
+
+          // Show progress every 10 patterns
+          if (embeddedCount % 10 === 0) {
+            EmbedLogger.progress(
+              embeddedCount,
+              successfulMines.length,
+              'LineagePatterns'
+            );
+          }
+
+          // Report progress for TUI
+          if (onProgress) {
+            const percent = Math.round(
+              (embeddedCount / successfulMines.length) * 100
+            );
+            onProgress(
+              jobs.length + i + 1,
+              jobs.length * 2,
+              `Embedding ${embeddedCount}/${successfulMines.length} patterns (${percent}%)`,
+              'embedding'
+            );
+          }
+        } catch (error) {
+          EmbedLogger.error(
+            result.symbolName,
+            error as Error,
             'LineagePatterns'
           );
+          embedFailedCount++;
         }
-
-        // Report progress for TUI
-        if (onProgress) {
-          const percent = Math.round(
-            (embeddedCount / successfulMines.length) * 100
-          );
-          onProgress(
-            jobs.length + i + 1,
-            jobs.length * 2,
-            `Embedding ${embeddedCount}/${successfulMines.length} patterns (${percent}%)`,
-            'embedding'
-          );
-        }
-      } catch (error) {
-        EmbedLogger.error(result.symbolName, error as Error, 'LineagePatterns');
-        embedFailedCount++;
       }
-    }
 
-    console.log(
-      chalk.green(
-        `[LineagePatterns] Embedding complete: ${embeddedCount} succeeded, ${embedFailedCount} failed`
-      )
-    );
+      console.log(
+        chalk.green(
+          `[LineagePatterns] Embedding complete: ${embeddedCount} succeeded, ${embedFailedCount} failed`
+        )
+      );
+    }
 
     // Phase 3: Cleanup stale manifest entries and vectors
     const lineageManifest =
       await this.pgc.overlays.getManifest('lineage_patterns');
     if (lineageManifest) {
       const discoveredLineageSymbols = new Set(
-        successfulMines.map((m) => `${m.filePath}#${m.symbolName}`)
+        miningResults
+          .filter((r) => r.status === 'success' || r.status === 'skipped')
+          .map((m) => `${m.filePath}#${m.symbolName}`)
       );
-      const staleLineageSymbols = Object.keys(lineageManifest).filter(
-        (s) => !discoveredLineageSymbols.has(s)
-      );
+      const staleLineageSymbols = Object.keys(lineageManifest).filter((s) => {
+        // If it was discovered (newly mined or skipped because up-to-date), it's definitely NOT stale.
+        if (discoveredLineageSymbols.has(s)) return false;
+
+        // If it's NOT in the structural manifest anymore, it's ALWAYS stale.
+        // We can safely do a global cleanup because we loaded the full structuralManifest.
+        if (!structuralManifest[s]) return true;
+
+        // It's in structural manifest but was NOT discovered in this run.
+        // Is it within the scope of our current filters?
+        const entry = this.pgc.overlays.parseManifestEntry(lineageManifest[s]);
+        const filePath = entry.filePath;
+
+        const isInFileScope =
+          files.length === 0 || (filePath && files.includes(filePath));
+        if (!isInFileScope) return false;
+
+        const parts = s.split('#');
+        const symbolName = parts[parts.length - 1];
+        const symbolType = this._getSymbolType(symbolName);
+        const isInTypeScope =
+          symbolTypes.length === 0 || symbolTypes.includes(symbolType);
+        if (!isInTypeScope) return false;
+
+        // It's in scope, in structural manifest, but NOT discovered.
+        // Check if it failed during mining.
+        const failed = miningResults.some(
+          (r) => r.status === 'error' && `${r.filePath}#${r.symbolName}` === s
+        );
+
+        // If it failed, we keep the old data to avoid total loss.
+        // If it didn't even show up in miningResults (logic mismatch?), we purge it.
+        return !failed;
+      });
 
       if (staleLineageSymbols.length > 0) {
         console.log(
