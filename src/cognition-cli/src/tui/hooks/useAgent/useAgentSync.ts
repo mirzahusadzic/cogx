@@ -3,6 +3,10 @@ import path from 'path';
 import fs from 'fs';
 import { systemDiagnosticsService } from '../../../core/services/diagnostics/SystemDiagnosticsService.js';
 import { useAgentBaseContext } from '../../contexts/AgentContext.js';
+import {
+  tuiSyncManager,
+  TUISyncManager,
+} from '../../../core/state/tui-sync/TUISyncManager.js';
 
 export function useAgentSync() {
   const {
@@ -11,7 +15,6 @@ export function useAgentSync() {
     turnAnalysis,
     options,
     anchorId,
-    debug,
     tokenCounter,
     sessionTokenCounter,
   } = useAgentBaseContext();
@@ -136,76 +139,45 @@ export function useAgentSync() {
     lastPersistedTokensRef,
   ]);
 
-  // Compute overlay scores
+  // Compute and Sync overlay scores and stats
   useEffect(() => {
-    function computeOverlayScores() {
-      if (turnAnalysis.analyses.length === 0) return;
-
-      try {
-        const analyses = turnAnalysis.analyses;
-        const totalTurns = analyses.length;
-
-        const scores = {
-          O1_structural: 0,
-          O2_security: 0,
-          O3_lineage: 0,
-          O4_mission: 0,
-          O5_operational: 0,
-          O6_mathematical: 0,
-          O7_strategic: 0,
-        };
-
-        // Accumulate scores from all analyses in memory
-        // PERFORMANCE: This avoids O(N) LanceDB queries per update
-        for (const analysis of analyses) {
-          const os = analysis.overlay_scores;
-          scores.O1_structural += os.O1_structural || 0;
-          scores.O2_security += os.O2_security || 0;
-          scores.O3_lineage += os.O3_lineage || 0;
-          scores.O4_mission += os.O4_mission || 0;
-          scores.O5_operational += os.O5_operational || 0;
-          scores.O6_mathematical += os.O6_mathematical || 0;
-          scores.O7_strategic += os.O7_strategic || 0;
-        }
-
-        // Calculate averages
-        scores.O1_structural /= totalTurns;
-        scores.O2_security /= totalTurns;
-        scores.O3_lineage /= totalTurns;
-        scores.O4_mission /= totalTurns;
-        scores.O5_operational /= totalTurns;
-        scores.O6_mathematical /= totalTurns;
-        scores.O7_strategic /= totalTurns;
-
-        // Only update if scores have actually changed (structural comparison)
-        const currentScores = state.overlayScores;
-        const hasChanged =
-          Math.abs(currentScores.O1_structural - scores.O1_structural) >
-            0.001 ||
-          Math.abs(currentScores.O2_security - scores.O2_security) > 0.001 ||
-          Math.abs(currentScores.O3_lineage - scores.O3_lineage) > 0.001 ||
-          Math.abs(currentScores.O4_mission - scores.O4_mission) > 0.001 ||
-          Math.abs(currentScores.O5_operational - scores.O5_operational) >
-            0.001 ||
-          Math.abs(currentScores.O6_mathematical - scores.O6_mathematical) >
-            0.001 ||
-          Math.abs(currentScores.O7_strategic - scores.O7_strategic) > 0.001;
-
-        if (hasChanged) {
-          setOverlayScores(scores);
-        }
-      } catch (err) {
-        debug('Failed to compute overlay scores:', err);
-      }
-    }
-
     if (turnAnalysis.stats.totalAnalyzed > 0) {
-      computeOverlayScores();
+      const scores = TUISyncManager.computeOverlayScores(turnAnalysis.analyses);
+
+      // Only update if scores have actually changed (structural comparison)
+      const currentScores = state.overlayScores;
+      const hasChanged =
+        Math.abs(currentScores.O1_structural - scores.O1_structural) > 0.001 ||
+        Math.abs(currentScores.O2_security - scores.O2_security) > 0.001 ||
+        Math.abs(currentScores.O3_lineage - scores.O3_lineage) > 0.001 ||
+        Math.abs(currentScores.O4_mission - scores.O4_mission) > 0.001 ||
+        Math.abs(currentScores.O5_operational - scores.O5_operational) >
+          0.001 ||
+        Math.abs(currentScores.O6_mathematical - scores.O6_mathematical) >
+          0.001 ||
+        Math.abs(currentScores.O7_strategic - scores.O7_strategic) > 0.001;
+
+      if (hasChanged) {
+        setOverlayScores(scores);
+        // Sync to the state machine
+        tuiSyncManager.handleEvent({ type: 'OVERLAY_SCORES_UPDATE', scores });
+      }
+
+      // Sync sigma stats to state machine
+      tuiSyncManager.handleEvent({
+        type: 'SIGMA_STATS_UPDATE',
+        stats: {
+          nodes: turnAnalysis.stats.totalAnalyzed,
+          edges: Math.max(0, turnAnalysis.stats.totalAnalyzed - 1),
+          paradigmShifts: turnAnalysis.stats.paradigmShifts,
+          avgNovelty: turnAnalysis.stats.avgNovelty,
+          avgImportance: turnAnalysis.stats.avgImportance,
+        },
+      });
     }
   }, [
-    turnAnalysis.stats.totalAnalyzed,
+    turnAnalysis.stats,
     turnAnalysis.analyses,
-    debug,
     setOverlayScores,
     state.overlayScores,
   ]);

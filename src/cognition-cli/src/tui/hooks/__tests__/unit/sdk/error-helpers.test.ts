@@ -131,7 +131,7 @@ describe('error-helpers', () => {
     it('should handle empty stderr with no messages', () => {
       const result = formatSDKError([], false);
       expect(result).toBe(
-        'SDK completed without response - check authentication'
+        'SDK completed without response — likely a server-side timeout. Retrying...'
       );
     });
 

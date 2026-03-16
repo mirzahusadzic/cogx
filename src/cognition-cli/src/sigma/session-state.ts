@@ -5,7 +5,7 @@
  * It maintains backward compatibility with the existing procedural API.
  */
 
-import { SigmaTask, SessionState } from '../core/state/session/types.js';
+import type { SigmaTask, SessionState } from '../core/state/session/types.js';
 import {
   loadSessionState as loadPersisted,
   saveSessionState as savePersisted,
@@ -19,7 +19,7 @@ import { sessionManager } from '../core/state/session/SessionManager.js';
 import { SessionStateMachine } from '../core/state/session/SessionStateMachine.js';
 
 // Re-export types for backward compatibility
-export { SigmaTask, SessionState };
+export type { SigmaTask, SessionState };
 
 /**
  * Migrate tasks from old format (without id) to new format (with id)
@@ -46,10 +46,18 @@ export function saveSessionState(
   projectRoot: string
 ): void {
   savePersisted(state, projectRoot);
-  // Also update the active state machine if it exists
+  // Also update the in-memory manager's state for this anchor if it's already tracked.
+  // We do NOT call machine.updateSDKSession here as that would add a 'restart' entry
+  // to history every time we save. Instead, we just sync the state.
   const machine = sessionManager.getStateMachine(state.anchor_id, projectRoot);
   if (machine) {
-    machine.updateSDKSession(state.current_session, 'restart'); // Approximate
+    const currentState = machine.getState();
+    if (
+      !currentState ||
+      currentState.current_session !== state.current_session
+    ) {
+      machine.handleEvent({ type: 'LOAD_SUCCESS', state });
+    }
   }
 }
 
@@ -121,6 +129,9 @@ export async function updateTasksByAnchorId(
   }
 
   const machine = sessionManager.getStateMachine(anchorId, projectRoot);
+  if (machine && !machine.getState()) {
+    machine.handleEvent({ type: 'LOAD_SUCCESS', state });
+  }
   return await machine.updateTasks(todos as Partial<SigmaTask>[], replace);
 }
 

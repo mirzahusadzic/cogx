@@ -9,10 +9,27 @@
  * - Box and table formatting
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { terminalFormatter } from '../TerminalFormatterService.js';
 
+// Mock environment service
+vi.mock('../../environment/EnvironmentService.js', () => ({
+  environmentService: {
+    getEnv: vi.fn().mockReturnValue(undefined),
+    isCI: vi.fn().mockReturnValue(false),
+    isMac: vi.fn().mockReturnValue(true),
+  },
+}));
+
 describe('TerminalFormatterService', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Force colors on for tests
+    vi.spyOn(terminalFormatter, 'useColor').mockReturnValue(true);
+    vi.spyOn(terminalFormatter, 'useEmoji').mockReturnValue(true);
+    vi.spyOn(terminalFormatter, 'useBoxDrawing').mockReturnValue(true);
+  });
+
   describe('Hash and ID Formatting', () => {
     describe('truncateHash()', () => {
       it('should truncate hash to 8 characters', () => {
@@ -89,8 +106,8 @@ describe('TerminalFormatterService', () => {
       it('should format ID with only dimmed hash when no overlay', () => {
         const id = 'abc123def:no-overlay';
         const formatted = terminalFormatter.formatId(id);
+        expect(formatted).toContain('\u001b[2m');
         expect(formatted).toContain('abc123de');
-        expect(formatted).not.toContain('[');
       });
     });
   });

@@ -68,15 +68,15 @@
 
 import { intro, outro, spinner, log } from '@clack/prompts';
 import chalk from 'chalk';
-import path from 'path';
 import { OverlayRegistry } from '../../core/algebra/overlay-registry.js';
 import type {
   CoherenceMetadata,
   CoherenceAlgebraAdapter,
 } from '../../core/overlays/strategic-coherence/algebra-adapter.js';
-import { WorkspaceManager } from '../../core/workspace-manager.js';
+import { environmentService } from '../../core/services/environment/EnvironmentService.js';
 
 interface CoherenceOptions {
+  // ...
   projectRoot: string;
   format?: 'table' | 'json' | 'summary';
   limit?: number;
@@ -93,10 +93,9 @@ interface CoherenceOptions {
  * @throws {Error} Exits process if no workspace found
  */
 function resolvePgcRoot(startPath: string): string {
-  const workspaceManager = new WorkspaceManager();
-  const projectRoot = workspaceManager.resolvePgcRoot(startPath);
-
-  if (!projectRoot) {
+  try {
+    return environmentService.resolvePgcDir(startPath);
+  } catch {
     log.error(
       chalk.red(
         'No .open_cognition workspace found. Run "cognition-cli init" to create one.'
@@ -104,8 +103,6 @@ function resolvePgcRoot(startPath: string): string {
     );
     process.exit(1);
   }
-
-  return path.join(projectRoot, '.open_cognition');
 }
 
 /**

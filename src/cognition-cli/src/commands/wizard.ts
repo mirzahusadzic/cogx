@@ -65,7 +65,7 @@ import { initCommand } from './init.js';
 import { genesisCommand } from './genesis.js';
 import { genesisDocsCommand } from './genesis-docs.js';
 import { OverlayOrchestrator } from '../core/orchestrators/overlay.js';
-import { WorkspaceManager } from '../core/workspace-manager.js';
+import { environmentService } from '../core/services/environment/EnvironmentService.js';
 import {
   checkWorkbenchHealth,
   autodetectWorkbench,
@@ -129,8 +129,7 @@ export async function wizardCommand(options: WizardOptions) {
   log.info(chalk.dim('🤝 This is the symbiosis.\n'));
 
   // Step 1: Check if PGC already exists using walk-up
-  const workspaceManager = new WorkspaceManager();
-  let projectRoot = workspaceManager.resolvePgcRoot(options.projectRoot);
+  let projectRoot = environmentService.findProjectRoot(options.projectRoot);
 
   // If no workspace found, use the provided projectRoot for initialization
   if (!projectRoot) {

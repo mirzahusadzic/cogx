@@ -47,7 +47,7 @@ import type {
   CoherenceMetadata,
   CoherenceAlgebraAdapter,
 } from '../core/overlays/strategic-coherence/algebra-adapter.js';
-import { WorkspaceManager } from '../core/workspace-manager.js';
+import { environmentService } from '../core/services/environment/EnvironmentService.js';
 
 /**
  * Adds strategic coherence query commands to the CLI program.
@@ -83,8 +83,9 @@ export function addCoherenceCommands(program: Command) {
     .option('-v, --verbose', 'Show detailed error messages', false)
     .action(async (options, command) => {
       const isVerbose = getVerboseState(options);
-      const workspaceManager = new WorkspaceManager();
-      const projectRoot = workspaceManager.resolvePgcRoot(options.projectRoot);
+      const projectRoot = environmentService.findProjectRoot(
+        options.projectRoot
+      );
 
       if (!projectRoot) {
         if (!(command.optsWithGlobals().json || options.json)) {
@@ -334,8 +335,9 @@ export function addCoherenceCommands(program: Command) {
     .option('--json', 'Output results as JSON')
     .action(async (options, command) => {
       const isVerbose = getVerboseState(options);
-      const workspaceManager = new WorkspaceManager();
-      const projectRoot = workspaceManager.resolvePgcRoot(options.projectRoot);
+      const projectRoot = environmentService.findProjectRoot(
+        options.projectRoot
+      );
 
       const allOpts = command.optsWithGlobals();
       const useJson = allOpts.json || options.json || options.format === 'json';
@@ -440,8 +442,9 @@ export function addCoherenceCommands(program: Command) {
     .option('--json', 'Output results as JSON')
     .action(async (options, command) => {
       const isVerbose = getVerboseState(options);
-      const workspaceManager = new WorkspaceManager();
-      const projectRoot = workspaceManager.resolvePgcRoot(options.projectRoot);
+      const projectRoot = environmentService.findProjectRoot(
+        options.projectRoot
+      );
 
       const allOpts = command.optsWithGlobals();
       const useJson = allOpts.json || options.json || options.format === 'json';
@@ -542,8 +545,9 @@ export function addCoherenceCommands(program: Command) {
     .option('--json', 'Output results as JSON')
     .action(async (options, command) => {
       const isVerbose = getVerboseState(options);
-      const workspaceManager = new WorkspaceManager();
-      const projectRoot = workspaceManager.resolvePgcRoot(options.projectRoot);
+      const projectRoot = environmentService.findProjectRoot(
+        options.projectRoot
+      );
 
       const allOpts = command.optsWithGlobals();
       const useJson = allOpts.json || options.json || options.format === 'json';

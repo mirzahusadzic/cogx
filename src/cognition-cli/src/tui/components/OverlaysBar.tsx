@@ -1,12 +1,17 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import type { BackgroundTask } from '../services/BackgroundTaskManager.js';
+import type {
+  WorkbenchHealthStatus,
+  SigmaStats,
+  BackgroundTask,
+} from '../../core/state/tui-sync/types.js';
 import { TUITheme } from '../theme.js';
 
 import { environmentService } from '../../core/services/environment/EnvironmentService.js';
+import { tuiSyncManager } from '../../core/state/tui-sync/TUISyncManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -17,40 +22,6 @@ const VERSION = packageJson.version;
 
 // Platform-specific brand emoji (phoenix ZWJ breaks on macOS terminals)
 const BRAND_EMOJI = environmentService.isMac() ? '🐉' : '🐦‍🔥';
-
-/**
- * Sigma conversation lattice statistics
- */
-export interface SigmaStats {
-  /** Number of conversation nodes in lattice */
-  nodes: number;
-
-  /** Number of edges connecting nodes */
-  edges: number;
-
-  /** Count of detected paradigm shifts */
-  paradigmShifts: number;
-
-  /** Average novelty score (0-1) */
-  avgNovelty: number;
-
-  /** Average importance score (0-10) */
-  avgImportance: number;
-}
-
-/**
- * Workbench health status for display
- */
-export interface WorkbenchHealthStatus {
-  /** Whether workbench is reachable */
-  reachable: boolean;
-  /** Whether embedding model is loaded */
-  embeddingReady: boolean;
-  /** Whether summarization is available */
-  summarizationReady: boolean;
-  /** Whether API key is set */
-  hasApiKey: boolean;
-}
 
 /**
  * Props for OverlaysBar component
@@ -145,12 +116,30 @@ function getWorkbenchIssues(health: WorkbenchHealthStatus): string[] {
 }
 
 const OverlaysBarComponent: React.FC<OverlaysBarProps> = ({
-  sigmaStats,
-  activeTask,
-  pendingMessageCount = 0,
-  monitorError,
-  workbenchHealth,
+  sigmaStats: propsSigmaStats,
+  activeTask: propsActiveTask,
+  pendingMessageCount: propsPendingMessageCount = 0,
+  monitorError: propsMonitorError,
+  workbenchHealth: propsWorkbenchHealth,
 }) => {
+  // Sync with TUISyncStateMachine
+  const [syncState, setSyncState] = useState(tuiSyncManager.getState());
+
+  useEffect(() => {
+    return tuiSyncManager.subscribe((_status, state) => {
+      setSyncState({ ...state });
+    });
+  }, []);
+
+  // Use state from state machine, falling back to props if not set in state machine
+  const sigmaStats =
+    syncState.sigmaStats.nodes > 0 ? syncState.sigmaStats : propsSigmaStats;
+  const activeTask = syncState.activeTask || propsActiveTask;
+  const pendingMessageCount =
+    syncState.pendingMessageCount || propsPendingMessageCount;
+  const monitorError = syncState.monitorError || propsMonitorError;
+  const workbenchHealth = syncState.workbenchHealth || propsWorkbenchHealth;
+
   // Determine if we should show status instead of branding
   const showTaskStatus =
     activeTask &&

@@ -134,13 +134,13 @@ export function useAgentServices() {
       const healthResult =
         initialWorkbenchHealth ??
         (await checkWorkbenchHealthDetailed(endpoint, true));
-      const hasApiKey = !!process.env.WORKBENCH_API_KEY;
 
       setWorkbenchHealth({
         reachable: healthResult.reachable,
         embeddingReady: healthResult.embeddingReady,
         summarizationReady: healthResult.summarizationReady,
-        hasApiKey,
+        chatModelReady: healthResult.chatModelReady,
+        hasApiKey: healthResult.hasApiKey,
       });
     };
 

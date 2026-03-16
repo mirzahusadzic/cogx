@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { securityCoherenceCommand } from '../security-coherence.js';
+import { environmentService } from '../../../core/services/environment/EnvironmentService.js';
 
 // Mock dependencies
 vi.mock('@clack/prompts', () => ({
@@ -26,9 +27,9 @@ vi.mock(
   })
 );
 
-vi.mock('../../../core/workspace-manager.js', () => ({
-  WorkspaceManager: class {
-    resolvePgcRoot = vi.fn().mockReturnValue('/test/project');
+vi.mock('../../../core/services/environment/EnvironmentService.js', () => ({
+  environmentService: {
+    findProjectRoot: vi.fn().mockReturnValue('/test/project'),
   },
 }));
 
@@ -37,6 +38,9 @@ describe('Security Coherence Sugar Commands', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(environmentService.findProjectRoot).mockReturnValue(
+      '/test/project'
+    );
     vi.spyOn(process, 'exit').mockImplementation(() => {
       throw new Error('process.exit');
     });

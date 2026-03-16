@@ -12,6 +12,7 @@ import {
   getBackgroundTaskManager,
   type BackgroundTask,
 } from '../services/BackgroundTaskManager.js';
+import { tuiSyncManager } from '../../core/state/tui-sync/TUISyncManager.js';
 
 export interface UseBackgroundTaskManagerOptions {
   /** Project root directory */
@@ -97,7 +98,12 @@ export function useBackgroundTaskManager(
 
       // Set initial state
       setTasks(managerRef.current.getAllTasks());
-      setActiveTask(managerRef.current.getActiveTask());
+      const initialActiveTask = managerRef.current.getActiveTask();
+      setActiveTask(initialActiveTask);
+      tuiSyncManager.handleEvent({
+        type: 'ACTIVE_TASK_UPDATE',
+        task: initialActiveTask,
+      });
 
       // Subscribe to updates
       const unsubUpdate = managerRef.current.onTaskUpdate((task) => {
@@ -108,7 +114,12 @@ export function useBackgroundTaskManager(
           );
         }
         setTasks(managerRef.current!.getAllTasks());
-        setActiveTask(managerRef.current!.getActiveTask());
+        const currentActive = managerRef.current!.getActiveTask();
+        setActiveTask(currentActive);
+        tuiSyncManager.handleEvent({
+          type: 'ACTIVE_TASK_UPDATE',
+          task: currentActive,
+        });
       });
 
       const unsubComplete = managerRef.current.onTaskComplete((task) => {
@@ -119,7 +130,12 @@ export function useBackgroundTaskManager(
           );
         }
         setTasks(managerRef.current!.getAllTasks());
-        setActiveTask(managerRef.current!.getActiveTask());
+        const currentActive = managerRef.current!.getActiveTask();
+        setActiveTask(currentActive);
+        tuiSyncManager.handleEvent({
+          type: 'ACTIVE_TASK_UPDATE',
+          task: currentActive,
+        });
       });
 
       // Cleanup on unmount

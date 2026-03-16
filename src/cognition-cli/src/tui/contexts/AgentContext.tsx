@@ -14,6 +14,10 @@ import type {
 } from '../hooks/useAgent/types.js';
 import { ThinkingState } from '../hooks/useAgent/types.js';
 import type { AgentState } from '../hooks/useAgent/useAgentState.js';
+import type {
+  SigmaStats,
+  OverlayScores,
+} from '../../core/state/tui-sync/types.js';
 import { useAgentServices } from '../hooks/useAgent/useAgentServices.js';
 import { useAgentMessaging } from '../hooks/useAgent/useAgentMessaging.js';
 import { useAgentSync } from '../hooks/useAgent/useAgentSync.js';
@@ -41,6 +45,7 @@ import {
   AUTO_RESPONSE_TRIGGER,
   isProviderContextSensitive,
 } from '../hooks/useAgent/constants.js';
+import { tuiSyncManager } from '../../core/state/tui-sync/TUISyncManager.js';
 
 export interface AgentContextType {
   options: UseAgentOptions;
@@ -62,15 +67,9 @@ export interface AgentContextType {
   currentSessionId: string | undefined;
   anchorId: string | undefined;
   interrupt: () => void;
-  sigmaStats: {
-    nodes: number;
-    edges: number;
-    paradigmShifts: number;
-    avgNovelty: number;
-    avgImportance: number;
-  };
+  sigmaStats: SigmaStats;
   sigmaTasks: SigmaTasks;
-  avgOverlays: AgentState['overlayScores'];
+  avgOverlays: OverlayScores;
 }
 
 // First level context for infrastructure and shared callbacks
@@ -312,7 +311,24 @@ export const AgentProvider: React.FC<{
     provider: providerName = 'claude',
     model: modelName,
     semanticThreshold: semanticThresholdProp,
+    initialWorkbenchHealth,
   } = options;
+
+  // Sync initial workbench health to state machine
+  useEffect(() => {
+    if (initialWorkbenchHealth) {
+      tuiSyncManager.handleEvent({
+        type: 'WORKBENCH_HEALTH_UPDATE',
+        health: {
+          reachable: initialWorkbenchHealth.reachable,
+          embeddingReady: initialWorkbenchHealth.embeddingReady,
+          summarizationReady: initialWorkbenchHealth.summarizationReady,
+          chatModelReady: initialWorkbenchHealth.chatModelReady,
+          hasApiKey: initialWorkbenchHealth.hasApiKey,
+        },
+      });
+    }
+  }, [initialWorkbenchHealth]);
 
   const {
     setMessages,

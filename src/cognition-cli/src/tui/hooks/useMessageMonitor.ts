@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef } from 'react';
 import { MessageQueueMonitor } from '../../ipc/MessageQueueMonitor.js';
 import { MessageQueue } from '../../ipc/MessageQueue.js';
 import { MessagePublisher } from '../../ipc/MessagePublisher.js';
@@ -6,6 +6,7 @@ import { BusCoordinator } from '../../ipc/BusCoordinator.js';
 import { environmentService } from '../../core/services/environment/EnvironmentService.js';
 import { getModelShortName } from './session/useSessionManager.js';
 import { systemDiagnosticsService } from '../../core/services/diagnostics/SystemDiagnosticsService.js';
+import { tuiSyncManager } from '../../core/state/tui-sync/TUISyncManager.js';
 
 interface UseMessageMonitorOptions {
   anchorId: string | null;
@@ -28,8 +29,6 @@ export function useMessageMonitor({
   messageQueueRef,
   messagePublisherRef,
 }: UseMessageMonitorOptions) {
-  const [pendingMessageCount, setPendingMessageCount] = useState(0);
-  const [monitorError, setMonitorError] = useState<string | null>(null);
   const monitorInitializedRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -96,14 +95,20 @@ export function useMessageMonitor({
 
         const handleCountChanged = (...args: unknown[]) => {
           const count = args[0] as number;
-          setPendingMessageCount(count);
+          tuiSyncManager.handleEvent({
+            type: 'PENDING_MESSAGES_UPDATE',
+            count,
+          });
         };
 
         messageQueue.on('countChanged', handleCountChanged);
 
         const initialCount = await messageQueue.getPendingCount();
-        setPendingMessageCount(initialCount);
-        setMonitorError(null);
+        tuiSyncManager.handleEvent({
+          type: 'PENDING_MESSAGES_UPDATE',
+          count: initialCount,
+        });
+        tuiSyncManager.handleEvent({ type: 'MONITOR_ERROR', error: null });
 
         cleanupFn = () => {
           messageQueue.off('countChanged', handleCountChanged);
@@ -118,7 +123,7 @@ export function useMessageMonitor({
         };
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
-        setMonitorError(`Failed to initialize message monitor: ${errorMsg}`);
+        tuiSyncManager.handleEvent({ type: 'MONITOR_ERROR', error: errorMsg });
         if (debug) {
           systemDiagnosticsService.systemLog(
             'tui',
@@ -145,8 +150,5 @@ export function useMessageMonitor({
     messageQueueRef,
   ]);
 
-  return useMemo(
-    () => ({ pendingMessageCount, monitorError }),
-    [pendingMessageCount, monitorError]
-  );
+  return null;
 }

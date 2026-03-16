@@ -56,7 +56,7 @@ import { intro, outro, spinner, log } from '@clack/prompts';
 import chalk from 'chalk';
 import path from 'path';
 import { CoherenceAlgebraAdapter } from '../../core/overlays/strategic-coherence/algebra-adapter.js';
-import { WorkspaceManager } from '../../core/workspace-manager.js';
+import { environmentService } from '../../core/services/environment/EnvironmentService.js';
 
 interface SecurityCoherenceOptions {
   projectRoot: string;
@@ -78,8 +78,7 @@ function resolvePgcRoot(
   startPath: string,
   options?: SecurityCoherenceOptions
 ): string {
-  const workspaceManager = new WorkspaceManager();
-  const projectRoot = workspaceManager.resolvePgcRoot(startPath);
+  const projectRoot = environmentService.findProjectRoot(startPath);
 
   if (!projectRoot) {
     if (options?.format !== 'json' && process.env.COGNITION_FORMAT !== 'json') {

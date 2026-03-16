@@ -49,35 +49,25 @@
 
 import { intro, outro, spinner, log } from '@clack/prompts';
 import chalk from 'chalk';
-import path from 'path';
 import { createQueryEngine } from '../../core/algebra/query-parser.js';
 import {
   OverlayItem,
   OverlayMetadata,
   SetOperationResult,
 } from '../../core/algebra/overlay-algebra.js';
-import { WorkspaceManager } from '../../core/workspace-manager.js';
+import { environmentService } from '../../core/services/environment/EnvironmentService.js';
 
 /**
  * Resolve Grounded Context Pool (PGC) root directory
  *
- * Walks up the directory tree from startPath to find the nearest
- * .open_cognition workspace. This enables running commands from any
- * subdirectory within a project.
- *
  * @param startPath - Starting directory for the walk-up search
  * @returns Absolute path to .open_cognition directory
  * @throws {Error} Exits process if no workspace found
- *
- * @example
- * const pgcRoot = resolvePgcRoot('/path/to/project/src');
- * // Returns: /path/to/project/.open_cognition
  */
 function resolvePgcRoot(startPath: string, options?: WorkflowOptions): string {
-  const workspaceManager = new WorkspaceManager();
-  const projectRoot = workspaceManager.resolvePgcRoot(startPath);
-
-  if (!projectRoot) {
+  try {
+    return environmentService.resolvePgcDir(startPath);
+  } catch {
     if (options?.format !== 'json' && process.env.COGNITION_FORMAT !== 'json') {
       log.error(
         chalk.red(
@@ -87,8 +77,6 @@ function resolvePgcRoot(startPath: string, options?: WorkflowOptions): string {
     }
     process.exit(1);
   }
-
-  return path.join(projectRoot, '.open_cognition');
 }
 
 interface WorkflowOptions {

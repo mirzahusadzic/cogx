@@ -43,7 +43,7 @@ import path from 'path';
 
 import { FileWatcher } from '../core/watcher/file-watcher.js';
 import { ChangeEvent } from '../core/types/watcher.js';
-import { WorkspaceManager } from '../core/workspace-manager.js';
+import { environmentService } from '../core/services/environment/EnvironmentService.js';
 
 /**
  * Creates the watch command for monitoring file changes and maintaining PGC coherence state
@@ -102,8 +102,7 @@ async function runWatch(options: {
   debounce?: string;
   verbose?: boolean;
 }): Promise<void> {
-  const workspaceManager = new WorkspaceManager();
-  const projectRoot = workspaceManager.resolvePgcRoot(process.cwd());
+  const projectRoot = environmentService.findProjectRoot(process.cwd());
 
   if (!projectRoot) {
     console.error(

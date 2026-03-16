@@ -28,11 +28,11 @@ vi.mock('../../core/watcher/file-watcher.js', () => {
   };
 });
 
-// Mock WorkspaceManager
-vi.mock('../../core/workspace-manager.js', () => ({
-  WorkspaceManager: vi.fn(() => ({
-    resolvePgcRoot: vi.fn((cwd: string) => cwd),
-  })),
+// Mock environmentService
+vi.mock('../../core/services/environment/EnvironmentService.js', () => ({
+  environmentService: {
+    findProjectRoot: vi.fn((cwd: string) => cwd),
+  },
 }));
 
 describe('watch command', () => {

@@ -56,12 +56,12 @@ import path from 'path';
 import chalk from 'chalk';
 import { MissionConceptsManager } from '../core/overlays/mission-concepts/manager.js';
 import { MissionConcept } from '../core/analyzers/concept-extractor.js';
-import { WorkspaceManager } from '../core/workspace-manager.js';
+import { environmentService } from '../core/services/environment/EnvironmentService.js';
 
 /**
  * Resolve PGC root with walk-up
  *
- * Uses WorkspaceManager to find .open_cognition directory by walking up
+ * Uses environmentService to find project root by walking up
  * the directory tree from the starting path.
  *
  * @param startPath - Starting directory for walk-up search
@@ -69,8 +69,7 @@ import { WorkspaceManager } from '../core/workspace-manager.js';
  * @throws Exits with code 1 if no workspace found
  */
 function resolvePgcRoot(startPath: string): string {
-  const workspaceManager = new WorkspaceManager();
-  const projectRoot = workspaceManager.resolvePgcRoot(startPath);
+  const projectRoot = environmentService.findProjectRoot(startPath);
 
   if (!projectRoot) {
     console.error(

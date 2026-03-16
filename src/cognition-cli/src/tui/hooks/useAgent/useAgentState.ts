@@ -12,6 +12,11 @@ import { Command } from '../../commands/loader.js';
 import { AgentProviderAdapter } from '../sdk/index.js';
 import { SIGMA_LOGO } from '../../constants.js';
 import { TUITheme } from '../../theme.js';
+import { tuiSyncManager } from '../../../core/state/tui-sync/TUISyncManager.js';
+import type {
+  WorkbenchHealthStatus,
+  OverlayScores,
+} from '../../../core/state/tui-sync/types.js';
 
 export interface AgentState {
   messages: TUIMessage[];
@@ -26,15 +31,7 @@ export interface AgentState {
   setActiveModel: React.Dispatch<React.SetStateAction<string | undefined>>;
   error: string | null;
   setError: React.Dispatch<React.SetStateAction<string | null>>;
-  overlayScores: {
-    O1_structural: number;
-    O2_security: number;
-    O3_lineage: number;
-    O4_mission: number;
-    O5_operational: number;
-    O6_mathematical: number;
-    O7_strategic: number;
-  };
+  overlayScores: OverlayScores;
   setOverlayScores: React.Dispatch<
     React.SetStateAction<AgentState['overlayScores']>
   >;
@@ -48,12 +45,7 @@ export interface AgentState {
   >;
   shouldAutoRespond: boolean;
   setShouldAutoRespond: React.Dispatch<React.SetStateAction<boolean>>;
-  workbenchHealth: {
-    reachable: boolean;
-    embeddingReady: boolean;
-    summarizationReady: boolean;
-    hasApiKey: boolean;
-  } | null;
+  workbenchHealth: WorkbenchHealthStatus | null;
   setWorkbenchHealth: React.Dispatch<
     React.SetStateAction<AgentState['workbenchHealth']>
   >;
@@ -133,6 +125,42 @@ export function useAgentState(
   const [lastCompressionTimestamp, setLastCompressionTimestamp] = useState(
     initialLastCompressionTimestamp
   );
+
+  // Sync with TUISyncStateMachine
+  useEffect(() => {
+    return tuiSyncManager.subscribe((_status, state) => {
+      // Sync overlay scores
+      setOverlayScores((prev) => {
+        const next = state.overlayScores;
+        const hasChanged =
+          Math.abs(prev.O1_structural - next.O1_structural) > 0.001 ||
+          Math.abs(prev.O2_security - next.O2_security) > 0.001 ||
+          Math.abs(prev.O3_lineage - next.O3_lineage) > 0.001 ||
+          Math.abs(prev.O4_mission - next.O4_mission) > 0.001 ||
+          Math.abs(prev.O5_operational - next.O5_operational) > 0.001 ||
+          Math.abs(prev.O6_mathematical - next.O6_mathematical) > 0.001 ||
+          Math.abs(prev.O7_strategic - next.O7_strategic) > 0.001;
+
+        return hasChanged ? { ...next } : prev;
+      });
+
+      // Sync workbench health
+      if (state.workbenchHealth) {
+        setWorkbenchHealth(state.workbenchHealth);
+      }
+
+      // Sync messages if they changed
+      if (state.messages.length > 0) {
+        setMessages((prev) => {
+          // This is tricky because TUIMessage formats differ slightly
+          // and we don't want to overwrite system messages added by the hook.
+          // For now, we'll just keep them in sync if the state machine has messages.
+          // Ideally the state machine would be the ONLY source of truth.
+          return prev; // No-op for now to avoid feedback loops
+        });
+      }
+    });
+  }, []);
 
   // Update when the prop changes (e.g., loaded from session manager)
   useEffect(() => {

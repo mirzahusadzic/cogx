@@ -49,7 +49,7 @@
 import path from 'path';
 import fs from 'fs';
 import chalk from 'chalk';
-import { WorkspaceManager } from '../core/workspace-manager.js';
+import { environmentService } from '../core/services/environment/EnvironmentService.js';
 import { startTUI } from '../tui/index.js';
 import {
   checkPrerequisites,
@@ -128,8 +128,7 @@ interface TUIOptions {
  */
 export async function tuiCommand(options: TUIOptions): Promise<void> {
   // Find .open_cognition workspace
-  const workspaceManager = new WorkspaceManager();
-  const resolvedProjectRoot = workspaceManager.resolvePgcRoot(
+  const resolvedProjectRoot = environmentService.findProjectRoot(
     options.projectRoot
   );
 

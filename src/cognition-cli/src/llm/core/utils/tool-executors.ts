@@ -733,14 +733,9 @@ export async function executeSigmaTaskUpdate(
         }
 
         if (isCompletingCurrent && startingNew) {
-          // This is allowed but discouraged by the prompt. We could enforce it here if needed.
-          // For now, let's just make sure they aren't adding PENDING tasks AND starting a NEW one.
-          if (newTasks.length > 0) {
-            throw new Error(
-              `Strict Sequential Workflow: Do not add new pending tasks and start a new in_progress task in the same call you are completing '${currentInProgress.id}'.\n\n` +
-                `RECOVERY: Complete the current task first, then add/start new tasks in the NEXT turn to trigger context hygiene.`
-            );
-          }
+          // This is allowed and encouraged for atomic handoffs.
+          // We allow adding new tasks here too, as it often happens during initialization
+          // or when a task is broken down into sub-tasks upon completion.
         }
       }
     }

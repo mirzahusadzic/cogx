@@ -17,10 +17,9 @@ export async function getGroundingContext(
       for (const hint of query_hints) {
         groundingContext += `\n\n### Grounding Evidence: ${hint}\n`;
         try {
-          const { WorkspaceManager } =
-            await import('../../../core/workspace-manager.js');
-          const workspaceManager = new WorkspaceManager();
-          const projectRoot = workspaceManager.resolvePgcRoot(
+          const { environmentService } =
+            await import('../../../core/services/environment/EnvironmentService.js');
+          const projectRoot = environmentService.findProjectRoot(
             request.cwd || request.projectRoot
           );
 

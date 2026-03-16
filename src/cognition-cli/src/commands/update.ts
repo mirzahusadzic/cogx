@@ -38,7 +38,7 @@ import { StructuralMiner } from '../core/orchestrators/miners/structural.js';
 import { WorkbenchClient } from '../core/executors/workbench-client.js';
 import { UpdateOrchestrator } from '../core/orchestrators/update.js';
 import { GenesisOracle } from '../core/pgc/oracles/genesis.js';
-import { WorkspaceManager } from '../core/workspace-manager.js';
+import { environmentService } from '../core/services/environment/EnvironmentService.js';
 
 /**
  * Represents errors during PGC initialization validation.
@@ -66,8 +66,7 @@ interface UpdateOptions {
  * const projectRoot = await validatePgcInitialized(process.cwd());
  */
 async function validatePgcInitialized(startPath: string): Promise<string> {
-  const workspaceManager = new WorkspaceManager();
-  const projectRoot = workspaceManager.resolvePgcRoot(startPath);
+  const projectRoot = environmentService.findProjectRoot(startPath);
 
   if (!projectRoot) {
     throw new PGCInitializationError(

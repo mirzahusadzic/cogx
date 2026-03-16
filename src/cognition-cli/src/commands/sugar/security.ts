@@ -75,9 +75,10 @@ import {
   OverlayMetadata,
   SetOperationResult,
 } from '../../core/algebra/overlay-algebra.js';
-import { WorkspaceManager } from '../../core/workspace-manager.js';
+import { environmentService } from '../../core/services/environment/EnvironmentService.js';
 
 interface SecurityOptions {
+  // ...
   projectRoot: string;
   format?: 'table' | 'json' | 'summary';
   json?: boolean;
@@ -93,14 +94,14 @@ interface SecurityOptions {
  * @throws {Error} Exits process if no workspace found
  */
 function resolvePgcRoot(startPath: string, options?: SecurityOptions): string {
-  const workspaceManager = new WorkspaceManager();
-  const projectRoot = workspaceManager.resolvePgcRoot(startPath);
   const useJson =
     options?.json ||
     options?.format === 'json' ||
     process.env.COGNITION_FORMAT === 'json';
 
-  if (!projectRoot) {
+  try {
+    return environmentService.resolvePgcDir(startPath);
+  } catch {
     if (!useJson) {
       log.error(
         chalk.red(
@@ -110,8 +111,6 @@ function resolvePgcRoot(startPath: string, options?: SecurityOptions): string {
     }
     process.exit(1);
   }
-
-  return path.join(projectRoot, '.open_cognition');
 }
 
 /**

@@ -44,7 +44,6 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { createInterface } from 'readline';
-import { WorkspaceManager } from '../workspace-manager.js';
 import { environmentService } from '../services/environment/EnvironmentService.js';
 
 /**
@@ -104,8 +103,7 @@ export class SecurityBootstrap {
     this.settingsPath = path.join(this.settingsDir, 'settings.json');
 
     // Per-project security/transparency logs - use walk-up to find workspace
-    const workspaceManager = new WorkspaceManager();
-    const projectRoot = workspaceManager.resolvePgcRoot(startDir);
+    const projectRoot = environmentService.findProjectRoot(startDir);
 
     if (projectRoot) {
       this.projectSecurityDir = path.join(

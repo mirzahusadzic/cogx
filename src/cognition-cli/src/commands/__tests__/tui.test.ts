@@ -7,9 +7,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import fs from 'fs';
+import { environmentService } from '../../core/services/environment/EnvironmentService.js';
 
 // Mock dependencies
-vi.mock('../../core/workspace-manager.js');
+vi.mock('../../core/services/environment/EnvironmentService.js');
 vi.mock('../../tui/index.js');
 vi.mock('../../utils/workbench-detect.js');
 vi.mock('../../llm/core/llm-config.js');
@@ -21,13 +22,8 @@ describe('tuiCommand', () => {
     vi.resetModules();
 
     // Default mocks
-    const { WorkspaceManager } =
-      await import('../../core/workspace-manager.js');
-    vi.mocked(WorkspaceManager).mockImplementation(
-      () =>
-        ({
-          resolvePgcRoot: vi.fn().mockReturnValue('/mock/pgc/root'),
-        }) as any
+    vi.mocked(environmentService.findProjectRoot).mockReturnValue(
+      '/mock/pgc/root'
     );
 
     const { checkWorkbenchHealthDetailed, autoConfigureOpenAIFromWorkbench } =

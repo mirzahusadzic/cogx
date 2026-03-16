@@ -1,10 +1,10 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { latticeCommand } from '../lattice.js';
-import { WorkspaceManager } from '../../core/workspace-manager.js';
+import { environmentService } from '../../core/services/environment/EnvironmentService.js';
 import { createQueryEngine } from '../../core/algebra/query-parser.js';
 
 // Mock dependencies
-vi.mock('../../core/workspace-manager.js');
+vi.mock('../../core/services/environment/EnvironmentService.js');
 vi.mock('../../core/algebra/query-parser.js');
 vi.mock('@clack/prompts', () => ({
   spinner: () => ({
@@ -14,7 +14,6 @@ vi.mock('@clack/prompts', () => ({
 }));
 
 describe('latticeCommand', () => {
-  let mockWorkspaceManager: { resolvePgcRoot: ReturnType<typeof vi.fn> };
   let mockQueryEngine: { execute: ReturnType<typeof vi.fn> };
   let consoleLogSpy: ReturnType<typeof vi.spyOn>;
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
@@ -36,11 +35,10 @@ describe('latticeCommand', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .mockImplementation((() => {}) as any);
 
-    // Setup workspace manager mock
-    mockWorkspaceManager = {
-      resolvePgcRoot: vi.fn().mockReturnValue('/test/project'),
-    };
-    vi.mocked(WorkspaceManager).mockImplementation(() => mockWorkspaceManager);
+    // Setup environment service mock
+    vi.mocked(environmentService.findProjectRoot).mockReturnValue(
+      '/test/project'
+    );
 
     // Setup query engine mock
     mockQueryEngine = {
@@ -51,7 +49,7 @@ describe('latticeCommand', () => {
 
   describe('workspace resolution', () => {
     it('should exit if no .open_cognition workspace found', async () => {
-      mockWorkspaceManager.resolvePgcRoot.mockReturnValue(null);
+      vi.mocked(environmentService.findProjectRoot).mockReturnValue(null);
 
       await latticeCommand('O1', { projectRoot: '/test' });
 
@@ -62,11 +60,13 @@ describe('latticeCommand', () => {
     });
 
     it('should resolve workspace from project root', async () => {
-      mockWorkspaceManager.resolvePgcRoot.mockReturnValue('/test/project');
+      vi.mocked(environmentService.findProjectRoot).mockReturnValue(
+        '/test/project'
+      );
 
       await latticeCommand('O1', { projectRoot: '/test' });
 
-      expect(mockWorkspaceManager.resolvePgcRoot).toHaveBeenCalledWith('/test');
+      expect(environmentService.findProjectRoot).toHaveBeenCalledWith('/test');
       expect(createQueryEngine).toHaveBeenCalledWith(
         '/test/project/.open_cognition',
         expect.any(String)

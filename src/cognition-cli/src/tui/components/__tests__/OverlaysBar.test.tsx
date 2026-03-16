@@ -1,11 +1,11 @@
 import React from 'react';
 import { render } from 'ink-testing-library';
-import {
-  OverlaysBar,
+import { OverlaysBar } from '../OverlaysBar.js';
+import type {
   SigmaStats,
   WorkbenchHealthStatus,
-} from '../OverlaysBar.js';
-import type { BackgroundTask } from '../../services/BackgroundTaskManager.js';
+  BackgroundTask,
+} from '../../../core/state/tui-sync/types.js';
 
 describe('OverlaysBar', () => {
   const mockSigmaStats: SigmaStats = {
@@ -127,6 +127,7 @@ describe('OverlaysBar', () => {
         reachable: false,
         embeddingReady: false,
         summarizationReady: false,
+        chatModelReady: false,
         hasApiKey: false,
       };
       const { lastFrame } = render(<OverlaysBar workbenchHealth={health} />);
@@ -138,6 +139,7 @@ describe('OverlaysBar', () => {
         reachable: true,
         embeddingReady: false,
         summarizationReady: true,
+        chatModelReady: true,
         hasApiKey: true,
       };
       const { lastFrame } = render(<OverlaysBar workbenchHealth={health} />);
@@ -149,6 +151,7 @@ describe('OverlaysBar', () => {
         reachable: true,
         embeddingReady: true,
         summarizationReady: false,
+        chatModelReady: true,
         hasApiKey: true,
       };
       const { lastFrame } = render(<OverlaysBar workbenchHealth={health} />);
@@ -160,6 +163,7 @@ describe('OverlaysBar', () => {
         reachable: true,
         embeddingReady: true,
         summarizationReady: true,
+        chatModelReady: true,
         hasApiKey: false,
       };
       const { lastFrame } = render(<OverlaysBar workbenchHealth={health} />);
@@ -171,6 +175,7 @@ describe('OverlaysBar', () => {
         reachable: true,
         embeddingReady: false,
         summarizationReady: false,
+        chatModelReady: true,
         hasApiKey: true,
       };
       const { lastFrame } = render(<OverlaysBar workbenchHealth={health} />);
@@ -183,6 +188,7 @@ describe('OverlaysBar', () => {
         reachable: true,
         embeddingReady: true,
         summarizationReady: true,
+        chatModelReady: true,
         hasApiKey: true,
       };
       const { lastFrame } = render(
@@ -197,6 +203,7 @@ describe('OverlaysBar', () => {
         reachable: true,
         embeddingReady: false,
         summarizationReady: true,
+        chatModelReady: true,
         hasApiKey: true,
       };
       const { lastFrame } = render(

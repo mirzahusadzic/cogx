@@ -3,10 +3,10 @@ import { getGroundingContext } from '../core/utils/grounding-utils.js';
 import type { AgentRequest } from '../core/interfaces/agent-provider.js';
 
 // Mock dependencies
-vi.mock('../../core/workspace-manager.js', () => ({
-  WorkspaceManager: vi.fn().mockImplementation(() => ({
-    resolvePgcRoot: vi.fn().mockReturnValue('/fake/project'),
-  })),
+vi.mock('../../core/services/environment/EnvironmentService.js', () => ({
+  environmentService: {
+    findProjectRoot: vi.fn().mockReturnValue('/fake/project'),
+  },
 }));
 
 vi.mock('../../commands/ask.js', () => ({

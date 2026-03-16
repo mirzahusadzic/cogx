@@ -56,7 +56,6 @@
 
 import { intro, outro, spinner, log } from '@clack/prompts';
 import chalk from 'chalk';
-import path from 'path';
 import { createQueryEngine } from '../../core/algebra/query-parser.js';
 import {
   OverlayItem,
@@ -64,9 +63,10 @@ import {
   SetOperationResult,
 } from '../../core/algebra/overlay-algebra.js';
 import { meet } from '../../core/algebra/lattice-operations.js';
-import { WorkspaceManager } from '../../core/workspace-manager.js';
+import { environmentService } from '../../core/services/environment/EnvironmentService.js';
 
 interface ProofsOptions {
+  // ...
   projectRoot: string;
   format?: 'table' | 'json' | 'summary';
   limit?: number;
@@ -83,11 +83,13 @@ interface ProofsOptions {
  * @throws {Error} Exits process if no workspace found
  */
 function resolvePgcRoot(startPath: string, options?: ProofsOptions): string {
-  const workspaceManager = new WorkspaceManager();
-  const projectRoot = workspaceManager.resolvePgcRoot(startPath);
+  const useJson =
+    options?.format === 'json' || process.env.COGNITION_FORMAT === 'json';
 
-  if (!projectRoot) {
-    if (options?.format !== 'json' && process.env.COGNITION_FORMAT !== 'json') {
+  try {
+    return environmentService.resolvePgcDir(startPath);
+  } catch {
+    if (!useJson) {
       log.error(
         chalk.red(
           'No .open_cognition workspace found. Run "cognition-cli init" to create one.'
@@ -96,8 +98,6 @@ function resolvePgcRoot(startPath: string, options?: ProofsOptions): string {
     }
     process.exit(1);
   }
-
-  return path.join(projectRoot, '.open_cognition');
 }
 
 /**

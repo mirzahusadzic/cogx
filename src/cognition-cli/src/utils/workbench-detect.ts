@@ -138,6 +138,8 @@ export interface WorkbenchHealthResult {
   openaiBaseUrl?: string;
   /** Raw health response for debugging */
   rawResponse?: WorkbenchHealthResponse;
+  /** Whether an API key is configured in the environment */
+  hasApiKey: boolean;
   /** Error message if check failed */
   error?: string;
 }
@@ -200,6 +202,8 @@ export async function checkWorkbenchHealthDetailed(
   url: string,
   silent = false
 ): Promise<WorkbenchHealthResult> {
+  const hasApiKey = !!process.env.WORKBENCH_API_KEY;
+
   try {
     const response = await fetch(`${url}/health`, {
       method: 'GET',
@@ -212,6 +216,7 @@ export async function checkWorkbenchHealthDetailed(
         embeddingReady: false,
         summarizationReady: false,
         chatModelReady: false,
+        hasApiKey,
         error: `HTTP ${response.status}: ${response.statusText}`,
       };
     }
@@ -240,6 +245,7 @@ export async function checkWorkbenchHealthDetailed(
       embeddingReady,
       summarizationReady,
       chatModelReady,
+      hasApiKey,
       chatModel,
       openaiBaseUrl,
       rawResponse: health,
@@ -254,6 +260,7 @@ export async function checkWorkbenchHealthDetailed(
       embeddingReady: false,
       summarizationReady: false,
       chatModelReady: false,
+      hasApiKey,
       error: errorMessage,
     };
   }

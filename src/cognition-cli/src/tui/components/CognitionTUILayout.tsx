@@ -8,13 +8,16 @@ import { SigmaInfoPanel } from './SigmaInfoPanel.js';
 import { SigmaTaskPanel } from './SigmaTaskPanel.js';
 import { ComponentErrorBoundary } from './ErrorBoundaries/ComponentErrorBoundary.js';
 import { terminal } from '../services/TerminalService.js';
-import type { TUIMessage, SigmaTasks } from '../hooks/useAgent/types.js';
 import { ThinkingState } from '../hooks/useAgent/types.js';
-import type { BackgroundTask } from '../services/BackgroundTaskManager.js';
+import type { TUIMessage, SigmaTasks } from '../hooks/useAgent/types.js';
+import type {
+  BackgroundTask,
+  WorkbenchHealthStatus,
+  SigmaStats,
+  OverlayScores,
+} from '../../core/state/tui-sync/types.js';
 import type { ToolConfirmationState } from '../hooks/useToolConfirmation.js';
 import type { WizardConfirmationState } from '../hooks/useOnboardingWizard.js';
-import type { WorkbenchHealthStatus } from './OverlaysBar.js';
-import type { SigmaStats, OverlayScores } from './SigmaInfoPanel.js';
 import type { TokenCount } from '../hooks/tokens/useTokenCount.js';
 import type { SessionTokenCount } from '../hooks/tokens/useSessionTokenCount.js';
 import { TYPING_IDLE_TIMEOUT } from '../constants.js';
@@ -25,12 +28,7 @@ export interface CognitionTUILayoutProps {
   activeTask: BackgroundTask | null;
   pendingMessageCount: number;
   monitorError: string | null;
-  workbenchHealth: {
-    reachable: boolean;
-    embeddingReady: boolean;
-    summarizationReady: boolean;
-    hasApiKey: boolean;
-  } | null;
+  workbenchHealth: WorkbenchHealthStatus | null;
   messages: TUIMessage[];
   isThinking: boolean;
   thinkingState?: ThinkingState;
@@ -185,6 +183,7 @@ const CognitionTUILayoutComponent: React.FC<CognitionTUILayoutProps> = ({
         reachable: workbenchHealth.reachable,
         embeddingReady: workbenchHealth.embeddingReady,
         summarizationReady: workbenchHealth.summarizationReady,
+        chatModelReady: true, // Default if not provided
         hasApiKey: workbenchHealth.hasApiKey,
       }
     : undefined;

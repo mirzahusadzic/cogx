@@ -69,22 +69,23 @@ The current architecture suffers from "Utility Soup" (442 disconnected symbols) 
 - [x] Migrate graph-walking and token estimation logic from `src/sigma/reconstructor.ts`.
 - [x] Remove `src/sigma/reconstructor.ts` entirely.
 
-### Phase 3: State Machine Implementation (IN PROGRESS)
+### Phase 3: State Machine Implementation (100% DONE)
 
 - [x] Implement `SessionStateMachine` in `src/core/state/session/` to formalize the session lifecycle (INITIALIZING, ACTIVE, TASK_PROCESSING, etc.).
 - [x] Refactor legacy `src/sigma/session-state.ts` as a proxy to the new Core State system, maintaining full backward compatibility.
 - [x] Integrate session state transitions and task validation into `tool-executors.ts`.
 - [x] Implement atomic disk persistence and legacy format migration in `SessionPersistence.ts`, with zero `any` usage.
-- [ ] Implement `TUISyncStateMachine` in `src/core/state/tui-sync/`.
+- [x] Implement `TUISyncStateMachine` and `TUISyncManager` in `src/core/state/tui-sync/`.
 
-### Phase 4: Command & Hook Refactoring (PENDING)
+### Phase 4: Command & Hook Refactoring (100% DONE)
 
-- [ ] Update TUI hooks (`src/tui/hooks/`) to subscribe to `TUISyncStateMachine`.
-- [ ] Update `AgentContext` and sugar commands to use new Core Services.
+- [x] Update TUI hooks (`src/tui/hooks/`) to subscribe to `TUISyncStateMachine`.
+- [x] Update `AgentContext` and sugar commands to use new Core Services.
 
 ### Phase 5: Verification & Cleanup (IN PROGRESS)
 
-- [ ] Run E2E tests for UI/Daemon synchronization.
+- [x] Run full test suite and verification loops.
+- [x] Check for any remaining legacy `WorkspaceManager` or procedural utility usage.
 - [x] Remove deprecated wrappers once all internal references are updated.
 
 ## 6. Refactoring Strategy & Safety

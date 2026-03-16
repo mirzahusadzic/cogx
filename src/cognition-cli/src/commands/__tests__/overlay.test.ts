@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import chalk from 'chalk';
+import { environmentService } from '../../core/services/environment/EnvironmentService.js';
 import { overlayCommand } from '../overlay.js';
 import { createGenerateCommand } from '../overlay/generate.js';
 import { createListCommand } from '../overlay/list.js';
@@ -16,9 +17,7 @@ vi.mock('../../core/overlays/vector-db/lance-store.js', () => ({
   LanceVectorStore: vi.fn(),
 }));
 
-vi.mock('../../core/workspace-manager.js', () => ({
-  WorkspaceManager: vi.fn(),
-}));
+vi.mock('../../core/services/environment/EnvironmentService.js');
 
 vi.mock('fs-extra', () => ({
   default: {
@@ -389,9 +388,6 @@ describe('overlay command - generate subcommand', () => {
 });
 
 describe('overlay command - list subcommand', () => {
-  let mockWorkspaceManager: {
-    resolvePgcRoot: ReturnType<typeof vi.fn>;
-  };
   let mockVectorStore: {
     initialize: ReturnType<typeof vi.fn>;
     getAllVectors: ReturnType<typeof vi.fn>;
@@ -417,20 +413,14 @@ describe('overlay command - list subcommand', () => {
     });
 
     // Create mock instances
-    mockWorkspaceManager = {
-      resolvePgcRoot: vi.fn().mockReturnValue('/test/project'),
-    };
-
     mockVectorStore = {
       initialize: vi.fn().mockResolvedValue(undefined),
       getAllVectors: vi.fn().mockResolvedValue([]),
       close: vi.fn().mockResolvedValue(undefined),
     };
 
-    const { WorkspaceManager } =
-      await import('../../core/workspace-manager.js');
-    vi.mocked(WorkspaceManager).mockImplementation(
-      () => mockWorkspaceManager as unknown as typeof WorkspaceManager.prototype
+    vi.mocked(environmentService.findProjectRoot).mockReturnValue(
+      '/test/project'
     );
 
     const { LanceVectorStore } =
@@ -467,7 +457,7 @@ describe('overlay command - list subcommand', () => {
 
   describe('workspace validation', () => {
     it('should exit if no .open_cognition workspace found', async () => {
-      mockWorkspaceManager.resolvePgcRoot.mockReturnValue(null);
+      vi.mocked(environmentService.findProjectRoot).mockReturnValue(null);
 
       const command = createListCommand();
       command.exitOverride();
@@ -480,7 +470,9 @@ describe('overlay command - list subcommand', () => {
     });
 
     it('should proceed if workspace exists', async () => {
-      mockWorkspaceManager.resolvePgcRoot.mockReturnValue('/test/project');
+      vi.mocked(environmentService.findProjectRoot).mockReturnValue(
+        '/test/project'
+      );
 
       const command = createListCommand();
       await command.parseAsync([], { from: 'user' });

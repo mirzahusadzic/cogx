@@ -1,52 +1,12 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { TUITheme } from '../theme.js';
+import { tuiSyncManager } from '../../core/state/tui-sync/TUISyncManager.js';
 
-/**
- * Sigma conversation lattice statistics
- */
-export interface SigmaStats {
-  /** Number of conversation nodes in lattice */
-  nodes: number;
-
-  /** Number of edges connecting nodes */
-  edges: number;
-
-  /** Count of detected paradigm shifts */
-  paradigmShifts: number;
-
-  /** Average novelty score (0-1) */
-  avgNovelty: number;
-
-  /** Average importance score (0-10) */
-  avgImportance: number;
-}
-
-/**
- * Overlay activation scores (0-10 scale)
- */
-export interface OverlayScores {
-  /** O1: Structural analysis overlay */
-  O1_structural: number;
-
-  /** O2: Security analysis overlay */
-  O2_security: number;
-
-  /** O3: Lineage tracking overlay */
-  O3_lineage: number;
-
-  /** O4: Mission alignment overlay */
-  O4_mission: number;
-
-  /** O5: Operational analysis overlay */
-  O5_operational: number;
-
-  /** O6: Mathematical reasoning overlay */
-  O6_mathematical: number;
-
-  /** O7: Strategic planning overlay */
-  O7_strategic: number;
-}
+import type {
+  SigmaStats,
+  OverlayScores,
+} from '../../core/state/tui-sync/types.js';
 
 /**
  * Props for SigmaInfoPanel component
@@ -154,10 +114,27 @@ const OVERLAY_INFO = {
  * />
  */
 export const SigmaInfoPanel: React.FC<SigmaInfoPanelProps> = ({
-  sigmaStats,
-  overlays,
+  sigmaStats: propsSigmaStats,
+  overlays: propsOverlays,
   width = 50,
 }) => {
+  // Sync with TUISyncStateMachine
+  const [syncState, setSyncState] = useState(tuiSyncManager.getState());
+
+  useEffect(() => {
+    return tuiSyncManager.subscribe((_status, state) => {
+      setSyncState({ ...state });
+    });
+  }, []);
+
+  // Use state from state machine, falling back to props
+  const sigmaStats =
+    syncState.sigmaStats.nodes > 0 ? syncState.sigmaStats : propsSigmaStats;
+  const overlays =
+    syncState.overlayScores.O1_structural > 0
+      ? syncState.overlayScores
+      : propsOverlays;
+
   const renderHeader = (title: string) => {
     const label = ` Σ ${title} `;
     const padding = Math.max(0, width - 2 - label.length);

@@ -29,6 +29,7 @@ import {
   isProviderContextSensitive,
   MAX_STREAM_STABILIZATION_LINES,
 } from './constants.js';
+import { tuiSyncManager } from '../../../core/state/tui-sync/TUISyncManager.js';
 
 /**
  * Check if a tool is "output-producing" for TUI rendering purposes.
@@ -366,6 +367,17 @@ export function useAgentHandlers() {
                 ];
               }
             });
+
+            // Sync to state machine
+            tuiSyncManager.handleEvent({
+              type: 'MESSAGE_ADD',
+              message: {
+                id: `assistant-${Date.now()}`,
+                type: 'assistant',
+                content: colorReplacedText,
+                timestamp: new Date(),
+              },
+            });
           } else if (Array.isArray(content)) {
             const toolUses = content.filter((c) => c.type === 'tool_use');
             const textBlocks = content.filter((c) => c.type === 'text');
@@ -431,6 +443,17 @@ export function useAgentHandlers() {
                     },
                   ];
                 }
+              });
+
+              // Sync to state machine
+              tuiSyncManager.handleEvent({
+                type: 'MESSAGE_ADD',
+                message: {
+                  id: `assistant-${Date.now()}`,
+                  type: 'assistant',
+                  content: colorReplacedText,
+                  timestamp: new Date(),
+                },
               });
             }
 
@@ -507,6 +530,17 @@ export function useAgentHandlers() {
                       timestamp: new Date(),
                     },
                   ]);
+
+                  // Sync to state machine
+                  tuiSyncManager.handleEvent({
+                    type: 'MESSAGE_ADD',
+                    message: {
+                      id: `tool-${Date.now()}`,
+                      type: 'tool_progress',
+                      content,
+                      timestamp: new Date(),
+                    },
+                  });
                 }
               }
             }
@@ -600,6 +634,17 @@ export function useAgentHandlers() {
                 timestamp: new Date(),
               },
             ]);
+
+            // Sync to state machine
+            tuiSyncManager.handleEvent({
+              type: 'MESSAGE_ADD',
+              message: {
+                id: `tool-${Date.now()}`,
+                type: 'tool_progress',
+                content,
+                timestamp: new Date(),
+              },
+            });
           } else if (typeof content === 'string') {
             const contentStr = `> ${content}`;
             // If we don't have a tool name, we can't reliably know if it's output-producing,
@@ -614,6 +659,17 @@ export function useAgentHandlers() {
                 timestamp: new Date(),
               },
             ]);
+
+            // Sync to state machine
+            tuiSyncManager.handleEvent({
+              type: 'MESSAGE_ADD',
+              message: {
+                id: `tool-${Date.now()}`,
+                type: 'tool_progress',
+                content: contentStr,
+                timestamp: new Date(),
+              },
+            });
           } else if (Array.isArray(content)) {
             content.forEach((tool) => {
               if (tool.name && tool.input) {
@@ -641,6 +697,17 @@ export function useAgentHandlers() {
                     timestamp: new Date(),
                   },
                 ]);
+
+                // Sync to state machine
+                tuiSyncManager.handleEvent({
+                  type: 'MESSAGE_ADD',
+                  message: {
+                    id: `tool-${Date.now()}`,
+                    type: 'tool_progress',
+                    content: contentStr,
+                    timestamp: new Date(),
+                  },
+                });
               }
             });
           }
@@ -912,6 +979,17 @@ export function useAgentHandlers() {
                 ];
               });
 
+              // Sync to state machine
+              tuiSyncManager.handleEvent({
+                type: 'MESSAGE_ADD',
+                message: {
+                  id: `result-${Date.now()}`,
+                  type: 'tool_progress',
+                  content: formattedResult,
+                  timestamp: new Date(),
+                },
+              });
+
               // Only clear activeToolContentRef if this tool matches the one that set it.
               // We check if the current activeHeader starts with the icon and name of the tool that just finished.
               const activeHeader = activeToolContentRef.current;
@@ -1023,6 +1101,17 @@ export function useAgentHandlers() {
             ...prev,
             { type: 'user', content: prompt, timestamp: userMessageTimestamp },
           ]);
+
+          // Sync to state machine
+          tuiSyncManager.handleEvent({
+            type: 'MESSAGE_ADD',
+            message: {
+              id: `user-${userMessageTimestamp.getTime()}`,
+              type: 'user',
+              content: prompt,
+              timestamp: userMessageTimestamp,
+            },
+          });
         } else {
           // For auto-response, we use the expanded prompt for the LLM
           // but we don't show it in the UI as a user message
@@ -1449,14 +1538,26 @@ This triggers a semantic compression event, flushing implementation noise while 
           hasAssistantMessage &&
           lastResponse.finishReason !== 'error'
         ) {
+          const content = `✓ Complete (${lastResponse.numTurns} turns, ${lastResponse.messages.length} messages)`;
           setMessages((prev) => [
             ...prev,
             {
               type: 'system',
-              content: `✓ Complete (${lastResponse.numTurns} turns, ${lastResponse.messages.length} messages)`,
+              content,
               timestamp: new Date(),
             },
           ]);
+
+          // Sync to state machine
+          tuiSyncManager.handleEvent({
+            type: 'MESSAGE_ADD',
+            message: {
+              id: `system-${Date.now()}`,
+              type: 'system',
+              content,
+              timestamp: new Date(),
+            },
+          });
 
           if (getMessageQueue) {
             const queue = getMessageQueue();
@@ -1468,14 +1569,26 @@ This triggers a semantic compression event, flushing implementation noise while 
                 setPendingMessageNotification(
                   `📬 **New messages from other agents:**\n\n${formattedMessages}\n\nPlease acknowledge and respond to these messages.`
                 );
+                const notificationContent = `📬 ${pendingMessages.length} pending messages injected`;
                 setMessages((prev) => [
                   ...prev,
                   {
                     type: 'system',
-                    content: `📬 ${pendingMessages.length} pending messages injected`,
+                    content: notificationContent,
                     timestamp: new Date(),
                   },
                 ]);
+
+                // Sync to state machine
+                tuiSyncManager.handleEvent({
+                  type: 'MESSAGE_ADD',
+                  message: {
+                    id: `notification-${Date.now()}`,
+                    type: 'system',
+                    content: notificationContent,
+                    timestamp: new Date(),
+                  },
+                });
               }
             }
           }
@@ -1510,6 +1623,18 @@ This triggers a semantic compression event, flushing implementation noise while 
               timestamp: new Date(),
             },
           ]);
+
+          // Sync to state machine
+          tuiSyncManager.handleEvent({
+            type: 'MESSAGE_ADD',
+            message: {
+              id: `error-${Date.now()}`,
+              type: 'error',
+              content: errorMsg,
+              timestamp: new Date(),
+            },
+          });
+
           setThinkingState(ThinkingState.ERROR);
         }
 
@@ -1545,6 +1670,18 @@ This triggers a semantic compression event, flushing implementation noise while 
           ...prev,
           { type: 'system', content: `❌ ${errorMsg}`, timestamp: new Date() },
         ]);
+
+        // Sync to state machine
+        tuiSyncManager.handleEvent({
+          type: 'MESSAGE_ADD',
+          message: {
+            id: `error-${Date.now()}`,
+            type: 'error',
+            content: errorMsg,
+            timestamp: new Date(),
+          },
+        });
+
         setIsThinking(false);
         setThinkingState(ThinkingState.IDLE);
       } finally {
@@ -1559,6 +1696,7 @@ This triggers a semantic compression event, flushing implementation noise while 
       setIsThinking,
       setThinkingState,
       setRetryCount,
+      setActiveModel,
       setError,
       setInjectedRecap,
       setPendingMessageNotification,

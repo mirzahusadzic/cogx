@@ -38,6 +38,7 @@ vi.mock('../../../utils/source-detector.js', () => ({
 
 // Import after mocking
 import { useOnboardingWizard } from '../../useOnboardingWizard.js';
+import { TUISyncManager } from '../../../../core/state/tui-sync/TUISyncManager.js';
 import fs from 'fs-extra';
 
 describe('useOnboardingWizard', () => {
@@ -59,6 +60,7 @@ describe('useOnboardingWizard', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    TUISyncManager.reset();
 
     // Default: no existing PGC
     (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(false);

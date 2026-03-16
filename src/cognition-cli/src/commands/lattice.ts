@@ -43,7 +43,7 @@ import {
   SetOperationResult,
   MeetResult,
 } from '../core/algebra/overlay-algebra.js';
-import { WorkspaceManager } from '../core/workspace-manager.js';
+import { environmentService } from '../core/services/environment/EnvironmentService.js';
 import { terminalFormatter } from '../core/services/terminal-formatter/TerminalFormatterService.js';
 
 interface LatticeOptions {
@@ -94,8 +94,7 @@ export async function latticeCommand(
 
   try {
     // Find .open_cognition by walking up directory tree
-    const workspaceManager = new WorkspaceManager();
-    const projectRoot = workspaceManager.resolvePgcRoot(options.projectRoot);
+    const projectRoot = environmentService.findProjectRoot(options.projectRoot);
 
     if (!projectRoot) {
       console.error(

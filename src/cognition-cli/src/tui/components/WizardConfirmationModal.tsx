@@ -11,7 +11,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Box, Text, useStdout } from 'ink';
 import { systemDiagnosticsService } from '../../core/services/diagnostics/SystemDiagnosticsService.js';
-import type { WizardConfirmationState } from '../hooks/useOnboardingWizard.js';
+import type {
+  WizardConfirmationState,
+  WizardSelectionItem,
+} from '../hooks/useOnboardingWizard.js';
 import { TUITheme } from '../theme.js';
 
 export interface WizardConfirmationModalProps {
@@ -71,7 +74,7 @@ const WizardConfirmationModalComponent: React.FC<
   if (mode === 'select' && items && process.env.DEBUG_WIZARD) {
     systemDiagnosticsService.systemLog(
       'tui',
-      `[WizardModal] Rendering ${items.length} items: ${items.map((i) => i.label).join(', ')}`,
+      `[WizardModal] Rendering ${items.length} items: ${items.map((i: WizardSelectionItem) => i.label).join(', ')}`,
       {
         selectedIndex,
         highlighted: items[selectedIndex || 0]?.label,
@@ -99,7 +102,7 @@ const WizardConfirmationModalComponent: React.FC<
       );
       systemDiagnosticsService.systemLog(
         'tui',
-        `[WizardModal] visibleItems: ${visibleItems.map((it, idx) => `${idx}:${it.label}`).join(', ')}`,
+        `[WizardModal] visibleItems: ${visibleItems.map((it: WizardSelectionItem, idx: number) => `${idx}:${it.label}`).join(', ')}`,
         {},
         'error'
       );
@@ -123,51 +126,53 @@ const WizardConfirmationModalComponent: React.FC<
         {/* Selection list - single Text block with nested colored Text to avoid Ink layout bugs */}
         <Box marginLeft={2} marginY={1}>
           <Text>
-            {visibleItems.map((item, visibleIdx) => {
-              const actualIdx = actualOffset + visibleIdx;
-              const isHighlighted = actualIdx === selectedIndex;
+            {visibleItems.map(
+              (item: WizardSelectionItem, visibleIdx: number) => {
+                const actualIdx = actualOffset + visibleIdx;
+                const isHighlighted = actualIdx === selectedIndex;
 
-              // DEBUG: Log each visible item being rendered
-              if (process.env.DEBUG_WIZARD) {
-                systemDiagnosticsService.systemLog(
-                  'tui',
-                  `[WizardModal] Rendering visible item ${visibleIdx} (actualIdx ${actualIdx}): "${item.label}" description="${item.description}" highlighted=${isHighlighted}`,
-                  {},
-                  'error'
+                // DEBUG: Log each visible item being rendered
+                if (process.env.DEBUG_WIZARD) {
+                  systemDiagnosticsService.systemLog(
+                    'tui',
+                    `[WizardModal] Rendering visible item ${visibleIdx} (actualIdx ${actualIdx}): "${item.label}" description="${item.description}" highlighted=${isHighlighted}`,
+                    {},
+                    'error'
+                  );
+                }
+
+                const prefix = isHighlighted ? '▸ ' : '  ';
+                const checkbox = item.selected ? '[x]' : '[ ]';
+                const desc = item.description ? ` - ${item.description}` : '';
+                const line = `${prefix}${checkbox} ${item.label}${desc}`;
+
+                if (process.env.DEBUG_WIZARD && item.label === 'dev') {
+                  systemDiagnosticsService.systemLog(
+                    'tui',
+                    `[WizardModal] DEV item line: "${line}"`,
+                    {},
+                    'error'
+                  );
+                }
+
+                return (
+                  <Text
+                    key={item.id}
+                    color={
+                      isHighlighted
+                        ? TUITheme.text.inverse
+                        : TUITheme.text.primary
+                    }
+                    backgroundColor={
+                      isHighlighted ? TUITheme.background.selection : undefined
+                    }
+                  >
+                    {line}
+                    {'\n'}
+                  </Text>
                 );
               }
-
-              const prefix = isHighlighted ? '▸ ' : '  ';
-              const checkbox = item.selected ? '[x]' : '[ ]';
-              const desc = item.description ? ` - ${item.description}` : '';
-              const line = `${prefix}${checkbox} ${item.label}${desc}`;
-
-              if (process.env.DEBUG_WIZARD && item.label === 'dev') {
-                systemDiagnosticsService.systemLog(
-                  'tui',
-                  `[WizardModal] DEV item line: "${line}"`,
-                  {},
-                  'error'
-                );
-              }
-
-              return (
-                <Text
-                  key={item.id}
-                  color={
-                    isHighlighted
-                      ? TUITheme.text.inverse
-                      : TUITheme.text.primary
-                  }
-                  backgroundColor={
-                    isHighlighted ? TUITheme.background.selection : undefined
-                  }
-                >
-                  {line}
-                  {'\n'}
-                </Text>
-              );
-            })}
+            )}
           </Text>
         </Box>
 

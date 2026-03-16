@@ -72,7 +72,8 @@ interface CognitionTUIProps {
 import { type UseBackgroundTaskManagerResult } from './hooks/useBackgroundTaskManager.js';
 import { type ToolConfirmationState } from './hooks/useToolConfirmation.js';
 
-// ...
+import { tuiSyncManager } from '../core/state/tui-sync/TUISyncManager.js';
+
 export const CognitionTUIController: React.FC<{
   projectRoot: string;
   onboardingMode: boolean;
@@ -127,6 +128,15 @@ export const CognitionTUIController: React.FC<{
     isDropdownVisible,
   } = tuiState;
 
+  // Sync with TUISyncStateMachine
+  const [syncState, setSyncState] = React.useState(tuiSyncManager.getState());
+
+  useEffect(() => {
+    return tuiSyncManager.subscribe((_status, state) => {
+      setSyncState({ ...state });
+    });
+  }, []);
+
   const agent = useAgentContext();
   const {
     messages,
@@ -141,16 +151,28 @@ export const CognitionTUIController: React.FC<{
     tokenCount,
     sessionTokenCount,
     interrupt,
-    sigmaStats,
-    avgOverlays,
+    sigmaStats: propsSigmaStats,
+    avgOverlays: propsAvgOverlays,
     currentSessionId,
     anchorId,
-    workbenchHealth,
+    workbenchHealth: propsWorkbenchHealth,
     sigmaTasks,
     options: { debug, sessionId },
   } = agent;
 
-  const { pendingMessageCount, monitorError } = useMessageMonitor({
+  // Derive values from state machine with fallback to agent context
+  const sigmaStats =
+    syncState.sigmaStats.nodes > 0 ? syncState.sigmaStats : propsSigmaStats;
+  const avgOverlays =
+    syncState.overlayScores.O1_structural > 0
+      ? syncState.overlayScores
+      : propsAvgOverlays;
+  const workbenchHealth = syncState.workbenchHealth || propsWorkbenchHealth;
+  const pendingMessageCount = syncState.pendingMessageCount;
+  const monitorError = syncState.monitorError;
+  const activeTask = syncState.activeTask || taskManager.activeTask;
+
+  useMessageMonitor({
     anchorId: anchorId || null,
     projectRoot,
     debug,
@@ -417,7 +439,7 @@ export const CognitionTUIController: React.FC<{
   return (
     <CognitionTUILayout
       sigmaStats={sigmaStats}
-      activeTask={taskManager.activeTask}
+      activeTask={activeTask}
       pendingMessageCount={pendingMessageCount}
       monitorError={monitorError}
       workbenchHealth={workbenchHealth}

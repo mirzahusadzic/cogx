@@ -1,32 +1,21 @@
-/**
- * useOnboardingWizard Hook
- *
- * State machine for async onboarding wizard that runs inside the live TUI.
- * Uses background tasks and confirmation dialogs for non-blocking operation.
- *
- * Flow: detect → confirm-genesis → genesis → confirm-O1 → O1 → ... → complete
- */
-
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import fs from 'fs-extra';
 import path from 'path';
 import type { UseBackgroundTaskManagerResult } from './useBackgroundTaskManager.js';
 import { detectSources } from '../../utils/source-detector.js';
 import { systemDiagnosticsService } from '../../core/services/diagnostics/SystemDiagnosticsService.js';
+import { tuiSyncManager } from '../../core/state/tui-sync/TUISyncManager.js';
+import {
+  OnboardingState,
+  WizardConfirmationState,
+  WizardSelectionItem,
+  WizardStep,
+} from '../../core/state/tui-sync/types.js';
 
 /**
- * Wizard step types
+ * Wizard step types (re-exported from types)
  */
-export type WizardStep =
-  | 'idle' // Not started
-  | 'detect' // Checking if onboarding needed
-  | 'confirm-genesis' // Ask to start genesis
-  | 'genesis' // Genesis running in background
-  | 'confirm-docs' // Ask to ingest strategic docs
-  | 'genesis-docs' // Doc ingestion running
-  | 'confirm-overlay' // Ask to generate next overlay
-  | 'overlay' // Overlay running
-  | 'complete'; // All done
+export type { WizardStep, WizardConfirmationState, WizardSelectionItem };
 
 /**
  * Overlay generation order (matches lineage dependency order)
@@ -234,48 +223,6 @@ function detectMissingOverlays(
 }
 
 /**
- * Wizard state
- */
-export interface WizardState {
-  step: WizardStep;
-  sourceDirs: string[];
-  strategicDocs: string[]; // Found strategic docs
-  ingestedDocs: string[]; // Docs that have been ingested
-  currentOverlay: string | null;
-  completedOverlays: string[];
-  skippedOverlays: string[];
-  error: string | null;
-  needsGenesis: boolean;
-  needsDocs: boolean;
-  missingOverlays: string[];
-}
-
-/**
- * Selection item for multi-select dialogs
- */
-export interface WizardSelectionItem {
-  id: string;
-  label: string;
-  description?: string;
-  selected: boolean;
-}
-
-/**
- * Wizard confirmation state (for rendering dialog)
- */
-export interface WizardConfirmationState {
-  pending: boolean;
-  mode: 'confirm' | 'select';
-  title: string;
-  message: string;
-  confirmLabel: string;
-  denyLabel: string;
-  // Selection mode fields
-  items?: WizardSelectionItem[];
-  selectedIndex?: number;
-}
-
-/**
  * Hook options
  */
 export interface UseOnboardingWizardOptions {
@@ -298,7 +245,7 @@ export interface UseOnboardingWizardOptions {
  */
 export interface UseOnboardingWizardResult {
   /** Current wizard state */
-  state: WizardState;
+  state: OnboardingState;
   /** Confirmation dialog state (if any) */
   confirmationState: WizardConfirmationState | null;
   /** Start the wizard */
@@ -336,32 +283,45 @@ export function useOnboardingWizard(
   const {
     taskManager,
     projectRoot,
-    sourceDirs = [],
     autoStart = false,
     debug = false,
   } = options;
 
-  // Wizard state - initialize with detection results
-  const [state, setState] = useState<WizardState>(() => {
-    const { found } = detectStrategicDocs(projectRoot);
-    return {
-      step: 'idle',
-      sourceDirs: sourceDirs.length > 0 ? sourceDirs : ['src'],
-      strategicDocs: found,
-      ingestedDocs: [],
-      currentOverlay: null,
-      completedOverlays: [],
-      skippedOverlays: [],
-      error: null,
-      needsGenesis: !hasGenesis(projectRoot),
-      needsDocs: found.length === 0,
-      missingOverlays: detectMissingOverlays(projectRoot, taskManager.tasks),
-    };
-  });
+  // Sync with TUISyncStateMachine
+  const [syncState, setSyncState] = useState(tuiSyncManager.getState());
 
-  // Confirmation state
-  const [confirmationState, setConfirmationState] =
-    useState<WizardConfirmationState | null>(null);
+  useEffect(() => {
+    return tuiSyncManager.subscribe((_status, state) => {
+      setSyncState({ ...state });
+    });
+  }, []);
+
+  const hasInitializedRef = useRef(false);
+
+  // Initial detection on mount
+  useEffect(() => {
+    if (syncState.onboarding.step === 'idle' && !hasInitializedRef.current) {
+      hasInitializedRef.current = true;
+      const needsGenesis = !hasGenesis(projectRoot);
+      const { found: strategicDocs } = detectStrategicDocs(projectRoot);
+      const needsDocs = strategicDocs.length === 0;
+      const missingOverlays = detectMissingOverlays(
+        projectRoot,
+        taskManager.tasks
+      );
+
+      tuiSyncManager.updateOnboarding({
+        needsGenesis,
+        needsDocs,
+        strategicDocs,
+        missingOverlays,
+        sourceDirs: options.sourceDirs || ['src'],
+      });
+    }
+  }, [projectRoot, taskManager.tasks, options.sourceDirs]);
+
+  const state = syncState.onboarding;
+  const confirmationState = state.confirmation;
 
   // Ref to access latest confirmationState without triggering re-renders
   const confirmationStateRef = useRef(confirmationState);
@@ -389,22 +349,17 @@ export function useOnboardingWizard(
     ): Promise<'confirm' | 'skip' | 'cancel'> => {
       return new Promise((resolve) => {
         confirmResolver.current = resolve;
-        setConfirmationState({
-          pending: true,
-          ...config,
+        tuiSyncManager.handleEvent({
+          type: 'WIZARD_CONFIRM_SHOW',
+          confirmation: {
+            pending: true,
+            ...config,
+          },
         });
       });
     },
     []
   );
-
-  /**
-   * Close confirmation dialog
-   */
-  const closeConfirmation = useCallback(() => {
-    setConfirmationState(null);
-    confirmResolver.current = null;
-  }, []);
 
   /**
    * Initialize PGC structure (create directories and metadata.json)
@@ -457,7 +412,10 @@ export function useOnboardingWizard(
             'tui-wizard',
             '[Wizard] Starting genesis...'
           );
-        setState((s) => ({ ...s, step: 'genesis' }));
+        tuiSyncManager.handleEvent({
+          type: 'WIZARD_STEP_CHANGE',
+          step: 'genesis',
+        });
 
         // Use provided sourceDirs or fall back to state
         const dirsToProcess = sourceDirs || state.sourceDirs;
@@ -499,11 +457,14 @@ export function useOnboardingWizard(
             `[Wizard] Genesis started, taskId: ${taskId}`
           );
       } catch (err) {
-        setState((s) => ({
-          ...s,
-          step: 'idle',
+        tuiSyncManager.handleEvent({
+          type: 'WIZARD_ERROR',
           error: `Genesis failed: ${(err as Error).message}`,
-        }));
+        });
+        tuiSyncManager.handleEvent({
+          type: 'WIZARD_STEP_CHANGE',
+          step: 'idle',
+        });
       }
     },
     [taskManager, state.sourceDirs, debug, initializePGC, projectRoot]
@@ -520,7 +481,10 @@ export function useOnboardingWizard(
             'tui-wizard',
             `[Wizard] Starting doc ingestion: ${docPaths}`
           );
-        setState((s) => ({ ...s, step: 'genesis-docs' }));
+        tuiSyncManager.handleEvent({
+          type: 'WIZARD_STEP_CHANGE',
+          step: 'genesis-docs',
+        });
 
         const taskId = await taskManager.startGenesisDocs(docPaths);
         pendingTaskId.current = taskId;
@@ -531,11 +495,14 @@ export function useOnboardingWizard(
             `[Wizard] Doc ingestion started, taskId: ${taskId}`
           );
       } catch (err) {
-        setState((s) => ({
-          ...s,
-          step: 'idle',
+        tuiSyncManager.handleEvent({
+          type: 'WIZARD_ERROR',
           error: `Doc ingestion failed: ${(err as Error).message}`,
-        }));
+        });
+        tuiSyncManager.handleEvent({
+          type: 'WIZARD_STEP_CHANGE',
+          step: 'idle',
+        });
       }
     },
     [taskManager, debug]
@@ -552,7 +519,11 @@ export function useOnboardingWizard(
             'tui-wizard',
             `[Wizard] Starting overlay: ${overlay}`
           );
-        setState((s) => ({ ...s, step: 'overlay', currentOverlay: overlay }));
+        tuiSyncManager.updateOnboarding({ currentOverlay: overlay });
+        tuiSyncManager.handleEvent({
+          type: 'WIZARD_STEP_CHANGE',
+          step: 'overlay',
+        });
 
         // Convert overlay code (O1) to directory name (structural_patterns)
         const overlayDir = OVERLAY_DIRS[overlay] || overlay;
@@ -565,12 +536,15 @@ export function useOnboardingWizard(
             `[Wizard] Overlay started, taskId: ${taskId}`
           );
       } catch (err) {
-        setState((s) => ({
-          ...s,
-          step: 'idle',
-          currentOverlay: null,
+        tuiSyncManager.updateOnboarding({ currentOverlay: null });
+        tuiSyncManager.handleEvent({
+          type: 'WIZARD_ERROR',
           error: `${overlay} generation failed: ${(err as Error).message}`,
-        }));
+        });
+        tuiSyncManager.handleEvent({
+          type: 'WIZARD_STEP_CHANGE',
+          step: 'idle',
+        });
       }
     },
     [taskManager, debug]
@@ -608,7 +582,7 @@ export function useOnboardingWizard(
 
       if (!nextOverlay) {
         // All done
-        setState((s) => ({ ...s, step: 'complete' }));
+        tuiSyncManager.handleEvent({ type: 'WIZARD_COMPLETE' });
         return;
       }
 
@@ -649,11 +623,10 @@ export function useOnboardingWizard(
 
         if (newDocs.length > 0) {
           // Found new docs to ingest
-          setState((s) => ({
-            ...s,
+          tuiSyncManager.updateOnboarding({
             step: 'confirm-docs',
             strategicDocs: newDocs,
-          }));
+          });
 
           const docList = newDocs.join(', ');
           const result = await showConfirmation({
@@ -664,26 +637,23 @@ export function useOnboardingWizard(
             denyLabel: 'N Skip',
           });
 
-          closeConfirmation();
-
           if (result === 'confirm') {
             // Ingest new docs
             await runDocsIngestion(newPaths);
             return; // Wait for ingestion to complete
           } else if (result === 'skip') {
             // Skip docs and all docs-based overlays
-            setState((s) => ({
-              ...s,
+            tuiSyncManager.updateOnboarding({
               skippedOverlays: [
-                ...s.skippedOverlays,
+                ...state.skippedOverlays,
                 ...DOCS_BASED_OVERLAYS.filter((o) => !processed.has(o)),
               ],
-              step: 'complete',
-            }));
+            });
+            tuiSyncManager.handleEvent({ type: 'WIZARD_COMPLETE' });
             return;
           } else {
             // Cancel
-            setState((s) => ({ ...s, step: 'complete' }));
+            tuiSyncManager.handleEvent({ type: 'WIZARD_COMPLETE' });
             return;
           }
         } else if (alreadyIngested.length > 0) {
@@ -701,26 +671,23 @@ export function useOnboardingWizard(
             denyLabel: 'N Skip Remaining',
           });
 
-          closeConfirmation();
-
           if (result === 'confirm') {
             // Exit wizard - user will run /onboard-project manually
-            setState((s) => ({ ...s, step: 'complete' }));
+            tuiSyncManager.handleEvent({ type: 'WIZARD_COMPLETE' });
             return;
           } else if (result === 'skip') {
             // Skip all remaining docs-based overlays
-            setState((s) => ({
-              ...s,
+            tuiSyncManager.updateOnboarding({
               skippedOverlays: [
-                ...s.skippedOverlays,
+                ...state.skippedOverlays,
                 ...DOCS_BASED_OVERLAYS.filter((o) => !processed.has(o)),
               ],
-              step: 'complete',
-            }));
+            });
+            tuiSyncManager.handleEvent({ type: 'WIZARD_COMPLETE' });
             return;
           } else {
             // Cancel
-            setState((s) => ({ ...s, step: 'complete' }));
+            tuiSyncManager.handleEvent({ type: 'WIZARD_COMPLETE' });
             return;
           }
         }
@@ -735,21 +702,19 @@ export function useOnboardingWizard(
 
         // Skip nextOverlay if we don't have the required docs
         if (!allowedOverlays.has(nextOverlay)) {
-          setState((s) => ({
-            ...s,
-            skippedOverlays: [...s.skippedOverlays, nextOverlay],
-          }));
+          tuiSyncManager.updateOnboarding({
+            skippedOverlays: [...state.skippedOverlays, nextOverlay],
+          });
           // Move to next overlay
           await promptNextOverlay(nextOverlay, [nextOverlay]);
           return;
         }
       }
 
-      setState((s) => ({
-        ...s,
+      tuiSyncManager.updateOnboarding({
         step: 'confirm-overlay',
         currentOverlay: nextOverlay,
-      }));
+      });
 
       const prevName = justCompleted
         ? `${justCompleted} (${OVERLAY_NAMES[justCompleted] || justCompleted})`
@@ -763,21 +728,18 @@ export function useOnboardingWizard(
         denyLabel: 'N Skip',
       });
 
-      closeConfirmation();
-
       if (result === 'confirm') {
         await runOverlay(nextOverlay);
       } else if (result === 'skip') {
-        setState((s) => ({
-          ...s,
-          skippedOverlays: [...s.skippedOverlays, nextOverlay],
+        tuiSyncManager.updateOnboarding({
+          skippedOverlays: [...state.skippedOverlays, nextOverlay],
           currentOverlay: null,
-        }));
+        });
         // Prompt for next
         await promptNextOverlay(nextOverlay, [nextOverlay]);
       } else {
         // Cancel - stop wizard
-        setState((s) => ({ ...s, step: 'complete' }));
+        tuiSyncManager.handleEvent({ type: 'WIZARD_COMPLETE' });
       }
     },
     [
@@ -786,10 +748,10 @@ export function useOnboardingWizard(
       state.missingOverlays,
       state.ingestedDocs,
       showConfirmation,
-      closeConfirmation,
       runOverlay,
       runDocsIngestion,
       projectRoot,
+      taskManager.tasks,
     ]
   );
 
@@ -823,10 +785,9 @@ export function useOnboardingWizard(
           await promptNextOverlay(null);
         } else if (task.type === 'genesis-docs') {
           // Doc ingestion done, mark docs as ingested and continue
-          setState((s) => ({
-            ...s,
-            ingestedDocs: s.strategicDocs,
-          }));
+          tuiSyncManager.updateOnboarding({
+            ingestedDocs: state.strategicDocs,
+          });
           await promptNextOverlay(null); // Continue to next overlay
         } else if (task.type === 'overlay' && state.currentOverlay) {
           // Overlay done, mark and prompt for next
@@ -838,12 +799,11 @@ export function useOnboardingWizard(
             taskManager.tasks
           );
 
-          setState((s) => ({
-            ...s,
-            completedOverlays: [...s.completedOverlays, completedCode],
+          tuiSyncManager.updateOnboarding({
+            completedOverlays: [...state.completedOverlays, completedCode],
             missingOverlays: updatedMissing,
             currentOverlay: null,
-          }));
+          });
           await promptNextOverlay(completedCode);
         }
       })();
@@ -853,11 +813,11 @@ export function useOnboardingWizard(
           'tui-wizard',
           `[Wizard] Task failed: ${task.id}, ${task.error}`
         );
-      setState((s) => ({
-        ...s,
-        step: 'idle',
+      tuiSyncManager.handleEvent({
+        type: 'WIZARD_ERROR',
         error: task.error || 'Task failed',
-      }));
+      });
+      tuiSyncManager.handleEvent({ type: 'WIZARD_STEP_CHANGE', step: 'idle' });
     }
   }, [
     taskManager.tasks,
@@ -865,6 +825,8 @@ export function useOnboardingWizard(
     debug,
     projectRoot,
     state.currentOverlay,
+    state.strategicDocs,
+    state.completedOverlays,
   ]);
 
   /**
@@ -875,18 +837,6 @@ export function useOnboardingWizard(
   > => {
     try {
       const detected = await detectSources(projectRoot);
-
-      if (debug || process.env.DEBUG_WIZARD) {
-        systemDiagnosticsService.systemLog(
-          'tui-wizard',
-          '[Wizard] Detected source dirs:',
-          {
-            dirs: detected.code.map(
-              (d) => `${d.path} (${d.fileCount} files, selected=${d.selected})`
-            ),
-          }
-        );
-      }
 
       if (detected.code.length === 0) {
         // Fallback if nothing detected
@@ -906,23 +856,6 @@ export function useOnboardingWizard(
         description: `${dir.fileCount} ${dir.language || 'code'} files`,
         selected: dir.selected,
       }));
-
-      if (debug || process.env.DEBUG_WIZARD) {
-        systemDiagnosticsService.systemLog(
-          'tui-wizard',
-          '[Wizard] Created items:',
-          {
-            items: items.map((i) => `${i.id} (${i.description})`),
-          }
-        );
-        systemDiagnosticsService.systemLog(
-          'tui-wizard',
-          '[Wizard] Unique IDs?',
-          {
-            isUnique: new Set(items.map((i) => i.id)).size === items.length,
-          }
-        );
-      }
 
       return items;
     } catch {
@@ -958,30 +891,20 @@ export function useOnboardingWizard(
         taskManager.tasks
       );
 
-      setState((s) => ({
-        ...s,
+      tuiSyncManager.updateOnboarding({
         needsGenesis,
         needsDocs,
         strategicDocs,
         missingOverlays,
         error: null,
-      }));
-
-      if (debug) {
-        systemDiagnosticsService.systemLog(
-          'tui-wizard',
-          '[Wizard] Detection results:',
-          {
-            needsGenesis,
-            needsDocs,
-            missingOverlays,
-          }
-        );
-      }
+      });
 
       // Step 1: Genesis if needed
       if (needsGenesis) {
-        setState((s) => ({ ...s, step: 'confirm-genesis' }));
+        tuiSyncManager.handleEvent({
+          type: 'WIZARD_STEP_CHANGE',
+          step: 'confirm-genesis',
+        });
 
         // Show source directory selection
         const sourceItems = dirs
@@ -1004,56 +927,42 @@ export function useOnboardingWizard(
             .map((item) => item.id);
 
           if (selectedDirs.length > 0) {
-            setState((s) => ({ ...s, sourceDirs: selectedDirs }));
-            closeConfirmation();
+            tuiSyncManager.updateOnboarding({ sourceDirs: selectedDirs });
             // Pass selectedDirs directly to avoid race condition with async state update
             await runGenesis(selectedDirs);
             return; // Genesis will trigger overlay prompts via completion handler
           }
         }
 
-        closeConfirmation();
-
         // If cancelled by user (ESC), exit completely to prevent auto-restart
         if (result === 'cancel') {
-          if (debug)
-            systemDiagnosticsService.systemLog(
-              'tui-wizard',
-              '[Wizard] User cancelled source selection, exiting'
-            );
-          setState((s) => ({ ...s, step: 'complete' }));
+          tuiSyncManager.handleEvent({ type: 'WIZARD_COMPLETE' });
         } else {
-          setState((s) => ({ ...s, step: 'idle' }));
+          tuiSyncManager.handleEvent({
+            type: 'WIZARD_STEP_CHANGE',
+            step: 'idle',
+          });
         }
         return;
       }
 
       // Step 2: Generate missing overlays
       if (missingOverlays.length > 0) {
-        if (debug) {
-          systemDiagnosticsService.systemLog(
-            'tui-wizard',
-            '[Wizard] Missing overlays:',
-            {
-              missingOverlays,
-            }
-          );
-        }
         // Start with first missing overlay
         await promptNextOverlay(null);
       } else {
         // Nothing to do!
-        setState((s) => ({ ...s, step: 'complete' }));
+        tuiSyncManager.handleEvent({ type: 'WIZARD_COMPLETE' });
       }
     },
     [
       projectRoot,
       detectSourceDirs,
       showConfirmation,
-      closeConfirmation,
       runGenesis,
       promptNextOverlay,
       debug,
+      taskManager.tasks,
     ]
   );
 
@@ -1064,6 +973,10 @@ export function useOnboardingWizard(
     if (confirmResolver.current) {
       confirmResolver.current('confirm');
     }
+    tuiSyncManager.handleEvent({
+      type: 'WIZARD_CONFIRM_ACTION',
+      action: 'confirm',
+    });
   }, []);
 
   /**
@@ -1073,6 +986,10 @@ export function useOnboardingWizard(
     if (confirmResolver.current) {
       confirmResolver.current('skip');
     }
+    tuiSyncManager.handleEvent({
+      type: 'WIZARD_CONFIRM_ACTION',
+      action: 'skip',
+    });
   }, []);
 
   /**
@@ -1082,51 +999,39 @@ export function useOnboardingWizard(
     if (confirmResolver.current) {
       confirmResolver.current('cancel');
     }
-    closeConfirmation();
-    setState((s) => ({ ...s, step: 'complete' }));
-  }, [closeConfirmation]);
+    tuiSyncManager.handleEvent({
+      type: 'WIZARD_CONFIRM_ACTION',
+      action: 'cancel',
+    });
+    tuiSyncManager.handleEvent({ type: 'WIZARD_COMPLETE' });
+  }, []);
 
   /**
    * Move selection up (for select mode)
    */
   const moveUp = useCallback(() => {
-    if (confirmationState?.mode === 'select' && confirmationState.items) {
-      const currentIdx = confirmationState.selectedIndex ?? 0;
-      const newIdx =
-        currentIdx > 0 ? currentIdx - 1 : confirmationState.items.length - 1;
-      setConfirmationState((s) => (s ? { ...s, selectedIndex: newIdx } : null));
-    }
-  }, [confirmationState]);
+    tuiSyncManager.handleEvent({
+      type: 'WIZARD_SELECTION_MOVE',
+      direction: 'up',
+    });
+  }, []);
 
   /**
    * Move selection down (for select mode)
    */
   const moveDown = useCallback(() => {
-    if (confirmationState?.mode === 'select' && confirmationState.items) {
-      const currentIdx = confirmationState.selectedIndex ?? 0;
-      const newIdx =
-        currentIdx < confirmationState.items.length - 1 ? currentIdx + 1 : 0;
-      setConfirmationState((s) => (s ? { ...s, selectedIndex: newIdx } : null));
-    }
-  }, [confirmationState]);
+    tuiSyncManager.handleEvent({
+      type: 'WIZARD_SELECTION_MOVE',
+      direction: 'down',
+    });
+  }, []);
 
   /**
    * Toggle current selection (for select mode)
    */
   const toggleSelection = useCallback(() => {
-    if (confirmationState?.mode === 'select' && confirmationState.items) {
-      const currentIdx = confirmationState.selectedIndex ?? 0;
-      setConfirmationState((s) => {
-        if (!s || !s.items) return s;
-        const newItems = [...s.items];
-        newItems[currentIdx] = {
-          ...newItems[currentIdx],
-          selected: !newItems[currentIdx].selected,
-        };
-        return { ...s, items: newItems };
-      });
-    }
-  }, [confirmationState]);
+    tuiSyncManager.handleEvent({ type: 'WIZARD_SELECTION_TOGGLE' });
+  }, []);
 
   // Auto-start if requested (only once)
   useEffect(() => {
@@ -1139,7 +1044,7 @@ export function useOnboardingWizard(
   return useMemo(
     () => ({
       state,
-      confirmationState,
+      confirmationState: confirmationState || null,
       startWizard,
       confirm,
       skip,

@@ -31,9 +31,9 @@ vi.mock('../../../core/algebra/overlay-registry.js', () => ({
   })),
 }));
 
-vi.mock('../../../core/workspace-manager.js', () => ({
-  WorkspaceManager: class {
-    resolvePgcRoot = vi.fn().mockReturnValue('/test/project');
+vi.mock('../../../core/services/environment/EnvironmentService.js', () => ({
+  environmentService: {
+    resolvePgcDir: vi.fn().mockReturnValue('/test/project/.open_cognition'),
   },
 }));
 

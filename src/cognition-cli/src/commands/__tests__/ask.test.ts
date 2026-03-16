@@ -5,9 +5,10 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { environmentService } from '../../core/services/environment/EnvironmentService.js';
 
 // Mock dependencies before importing
-vi.mock('../../core/workspace-manager.js');
+vi.mock('../../core/services/environment/EnvironmentService.js');
 vi.mock('../../core/executors/workbench-client.js');
 vi.mock('../../core/overlays/structural-patterns/manager.js');
 vi.mock('../../core/overlays/security-guidelines/manager.js');
@@ -30,16 +31,7 @@ describe('askCommand', () => {
 
   describe('workspace validation', () => {
     it('should check for .open_cognition workspace', async () => {
-      const { WorkspaceManager } =
-        await import('../../core/workspace-manager.js');
-      const mockResolve = vi.fn().mockReturnValue(null);
-
-      vi.mocked(WorkspaceManager).mockImplementation(
-        () =>
-          ({
-            resolvePgcRoot: mockResolve,
-          }) as unknown as typeof WorkspaceManager.prototype
-      );
+      vi.mocked(environmentService.findProjectRoot).mockReturnValue(null);
 
       const consoleErrorSpy = vi
         .spyOn(console, 'error')
@@ -56,7 +48,7 @@ describe('askCommand', () => {
         askCommand('test', { projectRoot: '/test' })
       ).rejects.toThrow('process.exit');
 
-      expect(mockResolve).toHaveBeenCalledWith('/test');
+      expect(environmentService.findProjectRoot).toHaveBeenCalledWith('/test');
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining('No .open_cognition found')
       );
@@ -120,14 +112,7 @@ describe('askCommand', () => {
 
   describe('workbench client usage', () => {
     it('should use workbench URL from options', async () => {
-      const { WorkspaceManager } =
-        await import('../../core/workspace-manager.js');
-      vi.mocked(WorkspaceManager).mockImplementation(
-        () =>
-          ({
-            resolvePgcRoot: vi.fn().mockReturnValue('/test'),
-          }) as unknown as typeof WorkspaceManager.prototype
-      );
+      vi.mocked(environmentService.findProjectRoot).mockReturnValue('/test');
 
       const { WorkbenchClient } =
         await import('../../core/executors/workbench-client.js');
@@ -163,14 +148,7 @@ describe('askCommand', () => {
       const originalUrl = process.env.WORKBENCH_URL;
       process.env.WORKBENCH_URL = 'http://env:7000';
 
-      const { WorkspaceManager } =
-        await import('../../core/workspace-manager.js');
-      vi.mocked(WorkspaceManager).mockImplementation(
-        () =>
-          ({
-            resolvePgcRoot: vi.fn().mockReturnValue('/test'),
-          }) as unknown as typeof WorkspaceManager.prototype
-      );
+      vi.mocked(environmentService.findProjectRoot).mockReturnValue('/test');
 
       const { WorkbenchClient } =
         await import('../../core/executors/workbench-client.js');

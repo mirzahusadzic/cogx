@@ -57,7 +57,7 @@ import fs from 'fs-extra';
 import path from 'path';
 import { LanceVectorStore } from '../../core/overlays/vector-db/lance-store.js';
 import chalk from 'chalk';
-import { WorkspaceManager } from '../../core/workspace-manager.js';
+import { environmentService } from '../../core/services/environment/EnvironmentService.js';
 
 /**
  * Represents metadata for an available overlay type
@@ -128,9 +128,8 @@ export const createListCommand = () =>
     .description('List available overlay types and their status.')
     .option('--json', 'Output as JSON')
     .action(async (options, command) => {
-      const workspaceManager = new WorkspaceManager();
       // Overlay commands use current working directory - PGC discovery walks up to find .open_cognition
-      const projectRoot = workspaceManager.resolvePgcRoot(process.cwd());
+      const projectRoot = environmentService.findProjectRoot(process.cwd());
 
       const allOpts = command.optsWithGlobals();
       const useJson =

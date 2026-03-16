@@ -41,7 +41,7 @@ import { OperationalPatternsManager } from '../core/overlays/operational-pattern
 import { StructuralPatternsManager } from '../core/overlays/structural-patterns/manager.js';
 import { CoherenceAlgebraAdapter } from '../core/overlays/strategic-coherence/algebra-adapter.js';
 import { LineageAlgebraAdapter } from '../core/overlays/lineage/algebra-adapter.js';
-import { WorkspaceManager } from '../core/workspace-manager.js';
+import { environmentService } from '../core/services/environment/EnvironmentService.js';
 import type { SummarizeRequest } from '../core/types/workbench.js';
 import type { OverlayMetadata } from '../core/algebra/overlay-algebra.js';
 import {
@@ -122,8 +122,7 @@ export async function askCommand(
   const verbose = options.json ? false : options.verbose || false; // Suppress verbose in JSON mode
 
   // Find .open_cognition by walking up directory tree
-  const workspaceManager = new WorkspaceManager();
-  const projectRoot = workspaceManager.resolvePgcRoot(options.projectRoot);
+  const projectRoot = environmentService.findProjectRoot(options.projectRoot);
 
   if (!projectRoot) {
     console.error(

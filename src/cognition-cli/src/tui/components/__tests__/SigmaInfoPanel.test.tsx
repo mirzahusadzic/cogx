@@ -1,10 +1,10 @@
 import React from 'react';
 import { render } from 'ink-testing-library';
-import {
-  SigmaInfoPanel,
+import { SigmaInfoPanel } from '../SigmaInfoPanel.js';
+import type {
   SigmaStats,
   OverlayScores,
-} from '../SigmaInfoPanel.js';
+} from '../../../core/state/tui-sync/types.js';
 
 describe('SigmaInfoPanel', () => {
   const mockSigmaStats: SigmaStats = {
