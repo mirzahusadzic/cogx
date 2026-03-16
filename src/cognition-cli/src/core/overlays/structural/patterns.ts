@@ -424,6 +424,12 @@ export class StructuralPatternsManager implements PatternManager {
         `[StructuralPatterns] Embedding complete: ${embeddedCount} succeeded, ${embedFailedCount} failed`
       )
     );
+
+    // Phase 4: Compact the database to reclaim storage space
+    console.log(
+      chalk.blue('[StructuralPatterns] Phase 4: Compacting database...')
+    );
+    await this.vectorDB.compact();
   }
 
   /**
@@ -613,6 +619,9 @@ export class StructuralPatternsManager implements PatternManager {
         `[StructuralPatterns] Re-classification complete: ${processedCount} succeeded.`
       )
     );
+
+    // Compact the database to reclaim storage space
+    await this.vectorDB.compact();
   }
 
   /**

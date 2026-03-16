@@ -396,8 +396,20 @@ _cognition_cli_completions() {
       fi
       ;;
     patterns)
-      COMPREPLY=( $(compgen -W "find-similar compare analyze inspect list graph" -- \${cur}) )
+      COMPREPLY=( $(compgen -W "find-similar compare analyze inspect list graph compact" -- \${cur}) )
       return 0
+      ;;
+    compact)
+      if [[ "\${COMP_WORDS[1]}" == "patterns" ]]; then
+        COMPREPLY=( $(compgen -W "--type --project-root --json -h --help" -- \${cur}) )
+        return 0
+      fi
+      ;;
+    find-similar)
+      if [[ "\${COMP_WORDS[1]}" == "patterns" ]]; then
+        COMPREPLY=( $(compgen -W "--top-k --type --json -h --help" -- \${cur}) )
+        return 0
+      fi
       ;;
     concepts)
       COMPREPLY=( $(compgen -W "list search by-section inspect top" -- \${cur}) )
@@ -448,6 +460,20 @@ _cognition_cli_completions() {
       # Directory completion
       COMPREPLY=( $(compgen -d -- \${cur}) )
       return 0
+      ;;
+    --type)
+      # Completion for --type flag in patterns compact and proofs list
+      if [[ "\${COMP_WORDS[1]}" == "patterns" ]]; then
+        if [[ "\${COMP_WORDS[2]}" == "compact" ]]; then
+          COMPREPLY=( $(compgen -W "structural lineage all" -- \${cur}) )
+        else
+          COMPREPLY=( $(compgen -W "structural lineage" -- \${cur}) )
+        fi
+        return 0
+      elif [[ "\${COMP_WORDS[1]}" == "proofs" ]]; then
+        COMPREPLY=( $(compgen -W "theorem lemma axiom proof identity" -- \${cur}) )
+        return 0
+      fi
       ;;
     -f|--file)
       # File completion for .json files
@@ -540,7 +566,7 @@ _cognition_cli_completions() {
         return 0
         ;;
       patterns)
-        local patterns_flags="-p --project-root --json -h --help"
+        local patterns_flags="-p --project-root --type --json -h --help"
         COMPREPLY=( $(compgen -W "\${patterns_flags}" -- \${cur}) )
         return 0
         ;;
@@ -758,7 +784,7 @@ _cognition_cli() {
         patterns)
           _arguments -C \
             '--json[Output as JSON]' \
-            '1:subcommand:(find-similar compare analyze inspect list graph)' \
+            '1:subcommand:(find-similar compare analyze inspect list graph compact)' \
             '*:: :->patterns_args'
 
           case $state in
@@ -766,6 +792,17 @@ _cognition_cli() {
               case $words[1] in
                 analyze)
                   _arguments '1:subcommand:(roles role)'
+                  ;;
+                find-similar)
+                  _arguments \
+                    '--top-k[Number of similar patterns]:number:' \
+                    '--type[The type of patterns to find]:type:(structural lineage)' \
+                    '--json[Output raw JSON]' \
+                    '1:symbol:'
+                  ;;
+                compact)
+                  _arguments \
+                    '--type[The type of patterns to compact]:type:(structural lineage all)'
                   ;;
               esac
               ;;
@@ -973,8 +1010,11 @@ complete -c cognition-cli -n "__fish_seen_subcommand_from workflow" -l aligned -
 complete -c cognition-cli -n "__fish_seen_subcommand_from workflow" -l json -d "Output as JSON"
 
 # Patterns subcommands
-complete -c cognition-cli -f -n "__fish_seen_subcommand_from patterns" -a "find-similar compare analyze inspect list graph"
+complete -c cognition-cli -f -n "__fish_seen_subcommand_from patterns" -a "find-similar compare analyze inspect list graph compact"
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from patterns; and __fish_seen_subcommand_from analyze" -a "roles role"
+complete -c cognition-cli -n "__fish_seen_subcommand_from patterns; and __fish_seen_subcommand_from compact" -l type -d "The type of patterns to compact" -xa "structural lineage all"
+complete -c cognition-cli -n "__fish_seen_subcommand_from patterns; and __fish_seen_subcommand_from find-similar" -l top-k -d "Number of similar patterns"
+complete -c cognition-cli -n "__fish_seen_subcommand_from patterns; and __fish_seen_subcommand_from find-similar" -l type -d "The type of patterns to find" -xa "structural lineage"
 complete -c cognition-cli -n "__fish_seen_subcommand_from patterns" -l json -d "Output as JSON"
 
 # Concepts subcommands

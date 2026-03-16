@@ -188,6 +188,22 @@ export abstract class AbstractLanceStore<T extends Record<string, unknown>> {
   }
 
   /**
+   * Compacts the table to reclaim space and improve performance.
+   * This physically removes deleted records and merges small data files.
+   */
+  public async compact(): Promise<void> {
+    await this.ensureInitialized();
+    await withDbRetry(async () => {
+      // In @lancedb/lancedb v0.22.x, optimize() is the unified method for VACUUM operations
+      // We set cleanupOlderThan to now to remove all old transaction versions
+      await this.table!.optimize({
+        cleanupOlderThan: new Date(),
+        deleteUnverified: true,
+      });
+    });
+  }
+
+  /**
    * Escapes single quotes in a string for use in SQL-like filters.
    */
   protected escapeSqlString(value: string): string {

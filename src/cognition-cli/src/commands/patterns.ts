@@ -18,7 +18,8 @@
  *   - Vector embeddings for dependency-aware search
  *
  * COMMANDS:
- * - `patterns find-similar <symbol>`: Find architecturally similar symbols
+ * - `patterns compact`: Compact pattern tables to reclaim storage space.
+ * - `patterns find-similar <symbol>`: Find architecturally similar symbols.
  * - `patterns analyze`: Show architectural role distribution
  * - `patterns list`: List all patterns with optional filtering
  * - `patterns inspect <symbol>`: Detailed symbol information
@@ -31,6 +32,10 @@
  * 2. Verify corresponding vectors exist in LanceDB
  * 3. Report stale vectors (in manifest but not in vector DB)
  * 4. Suggest regeneration if vectors are missing
+ *
+ * @example
+ * // Compact structural pattern table
+ * cognition-cli patterns compact --type structural
  *
  * @example
  * // Find symbols similar to a function
@@ -76,6 +81,40 @@ export function addPatternsCommands(program: Command) {
   const patternsCommand = program
     .command('patterns')
     .description('Commands for managing and querying structural patterns.');
+
+  patternsCommand
+    .command('compact')
+    .description('Compact pattern tables to reclaim storage space.')
+    .option(
+      '--type <type>',
+      "The type of patterns to compact ('structural', 'lineage', or 'all')",
+      'all'
+    )
+    .action(async (options) => {
+      const pgc = new PGCManager(process.cwd());
+      const types =
+        options.type === 'all'
+          ? ['structural', 'lineage', 'mission_concepts', 'operational']
+          : [options.type];
+
+      for (const type of types) {
+        const tableName = type.endsWith('_patterns')
+          ? type
+          : `${type}_patterns`;
+        console.log(chalk.blue(`[Patterns] Compacting ${tableName} table...`));
+        const vectorDB = new LanceVectorStore(pgc.pgcRoot);
+        try {
+          await vectorDB.initialize(tableName);
+          await vectorDB.compact();
+          console.log(chalk.green(`[Patterns] Compacted ${tableName} table.`));
+        } catch (error) {
+          console.error(
+            chalk.red(`[Patterns] Failed to compact ${tableName}:`),
+            (error as Error).message
+          );
+        }
+      }
+    });
 
   patternsCommand
     .command('find-similar <symbol>')
