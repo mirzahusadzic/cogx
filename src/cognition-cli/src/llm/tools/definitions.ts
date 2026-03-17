@@ -81,6 +81,10 @@ export const GlobSchema = z.object({
     .string()
     .optional()
     .describe('Glob pattern to exclude (e.g., "**/node_modules/**")'),
+  timeout: z.coerce
+    .number()
+    .optional()
+    .describe('Timeout in ms (default 30000)'),
 });
 
 export const globTool: ToolDefinition<typeof GlobSchema> = {
@@ -104,6 +108,10 @@ export const GrepSchema = z.object({
     .boolean()
     .optional()
     .describe('Search for literal string instead of regex'),
+  timeout: z.coerce
+    .number()
+    .optional()
+    .describe('Timeout in ms (default 30000)'),
 });
 
 export const grepTool: ToolDefinition<typeof GrepSchema> = {

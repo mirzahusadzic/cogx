@@ -158,6 +158,8 @@ export interface AgentContent {
   input?: unknown;
   content?: unknown;
   is_error?: boolean;
+  index?: number;
+  total?: number;
 }
 
 /**
@@ -182,6 +184,8 @@ export interface AgentMessage {
   toolName?: string; // Tool name for tool_use/tool_result messages
   toolInput?: unknown; // Tool input arguments
   toolCallId?: string; // Unique ID of the tool call
+  toolIndex?: number; // Index of this tool in a batch
+  toolTotal?: number; // Total number of tools in this batch
 }
 
 /**

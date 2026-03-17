@@ -782,18 +782,25 @@ export class GeminiAgentProvider extends BaseAgentProvider {
           if (evt.author === 'user') continue;
 
           if (evt.author === 'cognition_agent' && evt.content?.parts) {
+            const toolCalls = evt.content.parts.filter((p) => p.functionCall);
+            const total = toolCalls.length;
+            let currentToolIndex = 0;
+
             for (const part of evt.content.parts) {
               if (part.thoughtSignature) {
                 this.sessionSignatures.set(sessionId, part.thoughtSignature);
               }
 
               if (part.functionCall) {
+                currentToolIndex++;
                 yield {
                   type: 'tool_call',
                   toolCall: {
                     id: part.functionCall.id,
                     name: part.functionCall.name,
                     args: part.functionCall.args,
+                    index: currentToolIndex,
+                    total: total,
                   },
                   retryCount: attempt,
                 };

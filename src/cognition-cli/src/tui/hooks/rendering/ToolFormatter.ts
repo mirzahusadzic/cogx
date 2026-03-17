@@ -117,6 +117,8 @@ export interface ToolUse {
    * Tool input parameters (structure varies by tool)
    */
   input: Record<string, unknown>;
+  index?: number;
+  total?: number;
 }
 
 /**
@@ -514,6 +516,10 @@ export function formatToolUse(
     }
   } else {
     inputDesc = JSON.stringify(tool.input);
+  }
+
+  if (tool.index && tool.total && tool.total > 1) {
+    toolName += ` (${tool.index}/${tool.total})`;
   }
 
   return {

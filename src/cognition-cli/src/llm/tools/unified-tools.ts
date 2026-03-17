@@ -211,7 +211,8 @@ export function getUnifiedTools(
         args.pattern,
         args.path || context.cwd,
         args.exclude,
-        context.getActiveTaskId
+        context.getActiveTaskId,
+        args.timeout
       )
     )
   );
@@ -226,7 +227,8 @@ export function getUnifiedTools(
         args.is_literal,
         context.workbenchUrl,
         context.currentPromptTokens,
-        context.getActiveTaskId
+        context.getActiveTaskId,
+        args.timeout
       )
     )
   );

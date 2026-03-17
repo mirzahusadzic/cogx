@@ -82,6 +82,8 @@ interface MessageBlock {
   content?: unknown; // Added for tool_result support
   thoughtSignature?: string;
   id?: string; // toolCallId
+  index?: number;
+  total?: number;
 }
 
 interface AgentMessage {
@@ -91,6 +93,8 @@ interface AgentMessage {
   toolInput?: unknown;
   thoughtSignature?: string;
   toolCallId?: string;
+  toolIndex?: number;
+  toolTotal?: number;
 }
 
 export function updateSigmaTasksWithTokens(
@@ -618,6 +622,8 @@ export function useAgentHandlers() {
               {
                 name: agentMessage.toolName,
                 input: agentMessage.toolInput as Record<string, unknown>,
+                index: agentMessage.toolIndex,
+                total: agentMessage.toolTotal,
               },
               cwd,
               sigmaTasks
@@ -683,6 +689,8 @@ export function useAgentHandlers() {
                   {
                     name: tool.name,
                     input: tool.input as Record<string, unknown>,
+                    index: tool.index,
+                    total: tool.total,
                   },
                   cwd,
                   sigmaTasks
@@ -1280,6 +1288,17 @@ This triggers a semantic compression event, flushing implementation noise while 
               if (targetIdx !== -1) {
                 const target = prev[targetIdx];
                 isStreamingToolOutputRef.current = true;
+
+                // Lock activeToolContentRef to this tool while it's streaming
+                // This ensures that truncation and "streaming" marker logic correctly
+                // target the currently executing tool even in a batch.
+                const currentHeader = target.content.split('\n')[0];
+                if (
+                  currentHeader &&
+                  activeToolContentRef.current !== currentHeader
+                ) {
+                  activeToolContentRef.current = currentHeader;
+                }
 
                 // Strip existing streaming marker if present from previous chunk
                 // Use a non-capturing group for the optional newline to avoid issues

@@ -132,15 +132,25 @@ export async function executeGlob(
   pattern: string,
   cwd: string,
   exclude?: string,
-  getActiveTaskId?: () => string | null
+  getActiveTaskId?: () => string | null,
+  timeout?: number
 ): Promise<string> {
+  const effectiveTimeout = timeout || 30000;
   try {
-    const files = await globLib(pattern, {
-      cwd,
-      nodir: true,
-      absolute: false,
-      ignore: exclude,
-    });
+    const files = await Promise.race([
+      globLib(pattern, {
+        cwd,
+        nodir: true,
+        absolute: false,
+        ignore: exclude,
+      }),
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error(`Timeout after ${effectiveTimeout}ms`)),
+          effectiveTimeout
+        )
+      ),
+    ]);
     const result =
       files.slice(0, TOOL_CONFIG.GLOB.MAX_FILES).join('\n') ||
       'No matches found';
@@ -161,8 +171,10 @@ export async function executeGrep(
   is_literal?: boolean,
   workbenchUrl?: string,
   currentPromptTokens?: number,
-  getActiveTaskId?: () => string | null
+  getActiveTaskId?: () => string | null,
+  timeout?: number
 ): Promise<string> {
+  const effectiveTimeout = timeout || TOOL_CONFIG.GREP.TIMEOUT_MS;
   return new Promise((resolve) => {
     const args = [
       '--color=never',
@@ -186,11 +198,10 @@ export async function executeGrep(
 
     const proc = spawn('rg', args, { cwd });
 
-    // Set a timeout to kill the process if it takes too long
-    // (rg is usually fast, but better safe than sorry)
     const timeoutId = setTimeout(() => {
       proc.kill('SIGTERM');
-    }, TOOL_CONFIG.GREP.TIMEOUT_MS);
+      resolve(`Error: Timeout after ${effectiveTimeout}ms`);
+    }, effectiveTimeout);
 
     let output = '';
     const MAX_OUTPUT_SIZE = TOOL_CONFIG.GREP.MAX_OUTPUT_SIZE; // 1MB safety cap

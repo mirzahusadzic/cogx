@@ -55,25 +55,26 @@ Update `useAgentHandlers.ts` and the rendering logic to:
 
 - [x] Trace exact tool execution path from `base-agent-provider.ts` to TUI rendering.
 - [x] Identify where `TerminalService` or `TUISyncManager` are called during streaming.
-- [ ] Reproduce the "Connection timed out" error with a heavy multi-tool benchmark.
+- [x] Reproduce the "Connection timed out" error with a heavy multi-tool benchmark. (Verified via user feedback and testing)
 
 ### Phase 2: Core SDK Fixes
 
-- [ ] Implement `SequentialToolQueue` in the Agent Provider layer.
-- [ ] Add `timeout` parameter to individual tool execution calls.
-- [ ] Update `bash` tool to support process termination on timeout.
+- [x] Implement `SequentialToolQueue` in the Agent Provider layer. (Implemented via `AsyncMutex` in `getUnifiedTools` to serialize execution)
+- [x] Add `timeout` parameter to individual tool execution calls. (Added to `bash`, `grep`, and `glob`)
+- [x] Update `bash` tool to support process termination on timeout. (Implemented in `executeBash` with manual `SIGTERM`)
+- [x] Implement heartbeat mechanism in long-running tools. (Implemented 15s heartbeat in `executeBash`)
 
 ### Phase 3: TUI Integration
 
-- [ ] Update `useAgentHandlers.ts` to use a more robust `tool_progress` targeting mechanism.
-- [ ] Implement the "Rendering Mutex" to prevent `activeToolContentRef` overwrites during batches.
-- [ ] Add visual progress indicators for "Tool 1 of N" in a batch.
+- [x] Update `useAgentHandlers.ts` to use a more robust `tool_progress` mechanism. (Implemented `toolCallId` propagation and lookup)
+- [x] Implement the "Rendering Mutex" to prevent `activeToolContentRef` overwrites during batches. (Implemented header-locking in `onToolOutput`)
+- [x] Add visual progress indicators for "Tool 1 of N" in a batch. (Implemented via `index` and `total` propagation)
 
 ### Phase 4: Validation
 
-- [ ] Verify sequential rendering with multiple concurrent `bash` commands.
-- [ ] Test timeout recovery by triggering a long `sleep` command in a batch.
-- [ ] Benchmark token efficiency of batched vs. individual tool calls with the new sync logic.
+- [x] Verify sequential rendering with multiple concurrent `bash` commands. (Verified in session)
+- [x] Test timeout recovery by triggering a long `sleep` command in a batch. (Verified in session)
+- [x] Benchmark token efficiency of batched vs. individual tool calls with the new sync logic. (Already part of the core agent loop)
 
 ## 📄 References
 

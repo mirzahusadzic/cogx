@@ -448,6 +448,8 @@ export abstract class BaseAgentProvider implements AgentProvider {
         toolInput: chunk.toolCall.args,
         thoughtSignature: chunk.thoughtSignature,
         toolCallId: chunk.toolCall.id,
+        toolIndex: chunk.toolCall.index,
+        toolTotal: chunk.toolCall.total,
       });
     } else if (chunk.type === 'tool_response' && chunk.toolResponse) {
       const lastMsg = this.messages[this.messages.length - 1];

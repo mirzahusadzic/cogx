@@ -32,6 +32,7 @@ export interface UnifiedStreamingChunk {
     name: string;
     args: string | Record<string, unknown>;
     index?: number;
+    total?: number;
   };
 
   /** Tool response information (for type 'tool_response') */
