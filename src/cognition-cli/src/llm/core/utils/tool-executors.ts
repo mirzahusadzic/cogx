@@ -146,7 +146,14 @@ export async function executeGlob(
       }),
       new Promise<never>((_, reject) =>
         setTimeout(
-          () => reject(new Error(`Timeout after ${effectiveTimeout}ms`)),
+          () =>
+            reject(
+              new Error(
+                `Glob search timed out after ${Math.round(
+                  effectiveTimeout / 1000
+                )}s. The pattern might be too broad or the directory too large. Try narrowing the search path.`
+              )
+            ),
           effectiveTimeout
         )
       ),
@@ -200,7 +207,10 @@ export async function executeGrep(
 
     const timeoutId = setTimeout(() => {
       proc.kill('SIGTERM');
-      resolve(`Error: Timeout after ${effectiveTimeout}ms`);
+      const timeoutSeconds = Math.round(effectiveTimeout / 1000);
+      resolve(
+        `Error: Grep search timed out after ${timeoutSeconds}s. The search path may be too large or the pattern too expensive. Try using a more specific path or glob filter.`
+      );
     }, effectiveTimeout);
 
     let output = '';
@@ -315,13 +325,6 @@ export async function executeBash(
       proc.kill('SIGTERM');
     }, effectiveTimeout);
 
-    // Heartbeat mechanism to prevent TUI/ZMQ timeouts during silent execution
-    const heartbeatInterval = setInterval(() => {
-      if (!killed && onChunk) {
-        onChunk({ type: 'heartbeat' }, toolCallId);
-      }
-    }, 15000); // 15s heartbeat
-
     proc.stdout.on('data', (data) => {
       const chunk = data.toString();
       if (stdout.length + chunk.length > MAX_BUFFER_SIZE) {
@@ -346,7 +349,6 @@ export async function executeBash(
     });
     proc.on('close', async (code) => {
       clearTimeout(timeoutId);
-      clearInterval(heartbeatInterval);
       // Strip ANSI codes from output for the LLM to save tokens and prevent confusion
       const cleanStdout = terminalFormatter.cleanAnsi(stdout);
 
@@ -372,12 +374,14 @@ export async function executeBash(
         currentPromptTokens
       );
       if (killed) {
+        const timeoutSeconds = Math.round(effectiveTimeout / 1000);
+        const timeoutMsg = `Bash command timed out after ${timeoutSeconds}s; output was truncated. Consider using a more efficient command or splitting the task.`;
         resolve({
           stdout: '',
-          stderr: `Timeout after ${effectiveTimeout}ms\n${compressed}`,
+          stderr: `${timeoutMsg}\n${compressed}`,
           exitCode: null,
           content: tagOutputWithActiveTask(
-            `Timeout after ${effectiveTimeout}ms\n${compressed}`,
+            `${timeoutMsg}\n${compressed}`,
             getActiveTaskId
           ),
         });

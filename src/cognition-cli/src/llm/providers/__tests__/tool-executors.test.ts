@@ -269,45 +269,6 @@ describe('Tool Executors', () => {
       );
     });
 
-    test('should emit heartbeat during long-running commands', async () => {
-      vi.useFakeTimers();
-      const mockProc = createMockProc();
-      // eslint-disable-next-line @typescript-eslint/no-empty-function
-      mockProc.kill = () => {};
-      vi.mocked(spawn).mockReturnValue(mockProc);
-
-      const onToolOutput = vi.fn();
-      const toolCallId = 'heartbeat-test-id';
-
-      // Correct arguments: command, timeout, cwd, bashCwd, onChunk, ..., toolCallId
-      const promise = executeBash(
-        'sleep 100',
-        undefined,
-        '/cwd',
-        undefined,
-        onToolOutput,
-        undefined,
-        undefined,
-        undefined,
-        toolCallId
-      );
-
-      await new Promise((resolve) => process.nextTick(resolve));
-
-      // Advance by 16 seconds (heartbeat is every 15s)
-      vi.advanceTimersByTime(16000);
-
-      expect(onToolOutput).toHaveBeenCalledWith(
-        { type: 'heartbeat' },
-        toolCallId
-      );
-
-      mockProc.emit('close', 0);
-      await promise;
-
-      vi.useRealTimers();
-    });
-
     test('should handle timeout', async () => {
       vi.useFakeTimers();
       const mockProc = createMockProc();
@@ -322,7 +283,7 @@ describe('Tool Executors', () => {
       const result = await promise;
 
       expect(mockProc.kill).toHaveBeenCalledWith('SIGTERM');
-      expect(result.content).toContain('Timeout after 100ms');
+      expect(result.content).toContain('Bash command timed out after');
 
       vi.useRealTimers();
     });

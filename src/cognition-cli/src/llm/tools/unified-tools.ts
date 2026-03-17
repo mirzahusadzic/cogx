@@ -75,6 +75,16 @@ export type UnifiedTool =
 
 /**
  * Interface for tools that have a unified execute method.
+ *
+ * This is the standard interface for any tool that can be executed by an agent,
+ * providing a consistent way to handle input validation via schemas and
+ * execution with context.
+ *
+ * @property name - Unique identifier for the tool
+ * @property description - Human-readable explanation of what the tool does (used by LLMs)
+ * @property input_schema - Zod-compatible schema for validating tool arguments
+ * @property execute - Async function that implements the tool's core logic.
+ *                    Takes validated arguments and optional UnifiedToolsContext.
  */
 export interface ExecutableTool {
   name: string;
@@ -159,9 +169,24 @@ export function getUnifiedTools(
       args: z.infer<T>,
       toolContext?: unknown
     ) => {
-      return await toolMutex.runLocked(async () => {
-        return await executor(args, toolContext as ToolContext);
-      });
+      const toolCallId = (toolContext as { functionCallId?: string })
+        ?.functionCallId;
+
+      // Heartbeat mechanism to prevent TUI/ZMQ timeouts during execution
+      // This is now centralized for ALL tools.
+      const heartbeatInterval = setInterval(() => {
+        if (context.onToolOutput) {
+          context.onToolOutput({ type: 'heartbeat' }, toolCallId);
+        }
+      }, 15000); // 15s heartbeat
+
+      try {
+        return await toolMutex.runLocked(async () => {
+          return await executor(args, toolContext as ToolContext);
+        });
+      } finally {
+        clearInterval(heartbeatInterval);
+      }
     };
 
     switch (provider) {
