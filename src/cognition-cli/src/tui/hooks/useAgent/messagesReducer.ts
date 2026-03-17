@@ -94,31 +94,23 @@ export function messagesReducer(
       const { chunk, toolCallId, activeHeader } = action;
       let targetIdx = -1;
 
-      // 1. Try finding by toolCallId if available
-      if (toolCallId) {
-        for (let i = state.length - 1; i >= 0; i--) {
-          const msg = state[i];
-          if (msg.type === 'tool_progress' && msg.toolCallId === toolCallId) {
+      // Optimize: Only one reverse loop needed to check both toolCallId and activeHeader
+      for (let i = state.length - 1; i >= 0; i--) {
+        const msg = state[i];
+        if (msg.type === 'tool_progress') {
+          if (toolCallId && msg.toolCallId === toolCallId) {
             targetIdx = i;
             break;
-          }
-        }
-      }
-
-      // 2. Fallback to matching by active header
-      if (targetIdx === -1) {
-        for (let i = state.length - 1; i >= 0; i--) {
-          const msg = state[i];
-          if (msg.type === 'tool_progress') {
-            if (activeHeader) {
-              if (msg.content.startsWith(activeHeader)) {
-                targetIdx = i;
-                break;
-              }
-            } else {
-              targetIdx = i;
-              break;
-            }
+          } else if (
+            !toolCallId &&
+            activeHeader &&
+            msg.content.startsWith(activeHeader)
+          ) {
+            targetIdx = i;
+            break;
+          } else if (!toolCallId && !activeHeader) {
+            targetIdx = i;
+            break;
           }
         }
       }
@@ -187,29 +179,23 @@ export function messagesReducer(
       const { toolCallId, activeHeader } = action;
       let targetIdx = -1;
 
-      if (toolCallId) {
-        for (let i = state.length - 1; i >= 0; i--) {
-          const msg = state[i];
-          if (msg.type === 'tool_progress' && msg.toolCallId === toolCallId) {
+      // Optimize: Single reverse loop
+      for (let i = state.length - 1; i >= 0; i--) {
+        const msg = state[i];
+        if (msg.type === 'tool_progress') {
+          if (toolCallId && msg.toolCallId === toolCallId) {
             targetIdx = i;
             break;
-          }
-        }
-      }
-
-      if (targetIdx === -1) {
-        for (let i = state.length - 1; i >= 0; i--) {
-          const msg = state[i];
-          if (msg.type === 'tool_progress') {
-            if (activeHeader) {
-              if (msg.content.startsWith(activeHeader)) {
-                targetIdx = i;
-                break;
-              }
-            } else {
-              targetIdx = i;
-              break;
-            }
+          } else if (
+            !toolCallId &&
+            activeHeader &&
+            msg.content.startsWith(activeHeader)
+          ) {
+            targetIdx = i;
+            break;
+          } else if (!toolCallId && !activeHeader) {
+            targetIdx = i;
+            break;
           }
         }
       }
@@ -245,31 +231,23 @@ export function messagesReducer(
       const { formattedResult, toolCallId, activeHeader } = action;
       let targetIdx = -1;
 
-      // 1. Try finding by toolCallId if available
-      if (toolCallId) {
-        for (let i = state.length - 1; i >= 0; i--) {
-          const msg = state[i];
-          if (msg.type === 'tool_progress' && msg.toolCallId === toolCallId) {
+      // Optimize: Single reverse loop
+      for (let i = state.length - 1; i >= 0; i--) {
+        const msg = state[i];
+        if (msg.type === 'tool_progress') {
+          if (toolCallId && msg.toolCallId === toolCallId) {
             targetIdx = i;
             break;
-          }
-        }
-      }
-
-      // 2. Fallback to matching by active header
-      if (targetIdx === -1) {
-        for (let i = state.length - 1; i >= 0; i--) {
-          const msg = state[i];
-          if (msg.type === 'tool_progress') {
-            if (activeHeader) {
-              if (msg.content.startsWith(activeHeader)) {
-                targetIdx = i;
-                break;
-              }
-            } else {
-              targetIdx = i;
-              break;
-            }
+          } else if (
+            !toolCallId &&
+            activeHeader &&
+            msg.content.startsWith(activeHeader)
+          ) {
+            targetIdx = i;
+            break;
+          } else if (!toolCallId && !activeHeader) {
+            targetIdx = i;
+            break;
           }
         }
       }
