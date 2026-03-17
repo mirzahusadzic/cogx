@@ -78,7 +78,7 @@ Cognition Σ is built on four core pillars:
 
 - **[User Guides](../guides/README.md)** — How to use Cognition Σ
 - **[Reference Docs](../reference/README.md)** — CLI and API reference
-- **[Contributing](../../CONTRIBUTING.md)** — How to contribute
+- **[Licensing & Vision](../../CONTRIBUTING.md)** — Project mission and AGPLv3 rationale
 
 ---
 

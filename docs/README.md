@@ -52,8 +52,14 @@ Welcome to the Cognition Σ documentation hub. This is your central navigation p
 - [Dual-Use Mandate](research/dual-use-mandate.md) — Security philosophy
 - [Defensive Publication](research/defensive-publication.md) — Legal protection
 
-### I want to contribute code
-👉 **[Contributing Guide](../CONTRIBUTING.md)** — How to contribute
+### I want to learn about the architecture
+👉 **[Architecture Documentation](architecture/README.md)** — Deep technical dive
+
+**Start with**:
+- [Architecture Overview](architecture/README.md) — High-level overview
+- [Theoretical Blueprint](architecture/blueprint/00-preface.md) — Mathematical foundations
+- [Seven Overlays](architecture/overlays/README.md) — O₁ through O₇
+- [PGC & Dual-Lattice](architecture/pgc/overview.md) — Grounded Context Pool
 
 **Developer resources**:
 - [Architecture Decision Records](architecture/adrs/README.md) — Design decisions
@@ -100,17 +106,10 @@ Welcome to the Cognition Σ documentation hub. This is your central navigation p
 
 ---
 
-## 🔍 Can't Find What You're Looking For?
+## 🔍 Feedback
 
-- **Search** the documentation (use your editor's search or GitHub search)
-- **Ask** in [GitHub Discussions](https://github.com/mirzahusadzic/cogx/discussions)
-- **File an issue** for [documentation improvements](https://github.com/mirzahusadzic/cogx/issues/new)
-
----
-
-## 📝 Contributing to Documentation
-
-Found a typo? Want to improve a guide? See **[CONTRIBUTING.md](../CONTRIBUTING.md)** for how to contribute to documentation.
+- **Email**: <mirza.husadzic@proton.me> for research inquiries
+- **Fork**: Free to fork and explore under AGPLv3
 
 ---
 

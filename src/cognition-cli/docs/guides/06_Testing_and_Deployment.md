@@ -8,7 +8,7 @@ These are not just development chores; they are the primary **Oracles** we use t
 
 - **The Philosophy:** _In the CogX ecosystem, a feature without a test is a hallucination. It is an unverified transformation. Our comprehensive test suite is the ultimate `StructuralOracle` for the CLI itself, ensuring every component behaves exactly as the blueprint dictates._
 
-The project uses **Vitest** for its unit and integration tests. All new contributions, whether new features or bug fixes, must be accompanied by corresponding tests to be considered complete.
+The project uses **Vitest** for its unit and integration tests. All new features or bug fixes must be accompanied by corresponding tests to be considered complete.
 
 ### **To run the entire test suite:**
 

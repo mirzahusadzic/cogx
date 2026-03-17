@@ -3,7 +3,7 @@
 > **Purpose**: Capture discovered patterns for reuse across document types. THIS DOCUMENT DOES NOT RECURSE - it's the termination point.
 
 **Last Updated**: October 26, 2025
-**Status**: Bootstrap complete, ready for community contributions
+**Status**: Bootstrap complete, ready for use in strategic extraction
 
 ---
 
@@ -1039,7 +1039,7 @@ concepts.push(text); // No validation
 
 ---
 
-## Contribution Guide
+## Pattern Discovery & Documentation
 
 ### Adding New Patterns To This Library
 
@@ -1057,7 +1057,7 @@ concepts.push(text); // No validation
    - Document type it works for
    - Extraction metrics achieved
    - Comparison to alternative approaches
-4. **Commit to library**:
+4. **Update library**:
    - Add to appropriate category
    - Include tuning guidance
    - Add to known configurations

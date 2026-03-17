@@ -21,7 +21,7 @@ This comprehensive troubleshooting guide covers common issues, error messages, a
 7. [Coherence & Alignment Issues](#coherence--alignment-issues)
 8. [Common Error Messages](#common-error-messages)
 9. [Recovery Procedures](#recovery-procedures)
-10. [Getting Help](#getting-help)
+10. [Diagnostic Tools](#diagnostic-tools)
 
 ---
 
@@ -1319,29 +1319,21 @@ cognition-cli ask "test query"
 
 ---
 
-## Getting Help
-
-### Self-Service Resources
+## Diagnostic Tools
 
 1. **In-CLI Help**:
 
    ```bash
    cognition-cli guide
-   cognition-cli <command> --help
    ```
 
-2. **Documentation**:
-   - [Quick Start Guide](../src/cognition-cli/docs/manual/part-0-quickstart/00-quick-start.md)
-   - [CLI Operations Reference](../src/cognition-cli/docs/manual/part-1-foundation/05-cli-operations.md)
-   - [The Lattice Book](README.md)
-
-3. **Verbose Logging**:
+2. **Verbose Logging**:
 
    ```bash
    DEBUG=cognition:* cognition-cli <command>
    ```
 
-4. **Check Logs**:
+3. **Check Logs**:
 
    ```bash
    # Workbench logs
@@ -1351,47 +1343,9 @@ cognition-cli ask "test query"
    tail -f .open_cognition/workflow_log.jsonl
    ```
 
----
+4. **Email Support**:
+   - Research inquiries: <mirza.husadzic@proton.me>
 
-### Community Support
-
-1. **GitHub Issues**:
-   - Report bugs: <https://github.com/mirzahusadzic/cogx/issues>
-   - Search existing issues for solutions
-
-2. **Diagnostic Information** (include when reporting issues):
-
-   ```bash
-   # System info
-   cognition-cli --version
-   node --version
-   docker --version
-
-   # PGC status
-   cognition-cli status
-
-   # Overlay list
-   cognition-cli overlay list
-
-   # Workbench health
-   curl http://localhost:8000/health
-
-   # Recent logs
-   tail -50 .open_cognition/workflow_log.jsonl
-   ```
-
-3. **Minimal Reproducible Example**:
-
-   ```bash
-   # Provide exact steps to reproduce
-   # Example:
-   # 1. cognition-cli init
-   # 2. cognition-cli genesis src/
-   # 3. cognition-cli ask "test"
-   # Error: [exact error message]
-   ```
-
----
 
 ## Prevention Best Practices
 
@@ -1488,7 +1442,7 @@ git commit -m "Update PGC overlays"
 **When All Else Fails**:
 
 - Nuclear reset (rebuild PGC from scratch)
-- Report issue on GitHub with full diagnostic info
+- Contact author for research inquiries
 - Check documentation for recent updates
 
 **Prevention > Recovery**:

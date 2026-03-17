@@ -288,21 +288,15 @@ Read sequentially from Part 0 through Part VI.
 
 ---
 
-## Contributing
+## Project Status & Evolution
 
-This book grows **with** the codebase, not after. When you implement a feature:
+This book grows **with** the codebase. As a solo research project, the documentation is maintained alongside architectural changes to ensure the "Living Document" principle remains intact.
 
-1. **Write the chapter** (or update existing)
-2. **Include examples** (real code, real queries)
-3. **Document design decisions** (why not what)
-4. **Update this index**
+**Documentation Strategy**:
 
-**Format Guidelines**:
-
-- Use code blocks with syntax highlighting
-- Include visual diagrams (ASCII art is fine)
-- Real examples from the codebase
-- "Why" over "what" (code shows what, docs explain why)
+- **Why over what**: Code shows what, docs explain why.
+- **Visual diagrams**: Use ASCII art for architectural clarity.
+- **Real examples**: Include snippets from the active codebase.
 
 ---
 
@@ -329,7 +323,7 @@ cognition-cli export lattice-book.cogx
 
 ## License
 
-[To be determined - likely MIT or Apache 2.0]
+All documentation in this manual is licensed under **AGPLv3** as part of the CogX repository. See the [LICENSE](../LICENSE.md) for details.
 
 ---
 

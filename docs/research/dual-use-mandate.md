@@ -520,7 +520,7 @@ If you are evaluating cognition-cli's dual-use risks:
 
 5. **Can the safeguards be bypassed?**
    - Expected: YES (open source can be forked)
-   - Mitigation: Tamper detection, cryptographic verification, community norms
+   - Mitigation: Tamper detection, cryptographic verification, and design transparency
 
 ### Threat Modeling
 
@@ -530,7 +530,7 @@ Mitigations:
 
 - Cryptographic signing of official releases
 - Oracle federation (requires multiple independent validators)
-- Community reputation system (trust verified instances)
+- Decentralized reputation system (trust verified instances)
 - Legal recourse (license violations for surveillance use)
 
 **Perfect prevention is impossible. Detection and accountability are achievable.**

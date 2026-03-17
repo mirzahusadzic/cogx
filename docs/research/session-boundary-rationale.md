@@ -756,10 +756,10 @@ The session boundary pattern is:
 4. ✅ **Open source** (AGPLv3 - audit it yourself)
 5. ✅ **Battle-tested** (handles edge cases gracefully)
 
-**If you have concerns or suggestions, open an issue on GitHub. The code is public, the approach is documented, and the community can audit and improve it.**
+**The code is public, the approach is documented, and researchers can audit and improve it.**
 
 ---
 
 **License:** This document is part of the Cognition CLI project, licensed under AGPLv3.
 
-**Questions:** Open an issue at <https://github.com/mirzahusadzic/cogx/issues>
+**Questions:** Contact author at <mirza.husadzic@proton.me>
