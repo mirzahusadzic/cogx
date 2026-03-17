@@ -135,6 +135,9 @@ export interface TUIMessage {
 
   /** Gemini reasoning state signature */
   thoughtSignature?: string;
+
+  /** Unique ID of the tool call that generated this progress message */
+  toolCallId?: string;
 }
 
 /**

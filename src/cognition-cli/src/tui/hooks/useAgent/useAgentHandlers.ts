@@ -81,6 +81,7 @@ interface MessageBlock {
   input?: unknown;
   content?: unknown; // Added for tool_result support
   thoughtSignature?: string;
+  id?: string; // toolCallId
 }
 
 interface AgentMessage {
@@ -89,6 +90,7 @@ interface AgentMessage {
   toolName?: string;
   toolInput?: unknown;
   thoughtSignature?: string;
+  toolCallId?: string;
 }
 
 export function updateSigmaTasksWithTokens(
@@ -528,6 +530,7 @@ export function useAgentHandlers() {
                       type: 'tool_progress',
                       content,
                       timestamp: new Date(),
+                      toolCallId: tool.id,
                     },
                   ]);
 
@@ -539,6 +542,7 @@ export function useAgentHandlers() {
                       type: 'tool_progress',
                       content,
                       timestamp: new Date(),
+                      toolCallId: tool.id,
                     },
                   });
                 }
@@ -632,6 +636,7 @@ export function useAgentHandlers() {
                 type: 'tool_progress',
                 content,
                 timestamp: new Date(),
+                toolCallId: agentMessage.toolCallId,
               },
             ]);
 
@@ -643,6 +648,7 @@ export function useAgentHandlers() {
                 type: 'tool_progress',
                 content,
                 timestamp: new Date(),
+                toolCallId: agentMessage.toolCallId,
               },
             });
           } else if (typeof content === 'string') {
@@ -1218,7 +1224,7 @@ This triggers a semantic compression event, flushing implementation noise while 
           taskLogEvictionThreshold,
           remainingTPM: 1000000 - tokenCounter.count.total,
           onStderr: (data: string) => stderrLines.push(data),
-          onToolOutput: (chunk: string) => {
+          onToolOutput: (chunk: string, toolCallId?: string) => {
             setThinkingState(ThinkingState.EXECUTING);
             resetBoredomTimer();
             // Layer 10: Aggressively hide terminal cursor while streaming tool output
@@ -1235,21 +1241,38 @@ This triggers a semantic compression event, flushing implementation noise while 
               // This ensures that intermediate assistant messages (e.g. from Gemini thought signatures)
               // don't break streaming output updates.
               let targetIdx = -1;
-              const activeHeader = activeToolContentRef.current;
-              for (let i = prev.length - 1; i >= 0; i--) {
-                const msg = prev[i];
-                if (msg.type === 'tool_progress') {
-                  // If we have an active tool header, we prefer a message that starts with it.
-                  // This prevents interleaved output (e.g. bash output appearing in SigmaTaskUpdate).
-                  if (activeHeader) {
-                    if (msg.content.startsWith(activeHeader)) {
+
+              // 1. Try finding by toolCallId if provided (Primary mechanism for atomic batching)
+              if (toolCallId) {
+                for (let i = prev.length - 1; i >= 0; i--) {
+                  if (
+                    prev[i].type === 'tool_progress' &&
+                    prev[i].toolCallId === toolCallId
+                  ) {
+                    targetIdx = i;
+                    break;
+                  }
+                }
+              }
+
+              // 2. Fallback to matching by active header (Legacy mechanism)
+              if (targetIdx === -1) {
+                const activeHeader = activeToolContentRef.current;
+                for (let i = prev.length - 1; i >= 0; i--) {
+                  const msg = prev[i];
+                  if (msg.type === 'tool_progress') {
+                    // If we have an active tool header, we prefer a message that starts with it.
+                    // This prevents interleaved output (e.g. bash output appearing in SigmaTaskUpdate).
+                    if (activeHeader) {
+                      if (msg.content.startsWith(activeHeader)) {
+                        targetIdx = i;
+                        break;
+                      }
+                    } else {
+                      // Fallback to the last tool_progress message if no header is active
                       targetIdx = i;
                       break;
                     }
-                  } else {
-                    // Fallback to the last tool_progress message if no header is active
-                    targetIdx = i;
-                    break;
                   }
                 }
               }

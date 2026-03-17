@@ -266,10 +266,11 @@ export async function executeBash(
   timeout: number | undefined,
   cwd: string,
   bashCwd?: string,
-  onChunk?: (chunk: string) => void,
+  onChunk?: (chunk: string, toolCallId?: string) => void,
   workbenchUrl?: string,
   currentPromptTokens?: number,
-  getActiveTaskId?: () => string | null
+  getActiveTaskId?: () => string | null,
+  toolCallId?: string
 ): Promise<ToolResult> {
   const effectiveTimeout = timeout || TOOL_CONFIG.BASH.DEFAULT_TIMEOUT_MS;
   const effectiveCwd = bashCwd
@@ -300,6 +301,13 @@ export async function executeBash(
       proc.kill('SIGTERM');
     }, effectiveTimeout);
 
+    // Heartbeat mechanism to prevent TUI/ZMQ timeouts during silent execution
+    const heartbeatInterval = setInterval(() => {
+      if (!killed && onChunk) {
+        onChunk('', toolCallId);
+      }
+    }, 15000); // 15s heartbeat
+
     proc.stdout.on('data', (data) => {
       const chunk = data.toString();
       if (stdout.length + chunk.length > MAX_BUFFER_SIZE) {
@@ -309,7 +317,7 @@ export async function executeBash(
       } else {
         stdout += chunk;
       }
-      if (onChunk) onChunk(terminalFormatter.cleanAnsi(chunk));
+      if (onChunk) onChunk(terminalFormatter.cleanAnsi(chunk), toolCallId);
     });
     proc.stderr.on('data', (data) => {
       const chunk = data.toString();
@@ -320,10 +328,11 @@ export async function executeBash(
       } else {
         stderr += chunk;
       }
-      if (onChunk) onChunk(terminalFormatter.cleanAnsi(chunk));
+      if (onChunk) onChunk(terminalFormatter.cleanAnsi(chunk), toolCallId);
     });
     proc.on('close', async (code) => {
       clearTimeout(timeoutId);
+      clearInterval(heartbeatInterval);
       // Strip ANSI codes from output for the LLM to save tokens and prevent confusion
       const cleanStdout = terminalFormatter.cleanAnsi(stdout);
 

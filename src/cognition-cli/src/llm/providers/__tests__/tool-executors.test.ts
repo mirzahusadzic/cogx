@@ -235,6 +235,76 @@ describe('Tool Executors', () => {
       expect(result.content).toContain('hello');
     });
 
+    test('should propagate toolCallId in callbacks', async () => {
+      const mockProc = createMockProc();
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      mockProc.kill = () => {};
+      vi.mocked(spawn).mockReturnValue(mockProc);
+
+      const onToolOutput = vi.fn();
+      const toolCallId = 'test-tool-id';
+
+      // Correct arguments: command, timeout, cwd, bashCwd, onChunk, workbenchUrl, currentPromptTokens, getActiveTaskId, toolCallId
+      const promise = executeBash(
+        'echo hello',
+        undefined,
+        '/cwd',
+        undefined,
+        onToolOutput,
+        undefined,
+        undefined,
+        undefined,
+        toolCallId
+      );
+
+      await new Promise((resolve) => process.nextTick(resolve));
+      mockProc.stdout.emit('data', Buffer.from('hello\n'));
+      mockProc.emit('close', 0);
+
+      await promise;
+
+      expect(onToolOutput).toHaveBeenCalledWith(
+        expect.stringContaining('hello'),
+        toolCallId
+      );
+    });
+
+    test('should emit heartbeat during long-running commands', async () => {
+      vi.useFakeTimers();
+      const mockProc = createMockProc();
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      mockProc.kill = () => {};
+      vi.mocked(spawn).mockReturnValue(mockProc);
+
+      const onToolOutput = vi.fn();
+      const toolCallId = 'heartbeat-test-id';
+
+      // Correct arguments: command, timeout, cwd, bashCwd, onChunk, ..., toolCallId
+      const promise = executeBash(
+        'sleep 100',
+        undefined,
+        '/cwd',
+        undefined,
+        onToolOutput,
+        undefined,
+        undefined,
+        undefined,
+        toolCallId
+      );
+
+      await new Promise((resolve) => process.nextTick(resolve));
+
+      // Advance by 16 seconds (heartbeat is every 15s)
+      vi.advanceTimersByTime(16000);
+
+      expect(onToolOutput).toHaveBeenCalledWith('', toolCallId);
+
+      mockProc.emit('close', 0);
+      await promise;
+
+      vi.useRealTimers();
+    });
+
     test('should handle timeout', async () => {
       vi.useFakeTimers();
       const mockProc = createMockProc();

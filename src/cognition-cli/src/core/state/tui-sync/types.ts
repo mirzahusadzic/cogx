@@ -100,6 +100,7 @@ export interface TUIMessage {
   timestamp: Date;
   metadata?: Record<string, unknown>;
   thoughtSignature?: string;
+  toolCallId?: string;
 }
 
 /**

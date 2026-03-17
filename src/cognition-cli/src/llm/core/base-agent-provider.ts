@@ -447,6 +447,7 @@ export abstract class BaseAgentProvider implements AgentProvider {
         toolName: chunk.toolCall.name,
         toolInput: chunk.toolCall.args,
         thoughtSignature: chunk.thoughtSignature,
+        toolCallId: chunk.toolCall.id,
       });
     } else if (chunk.type === 'tool_response' && chunk.toolResponse) {
       const lastMsg = this.messages[this.messages.length - 1];
@@ -468,6 +469,7 @@ export abstract class BaseAgentProvider implements AgentProvider {
             : JSON.stringify(chunk.toolResponse.response),
         timestamp: new Date(),
         toolName: chunk.toolResponse.name,
+        toolCallId: chunk.toolResponse.id,
       });
     }
   }

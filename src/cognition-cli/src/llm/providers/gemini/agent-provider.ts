@@ -791,6 +791,7 @@ export class GeminiAgentProvider extends BaseAgentProvider {
                 yield {
                   type: 'tool_call',
                   toolCall: {
+                    id: part.functionCall.id,
                     name: part.functionCall.name,
                     args: part.functionCall.args,
                   },
@@ -817,6 +818,7 @@ export class GeminiAgentProvider extends BaseAgentProvider {
                 yield {
                   type: 'tool_response',
                   toolResponse: {
+                    id: part.functionResponse.id,
                     name: part.functionResponse.name,
                     response: part.functionResponse.response,
                   },

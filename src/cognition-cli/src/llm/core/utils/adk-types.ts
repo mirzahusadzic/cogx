@@ -18,8 +18,16 @@ export interface AdkEvent extends Event {
       text?: string;
       thought?: boolean;
       thoughtSignature?: string;
-      functionCall?: { name: string; args: Record<string, unknown> };
-      functionResponse?: { name: string; response: Record<string, unknown> };
+      functionCall?: {
+        id?: string;
+        name: string;
+        args: Record<string, unknown>;
+      };
+      functionResponse?: {
+        id?: string;
+        name: string;
+        response: Record<string, unknown>;
+      };
     }>;
   };
 }

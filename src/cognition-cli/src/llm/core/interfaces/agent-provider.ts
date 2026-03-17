@@ -127,7 +127,7 @@ export interface AgentRequest {
   includePartialMessages?: boolean;
 
   /** Tool output callback for streaming tool results (e.g. bash) */
-  onToolOutput?: (output: string) => void;
+  onToolOutput?: (output: string, toolCallId?: string) => void;
 
   /** Optional grounding instructions (v2.0 protocol) */
   grounding?:
@@ -181,6 +181,7 @@ export interface AgentMessage {
   thoughtSignature?: string; // Encrypted reasoning state for Gemini 3
   toolName?: string; // Tool name for tool_use/tool_result messages
   toolInput?: unknown; // Tool input arguments
+  toolCallId?: string; // Unique ID of the tool call
 }
 
 /**

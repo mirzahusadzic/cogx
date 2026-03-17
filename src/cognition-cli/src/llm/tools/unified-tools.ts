@@ -8,6 +8,7 @@ import {
 } from '@google/adk';
 import { providerToolFactory } from './factory.js';
 import type { ToolResult } from '../core/types.js';
+import { AsyncMutex } from '../../sigma/utils/AsyncMutex.js';
 import {
   readFileTool,
   writeFileTool,
@@ -92,7 +93,7 @@ export interface UnifiedToolsContext {
 
   // UI/Environment
   workbenchUrl?: string;
-  onToolOutput?: (output: string) => void;
+  onToolOutput?: (output: string, toolCallId?: string) => void;
   currentPromptTokens?: number;
   getActiveTaskId?: () => string | null;
 
@@ -128,6 +129,7 @@ export function getUnifiedTools(
 ): UnifiedTool[] {
   const tools: UnifiedTool[] = [];
   const factory = providerToolFactory;
+  const toolMutex = new AsyncMutex();
 
   // Helper to create tool based on provider type
   const createTool = <T extends z.ZodObject<z.ZodRawShape>>(
@@ -138,15 +140,36 @@ export function getUnifiedTools(
     ) => Promise<string | ToolResult>,
     onCanUseTool?: OnCanUseTool
   ): UnifiedTool => {
+    // Wrap executor in mutex to enforce sequential execution (SDK Pillar 1)
+    const sequentialExecutor = async (
+      args: z.infer<T>,
+      toolContext?: ToolContext
+    ) => {
+      return await toolMutex.runLocked(async () => {
+        return await executor(args, toolContext);
+      });
+    };
+
     switch (provider) {
       case 'gemini':
-        return factory.createGeminiTool(definition, executor, onCanUseTool);
+        return factory.createGeminiTool(
+          definition,
+          sequentialExecutor,
+          onCanUseTool
+        );
       case 'openai':
-        return factory.createOpenAITool(definition, executor, onCanUseTool);
+        return factory.createOpenAITool(
+          definition,
+          sequentialExecutor,
+          onCanUseTool
+        );
       case 'minimax':
         // Minimax currently uses the tool definition directly as it maps to its own format
         // We'll return the definition with an attached executor for Minimax to use
-        return { ...factory.createMinimaxTool(definition), execute: executor };
+        return {
+          ...factory.createMinimaxTool(definition),
+          execute: sequentialExecutor,
+        };
       default:
         throw new Error(`Unsupported provider: ${provider}`);
     }
@@ -211,7 +234,7 @@ export function getUnifiedTools(
   tools.push(
     createTool(
       bashTool,
-      (args) =>
+      (args, toolContext) =>
         executeBash(
           args.command,
           args.timeout,
@@ -220,7 +243,8 @@ export function getUnifiedTools(
           context.onToolOutput,
           context.workbenchUrl,
           context.currentPromptTokens,
-          context.getActiveTaskId
+          context.getActiveTaskId,
+          toolContext?.functionCallId
         ),
       context.onCanUseTool
     )

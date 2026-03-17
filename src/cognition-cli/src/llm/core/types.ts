@@ -6,7 +6,13 @@
  */
 export interface UnifiedStreamingChunk {
   /** Type of content in this chunk */
-  type: 'text' | 'thinking' | 'tool_call' | 'tool_response' | 'usage';
+  type:
+    | 'text'
+    | 'thinking'
+    | 'tool_call'
+    | 'tool_response'
+    | 'usage'
+    | 'heartbeat';
 
   /** Text delta (for type 'text') */
   delta?: string;
