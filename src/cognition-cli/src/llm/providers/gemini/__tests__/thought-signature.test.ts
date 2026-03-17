@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { GeminiAgentProvider } from './agent-provider';
+import { GeminiAgentProvider } from '../agent-provider';
 
 // Define types to avoid 'any'
 interface MockPart {
