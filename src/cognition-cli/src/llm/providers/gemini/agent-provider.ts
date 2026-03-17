@@ -738,6 +738,9 @@ export class GeminiAgentProvider extends BaseAgentProvider {
         ) as AsyncGenerator<AdkEvent>;
         this.currentGenerator = runGenerator as AsyncGenerator<unknown>;
 
+        const yieldedToolCalls = new Set<string>();
+        const yieldedToolResponses = new Set<string>();
+
         for await (const evt of runGenerator) {
           if (this.abortController?.signal.aborted) break;
           if (attempt > 0) {
@@ -793,6 +796,10 @@ export class GeminiAgentProvider extends BaseAgentProvider {
 
               if (part.functionCall) {
                 currentToolIndex++;
+                const callId = part.functionCall.id;
+                if (callId && yieldedToolCalls.has(callId)) continue;
+                if (callId) yieldedToolCalls.add(callId);
+
                 yield {
                   type: 'tool_call',
                   toolCall: {
@@ -805,6 +812,11 @@ export class GeminiAgentProvider extends BaseAgentProvider {
                   retryCount: attempt,
                 };
               } else if (part.functionResponse) {
+                const responseId = part.functionResponse.id;
+                if (responseId && yieldedToolResponses.has(responseId))
+                  continue;
+                if (responseId) yieldedToolResponses.add(responseId);
+
                 const activeTaskId = request.anchorId
                   ? getActiveTaskId(
                       request.anchorId,

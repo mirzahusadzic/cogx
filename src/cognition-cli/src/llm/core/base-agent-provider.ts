@@ -433,6 +433,16 @@ export abstract class BaseAgentProvider implements AgentProvider {
     } else if (chunk.type === 'thinking' && chunk.thought) {
       this.accumulateThought(chunk.thought, chunk.thoughtSignature);
     } else if (chunk.type === 'tool_call' && chunk.toolCall) {
+      // Deduplicate tool calls by ID (crucial for cumulative stream providers like Gemini)
+      if (
+        chunk.toolCall.id &&
+        this.messages.some(
+          (m) => m.type === 'tool_use' && m.toolCallId === chunk.toolCall!.id
+        )
+      ) {
+        return;
+      }
+
       const lastMsg = this.messages[this.messages.length - 1];
       // Only increment turn if the previous message was NOT from the assistant.
       // This prevents "turn explosion" during parallel tool calls in a single turn.
@@ -458,6 +468,17 @@ export abstract class BaseAgentProvider implements AgentProvider {
         toolTotal: chunk.toolCall.total,
       });
     } else if (chunk.type === 'tool_response' && chunk.toolResponse) {
+      // Deduplicate tool responses by ID (crucial for cumulative stream providers like Gemini)
+      if (
+        chunk.toolResponse.id &&
+        this.messages.some(
+          (m) =>
+            m.type === 'tool_result' && m.toolCallId === chunk.toolResponse!.id
+        )
+      ) {
+        return;
+      }
+
       const lastMsg = this.messages[this.messages.length - 1];
       // Only increment turn if the previous message was NOT from the user.
       // This prevents "turn explosion" during multiple tool responses in a single turn.
