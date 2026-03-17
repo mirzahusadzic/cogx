@@ -59,6 +59,7 @@ export type SDKMessage = {
   };
   event?: unknown;
   tool_name?: string;
+  tool_call_id?: string;
   elapsed_time_seconds?: number;
   subtype?: 'success' | 'error' | 'init';
   usage?: {

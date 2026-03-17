@@ -265,12 +265,19 @@ export class MinimaxAgentProvider extends BaseAgentProvider {
         ) as Anthropic.ToolUseBlock[];
 
         if (toolCalls.length > 0) {
+          const total = toolCalls.length;
+          let currentToolIndex = 0;
+
           for (const tc of toolCalls) {
+            currentToolIndex++;
             yield {
               type: 'tool_call',
               toolCall: {
+                id: tc.id,
                 name: tc.name,
                 args: tc.input as Record<string, unknown>,
+                index: currentToolIndex,
+                total: total,
               },
             };
 
@@ -278,7 +285,8 @@ export class MinimaxAgentProvider extends BaseAgentProvider {
             const result = await this.executeTool(
               tc.name,
               tc.input as Record<string, unknown>,
-              tools
+              tools,
+              tc.id
             );
 
             yield {
@@ -286,6 +294,7 @@ export class MinimaxAgentProvider extends BaseAgentProvider {
               toolResponse: {
                 name: tc.name,
                 response: result,
+                id: tc.id,
               },
             };
 
@@ -389,17 +398,21 @@ export class MinimaxAgentProvider extends BaseAgentProvider {
   private async executeTool(
     toolName: string,
     args: Record<string, unknown>,
-    tools: Anthropic.Tool[]
+    tools: Anthropic.Tool[],
+    toolCallId?: string
   ): Promise<string> {
     const tool = tools.find((t) => t.name === toolName) as unknown as {
-      execute?: (args: Record<string, unknown>) => Promise<string>;
+      execute?: (
+        args: Record<string, unknown>,
+        toolContext?: { functionCallId?: string }
+      ) => Promise<string>;
     };
     if (!tool || !tool.execute) {
       return `Tool ${toolName} not found or not executable.`;
     }
 
     try {
-      return await tool.execute(args);
+      return await tool.execute(args, { functionCallId: toolCallId });
     } catch (error) {
       return `Error executing tool ${toolName}: ${error instanceof Error ? error.message : String(error)}`;
     }

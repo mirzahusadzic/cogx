@@ -99,7 +99,9 @@ interface RunItemStreamEvent {
   name: string;
   item: {
     type: string;
+    toolCallId?: string;
     rawItem?: {
+      id?: string;
       name?: string;
       arguments?: string;
     };
@@ -988,6 +990,7 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
         ) {
           const rawItem = itemEvent.item.rawItem;
           const toolName = rawItem?.name || 'unknown';
+          const toolCallId = rawItem?.id;
           const toolInput = rawItem?.arguments
             ? JSON.parse(rawItem.arguments)
             : {};
@@ -995,6 +998,7 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
           yield {
             type: 'tool_call',
             toolCall: {
+              id: toolCallId,
               name: toolName,
               args: toolInput,
             },
@@ -1011,7 +1015,7 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
               ? itemEvent.item.output
               : JSON.stringify(itemEvent.item.output);
 
-          // Find the tool name from the last tool_use message
+          // Find the tool name and ID from the last tool_use message
           const lastToolUse = [...this.messages]
             .reverse()
             .find((m) => m.type === 'tool_use');
@@ -1021,6 +1025,7 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
             toolResponse: {
               name: lastToolUse?.toolName || 'unknown',
               response: toolOutput,
+              id: itemEvent.item.toolCallId || lastToolUse?.toolCallId,
             },
           };
         }

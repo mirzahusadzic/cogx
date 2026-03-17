@@ -387,9 +387,11 @@ export class ClaudeProvider extends BaseAgentProvider {
         }
 
         case 'tool_progress': {
+          const toolCallId = sdkMessage.tool_call_id;
           yield {
             type: 'tool_call',
             toolCall: {
+              id: toolCallId,
               name: sdkMessage.tool_name || 'unknown',
               args: {},
             },
@@ -400,13 +402,21 @@ export class ClaudeProvider extends BaseAgentProvider {
         case 'assistant': {
           if (!sdkMessage.message) break;
           const content = sdkMessage.message.content;
+          const toolCalls = content.filter((b) => b.type === 'tool_use');
+          const total = toolCalls.length;
+          let currentToolIndex = 0;
+
           for (const block of content) {
             if (block.type === 'tool_use') {
+              currentToolIndex++;
               yield {
                 type: 'tool_call',
                 toolCall: {
+                  id: block.id,
                   name: block.name || 'unknown',
                   args: block.input || {},
+                  index: currentToolIndex,
+                  total: total,
                 },
               };
             } else if (block.type === 'text' && block.text) {
