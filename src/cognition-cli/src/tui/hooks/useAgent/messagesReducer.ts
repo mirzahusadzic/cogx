@@ -285,10 +285,21 @@ export function messagesReducer(
             ''
           ),
         };
+
+        // Insert the result immediately after the tool call for perfect pairing in batches.
+        // This ensures the TUI shows "Call 1 -> Result 1 -> Call 2 -> Result 2" even if
+        // all calls were initially batched together.
+        cleanedState.splice(targetIdx + 1, 0, {
+          type: 'tool_progress',
+          content: formattedResult,
+          timestamp: new Date(),
+          toolCallId,
+        });
+
+        return cleanedState;
       }
 
-      // ALWAYS add the result as a new message to ensure TUI rendering (header at start of message).
-      // This ensures the result header (↪) is correctly detected for coloring and indentation.
+      // Fallback: If no matching call was found, append to the end
       return [
         ...cleanedState,
         {
