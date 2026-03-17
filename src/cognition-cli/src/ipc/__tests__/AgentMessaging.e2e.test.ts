@@ -39,8 +39,8 @@ describe('Agent Messaging E2E', () => {
 
   beforeEach(async () => {
     // Generate unique test ID
-    testId = `test-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    busAddress = `ipc://${path.join(os.tmpdir(), `cognition-bus-${testId}.sock`)}`;
+    testId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+    busAddress = `ipc://${path.join(os.tmpdir(), `cb-${testId}.sock`)}`;
 
     // Create temp directory for message queues
     tempDir = path.join(os.tmpdir(), `agent-msg-test-${testId}`);

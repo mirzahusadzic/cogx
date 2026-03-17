@@ -26,7 +26,7 @@ describe('Bus Isolation E2E', () => {
     // Create temp directory for .sigma structures
     tempDir = path.join(
       os.tmpdir(),
-      `bus-isolation-test-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      `bit-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
     );
     await fs.ensureDir(tempDir);
 

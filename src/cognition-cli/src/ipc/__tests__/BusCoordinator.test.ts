@@ -32,7 +32,7 @@ describe('BusCoordinator', () => {
     // Create temp directory for sandboxing
     tempDir = path.join(
       os.tmpdir(),
-      `bus-coord-test-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      `bct-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
     );
     await fs.ensureDir(tempDir);
     process.env.COGNITION_HOME_DIR = tempDir;
