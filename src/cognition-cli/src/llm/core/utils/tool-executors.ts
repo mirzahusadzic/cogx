@@ -277,7 +277,10 @@ export async function executeBash(
   timeout: number | undefined,
   cwd: string,
   bashCwd?: string,
-  onChunk?: (chunk: string, toolCallId?: string) => void,
+  onChunk?: (
+    chunk: string | { type: 'heartbeat' },
+    toolCallId?: string
+  ) => void,
   workbenchUrl?: string,
   currentPromptTokens?: number,
   getActiveTaskId?: () => string | null,
@@ -315,7 +318,7 @@ export async function executeBash(
     // Heartbeat mechanism to prevent TUI/ZMQ timeouts during silent execution
     const heartbeatInterval = setInterval(() => {
       if (!killed && onChunk) {
-        onChunk('', toolCallId);
+        onChunk({ type: 'heartbeat' }, toolCallId);
       }
     }, 15000); // 15s heartbeat
 

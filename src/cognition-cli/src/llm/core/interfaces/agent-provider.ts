@@ -127,7 +127,10 @@ export interface AgentRequest {
   includePartialMessages?: boolean;
 
   /** Tool output callback for streaming tool results (e.g. bash) */
-  onToolOutput?: (output: string, toolCallId?: string) => void;
+  onToolOutput?: (
+    output: string | { type: 'heartbeat' },
+    toolCallId?: string
+  ) => void;
 
   /** Optional grounding instructions (v2.0 protocol) */
   grounding?:

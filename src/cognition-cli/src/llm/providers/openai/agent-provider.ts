@@ -1015,17 +1015,21 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
               ? itemEvent.item.output
               : JSON.stringify(itemEvent.item.output);
 
-          // Find the tool name and ID from the last tool_use message
-          const lastToolUse = [...this.messages]
-            .reverse()
-            .find((m) => m.type === 'tool_use');
+          const toolCallId = itemEvent.item.toolCallId;
+          // Find the matching tool_use message by ID for precise targeting,
+          // falling back to the last tool_use if ID is missing.
+          const matchingCall = toolCallId
+            ? this.messages.find(
+                (m) => m.type === 'tool_use' && m.toolCallId === toolCallId
+              )
+            : [...this.messages].reverse().find((m) => m.type === 'tool_use');
 
           yield {
             type: 'tool_response',
             toolResponse: {
-              name: lastToolUse?.toolName || 'unknown',
+              name: matchingCall?.toolName || 'unknown',
               response: toolOutput,
-              id: itemEvent.item.toolCallId || lastToolUse?.toolCallId,
+              id: toolCallId || matchingCall?.toolCallId,
             },
           };
         }

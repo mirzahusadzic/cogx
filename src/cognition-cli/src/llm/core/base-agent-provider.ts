@@ -30,6 +30,8 @@ import type { MessageQueue } from '../../ipc/MessageQueue.js';
 import type { ConversationOverlayRegistry } from '../../sigma/conversation-registry.js';
 import { Session } from '@google/adk';
 
+import { AsyncMutex } from '../../sigma/utils/AsyncMutex.js';
+
 /**
  * Base Agent Provider implementation.
  *
@@ -42,6 +44,9 @@ export abstract class BaseAgentProvider implements AgentProvider {
 
   /** Available models for this provider */
   abstract models: string[];
+
+  /** Serializes tool execution to prevent interleaved output */
+  protected toolMutex = new AsyncMutex();
 
   /** Cumulative usage across current execution */
   protected usage = {
@@ -313,6 +318,7 @@ export abstract class BaseAgentProvider implements AgentProvider {
       projectRoot: request.projectRoot,
       agentId: request.agentId,
       anchorId: request.anchorId,
+      toolMutex: this.toolMutex,
       workbenchUrl: request.workbenchUrl,
       onToolOutput: request.onToolOutput,
       currentPromptTokens: this.usage.prompt,

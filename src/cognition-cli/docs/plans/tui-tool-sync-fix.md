@@ -81,3 +81,28 @@ Update `useAgentHandlers.ts` and the rendering logic to:
 - Log file with mash-up: `.sigma/session-1773749730769-gemini-magic.log`
 - Current orchestration: `src/tui/hooks/useAgent/useAgentHandlers.ts`
 - Core executors: `src/llm/core/utils/tool-executors.ts`
+
+## 🔍 Post-Implementation Review Findings
+
+Following the implementation of Phases 2 and 3, a pedantic review was conducted on the last 3 commits (`4c6255e`, `3101eaa`, `63eb8dd`). The following findings and areas for improvement were identified:
+
+### 1. **Sequential Execution & Heartbeats (63eb8dd)**
+
+- **Finding**: The `AsyncMutex` in `getUnifiedTools` successfully serializes execution. The 15s heartbeat in `executeBash` prevents ZMQ timeouts.
+- **Improvement**: The mutex should be persistent across `getUnifiedTools` calls to prevent potential race conditions if a provider re-initializes.
+- **Improvement**: Formalize the `heartbeat` type in `UnifiedStreamingChunk` instead of using an empty string "poke".
+
+### 2. **Visual Progress & Tool Timeouts (3101eaa)**
+
+- **Finding**: `toolIndex` and `toolTotal` (e.g., "(1/3)") correctly guide the user through batches. Timeouts in `glob`/`grep` are effective.
+- **Improvement**: The "header-locking" logic in `onToolOutput` (relying on `split('\n')[0]`) is brittle. Now that `toolCallId` is propagated, it should be used as the primary key for message targeting.
+
+### 3. **Cross-Provider Sync (4c6255e)**
+
+- **Finding**: `toolCallId`, `index`, and `total` are now consistently propagated across Claude, OpenAI, and Minimax.
+- **Improvement**: OpenAI tool output matching should use the direct `toolCallId` from the event rather than a history lookback.
+- **Improvement**: Replace `as unknown as` casting in `MinimaxAgentProvider.ts` with a robust `UnifiedTool` interface.
+
+### 4. **TUI State Management**
+
+- **Critical Feedback**: `useAgentHandlers.ts` has grown complex. Message block management (finding/updating blocks in the list) should be extracted into a separate reducer or dedicated hook to maintain maintainability.

@@ -111,7 +111,10 @@ export interface AgentAdapterOptions {
   remainingTPM?: number;
 
   /** Tool output callback for streaming tool results (e.g. bash) */
-  onToolOutput?: (output: string) => void;
+  onToolOutput?: (
+    output: string | { type: 'heartbeat' },
+    toolCallId?: string
+  ) => void;
 
   /** Debug mode */
   debug?: boolean;

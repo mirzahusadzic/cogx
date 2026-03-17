@@ -90,10 +90,14 @@ export interface UnifiedToolsContext {
   projectRoot?: string;
   agentId?: string;
   anchorId?: string;
+  toolMutex?: AsyncMutex;
 
   // UI/Environment
   workbenchUrl?: string;
-  onToolOutput?: (output: string, toolCallId?: string) => void;
+  onToolOutput?: (
+    output: string | { type: 'heartbeat' },
+    toolCallId?: string
+  ) => void;
   currentPromptTokens?: number;
   getActiveTaskId?: () => string | null;
 
@@ -129,7 +133,7 @@ export function getUnifiedTools(
 ): UnifiedTool[] {
   const tools: UnifiedTool[] = [];
   const factory = providerToolFactory;
-  const toolMutex = new AsyncMutex();
+  const toolMutex = context.toolMutex || new AsyncMutex();
 
   // Helper to create tool based on provider type
   const createTool = <T extends z.ZodObject<z.ZodRawShape>>(

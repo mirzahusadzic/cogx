@@ -321,6 +321,7 @@ export function useAgentHandlers() {
   // preventing duplication of output in the chat history.
   const isStreamingToolOutputRef = useRef<boolean>(false);
   const activeToolContentRef = useRef<string | null>(null);
+  const activeToolCallIdRef = useRef<string | null>(null);
   const statusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const grayColor = `${terminalFormatter.hexToAnsi(TUITheme.text.secondary)}${terminalFormatter.ANSI_DIM}`;
@@ -526,6 +527,7 @@ export function useAgentHandlers() {
 
                   if (isOutputProducing) {
                     activeToolContentRef.current = content;
+                    activeToolCallIdRef.current = tool.id || null;
                   }
 
                   setMessages((prev) => [
@@ -634,6 +636,7 @@ export function useAgentHandlers() {
 
             if (isOutputProducing) {
               activeToolContentRef.current = content;
+              activeToolCallIdRef.current = agentMessage.toolCallId || null;
             }
 
             setMessages((prev) => [
@@ -1004,14 +1007,20 @@ export function useAgentHandlers() {
                 },
               });
 
-              // Only clear activeToolContentRef if this tool matches the one that set it.
-              // We check if the current activeHeader starts with the icon and name of the tool that just finished.
+              // Only clear active refs if this tool matches the one that set it.
+              // We check if the toolCallId matches or if the header icon/name matches.
               const activeHeader = activeToolContentRef.current;
-              if (
+              const activeCallId = activeToolCallIdRef.current;
+              const matchesCallId =
+                agentMessage.toolCallId &&
+                agentMessage.toolCallId === activeCallId;
+              const matchesHeader =
                 activeHeader &&
-                activeHeader.startsWith(`${toolInfo.icon} ${toolInfo.name}`)
-              ) {
+                activeHeader.startsWith(`${toolInfo.icon} ${toolInfo.name}`);
+
+              if (matchesCallId || matchesHeader) {
                 activeToolContentRef.current = null;
+                activeToolCallIdRef.current = null;
               }
               isStreamingToolOutputRef.current = false;
             } else if (process.env.DEBUG_INPUT) {
@@ -1232,9 +1241,23 @@ This triggers a semantic compression event, flushing implementation noise while 
           taskLogEvictionThreshold,
           remainingTPM: 1000000 - tokenCounter.count.total,
           onStderr: (data: string) => stderrLines.push(data),
-          onToolOutput: (chunk: string, toolCallId?: string) => {
+          onToolOutput: (
+            chunk: string | { type: 'heartbeat' },
+            toolCallId?: string
+          ) => {
             setThinkingState(ThinkingState.EXECUTING);
             resetBoredomTimer();
+
+            // Handle formal heartbeats
+            if (typeof chunk !== 'string') {
+              if (chunk.type === 'heartbeat') {
+                // Heartbeat just resets timers (handled above), no UI update needed
+                return;
+              }
+              // Fallback for other potential object types
+              return;
+            }
+
             // Layer 10: Aggressively hide terminal cursor while streaming tool output
             terminal.setCursorVisibility(false);
 
@@ -1250,12 +1273,17 @@ This triggers a semantic compression event, flushing implementation noise while 
               // don't break streaming output updates.
               let targetIdx = -1;
 
-              // 1. Try finding by toolCallId if provided (Primary mechanism for atomic batching)
-              if (toolCallId) {
+              // Use provided toolCallId or fallback to the current active tool from the ref
+              const effectiveToolCallId =
+                toolCallId || activeToolCallIdRef.current;
+
+              // 1. Try finding by toolCallId if available (Primary mechanism for atomic batching)
+              if (effectiveToolCallId) {
                 for (let i = prev.length - 1; i >= 0; i--) {
+                  const msg = prev[i];
                   if (
-                    prev[i].type === 'tool_progress' &&
-                    prev[i].toolCallId === toolCallId
+                    msg.type === 'tool_progress' &&
+                    msg.toolCallId === effectiveToolCallId
                   ) {
                     targetIdx = i;
                     break;
@@ -1263,7 +1291,7 @@ This triggers a semantic compression event, flushing implementation noise while 
                 }
               }
 
-              // 2. Fallback to matching by active header (Legacy mechanism)
+              // 2. Fallback to matching by active header (Legacy mechanism for tools without IDs)
               if (targetIdx === -1) {
                 const activeHeader = activeToolContentRef.current;
                 for (let i = prev.length - 1; i >= 0; i--) {
@@ -1289,16 +1317,9 @@ This triggers a semantic compression event, flushing implementation noise while 
                 const target = prev[targetIdx];
                 isStreamingToolOutputRef.current = true;
 
-                // Lock activeToolContentRef to this tool while it's streaming
-                // This ensures that truncation and "streaming" marker logic correctly
-                // target the currently executing tool even in a batch.
-                const currentHeader = target.content.split('\n')[0];
-                if (
-                  currentHeader &&
-                  activeToolContentRef.current !== currentHeader
-                ) {
-                  activeToolContentRef.current = currentHeader;
-                }
+                // Truncation and stabilization logic
+                const lines = target.content.split(/\r?\n/);
+                const header = lines[0] || '';
 
                 // Strip existing streaming marker if present from previous chunk
                 // Use a non-capturing group for the optional newline to avoid issues
@@ -1328,17 +1349,16 @@ This triggers a semantic compression event, flushing implementation noise while 
                 // FLOATING WINDOW LOGIC:
                 // If output becomes too long, truncate it to keep only the last 30 lines
                 // (25 lines + 5 lines buffer).
-                const header = activeToolContentRef.current;
-                if (header && content.startsWith(header)) {
+                if (header) {
                   // Split header from output
                   const outputPart = content.slice(header.length);
-                  const lines = outputPart.split(/\r?\n/);
+                  const outputLines = outputPart.split(/\r?\n/);
                   const MAX_STREAM_LINES = MAX_STREAM_STABILIZATION_LINES; // Use shared stabilization constant
 
-                  if (lines.length > MAX_STREAM_LINES) {
+                  if (outputLines.length > MAX_STREAM_LINES) {
                     // Keep the header and the last N lines
                     // We add a marker to indicate truncation
-                    const keptLines = lines.slice(-MAX_STREAM_LINES);
+                    const keptLines = outputLines.slice(-MAX_STREAM_LINES);
                     content =
                       header +
                       `\n${grayColor}... (tail of stream)${terminalFormatter.ANSI_RESET}\n` +
