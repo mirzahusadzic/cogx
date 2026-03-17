@@ -1,8 +1,16 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import {
+  useState,
+  useRef,
+  useEffect,
+  useMemo,
+  useReducer,
+  useCallback,
+} from 'react';
 import { terminal, TerminalStatus } from '../../services/TerminalService.js';
 import gradient from 'gradient-string';
 import type { TUIMessage, UseAgentOptions, SigmaTasks } from './types.js';
 import { ThinkingState } from './types.js';
+import { messagesReducer, MessageAction } from './messagesReducer.js';
 import { EmbeddingService } from '../../../core/services/embedding.js';
 import { OverlayRegistry } from '../../../core/algebra/overlay-registry.js';
 import { ConversationOverlayRegistry } from '../../../sigma/conversation-registry.js';
@@ -21,6 +29,7 @@ import type {
 export interface AgentState {
   messages: TUIMessage[];
   setMessages: React.Dispatch<React.SetStateAction<TUIMessage[]>>;
+  dispatchMessages: React.Dispatch<MessageAction>;
   isThinking: boolean;
   setIsThinking: React.Dispatch<React.SetStateAction<boolean>>;
   thinkingState: ThinkingState;
@@ -81,21 +90,39 @@ export function useAgentState(
   initialLastCompressionTimestamp: number = 0
 ): AgentState {
   // State
-  const [messages, setMessages] = useState<TUIMessage[]>(() => {
-    const sigmaGradient = gradient([
-      TUITheme.overlays.o7_strategic,
-      TUITheme.overlays.o1_structural,
-      TUITheme.overlays.o3_lineage,
-    ]);
+  const [messages, dispatchMessages] = useReducer(
+    messagesReducer,
+    undefined,
+    () => {
+      const sigmaGradient = gradient([
+        TUITheme.overlays.o7_strategic,
+        TUITheme.overlays.o1_structural,
+        TUITheme.overlays.o3_lineage,
+      ]);
 
-    return [
-      {
-        type: 'system',
-        content: sigmaGradient(SIGMA_LOGO) + '\n ',
-        timestamp: new Date(),
-      },
-    ];
-  });
+      return [
+        {
+          type: 'system' as const,
+          content: sigmaGradient(SIGMA_LOGO) + '\n ',
+          timestamp: new Date(),
+        },
+      ] as TUIMessage[];
+    }
+  );
+
+  const setMessages = useCallback(
+    (update: React.SetStateAction<TUIMessage[]>) => {
+      if (typeof update === 'function') {
+        dispatchMessages({
+          type: 'SET_MESSAGES_FUNCTIONAL',
+          update: update as (prev: TUIMessage[]) => TUIMessage[],
+        });
+      } else {
+        dispatchMessages({ type: 'SET_MESSAGES', messages: update });
+      }
+    },
+    []
+  );
   const [isThinking, setIsThinking] = useState(false);
   const [thinkingState, setThinkingState] = useState<ThinkingState>(
     ThinkingState.IDLE
@@ -245,6 +272,7 @@ export function useAgentState(
     () => ({
       messages,
       setMessages,
+      dispatchMessages,
       isThinking,
       setIsThinking,
       thinkingState,

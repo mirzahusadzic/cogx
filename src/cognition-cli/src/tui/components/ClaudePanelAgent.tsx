@@ -252,7 +252,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
           ) {
             baseColor = TUITheme.roles.tool; // Consistent green for Tasks
           } else if (
-            processedContent.match(/[>📋📄🧠🔍🌐🛑📊🤖📨📢📬✅✨🚀]/u)
+            processedContent.match(/[>📋📄🧠🔍🌐🛑📊🤖📨📢📬✅✨🚀↪]/u)
           ) {
             baseColor = TUITheme.roles.tool; // Same for all tools
           }

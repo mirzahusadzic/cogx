@@ -71,15 +71,25 @@ export type UnifiedTool =
   | FunctionTool
   | AgentTool
   | ReturnType<typeof tool>
-  | {
-      name: string;
-      description: string;
-      input_schema: unknown;
-      execute?: (
-        args: Record<string, unknown>,
-        toolContext?: ToolContext
-      ) => Promise<string | ToolResult>;
-    };
+  | ExecutableTool;
+
+/**
+ * Interface for tools that have a unified execute method.
+ */
+export interface ExecutableTool {
+  name: string;
+  description: string;
+  input_schema: {
+    type: 'object';
+    properties?: Record<string, unknown>;
+    required?: string[];
+    [key: string]: unknown;
+  };
+  execute?: (
+    args: Record<string, unknown>,
+    toolContext?: unknown
+  ) => Promise<string | ToolResult>;
+}
 
 /**
  * Comprehensive context required by all tools across different providers.
@@ -147,10 +157,10 @@ export function getUnifiedTools(
     // Wrap executor in mutex to enforce sequential execution (SDK Pillar 1)
     const sequentialExecutor = async (
       args: z.infer<T>,
-      toolContext?: ToolContext
+      toolContext?: unknown
     ) => {
       return await toolMutex.runLocked(async () => {
-        return await executor(args, toolContext);
+        return await executor(args, toolContext as ToolContext);
       });
     };
 

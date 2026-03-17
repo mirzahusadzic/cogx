@@ -19,7 +19,6 @@ import {
 } from '../rendering/ToolFormatter.js';
 import { terminal } from '../../services/TerminalService.js';
 import { terminalFormatter } from '../../../core/services/terminal-formatter/TerminalFormatterService.js';
-import { TUITheme } from '../../theme.js';
 import type { SigmaTasks, SigmaTask } from './types.js';
 import { ThinkingState } from './types.js';
 import { processSigmaTaskUpdateInput } from '../../../llm/core/utils/tool-helpers.js';
@@ -27,7 +26,6 @@ import {
   AUTO_RESPONSE_TRIGGER,
   COMPRESSION_RECOVERY_PROMPT,
   isProviderContextSensitive,
-  MAX_STREAM_STABILIZATION_LINES,
 } from './constants.js';
 import { tuiSyncManager } from '../../../core/state/tui-sync/TUISyncManager.js';
 
@@ -271,6 +269,7 @@ export function useAgentHandlers() {
   } = useAgentBaseContext();
   const {
     setMessages,
+    dispatchMessages,
     setIsThinking,
     setThinkingState,
     setRetryCount,
@@ -324,8 +323,6 @@ export function useAgentHandlers() {
   const activeToolCallIdRef = useRef<string | null>(null);
   const statusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const grayColor = `${terminalFormatter.hexToAnsi(TUITheme.text.secondary)}${terminalFormatter.ANSI_DIM}`;
-
   const processAgentMessage = useCallback(
     async (
       agentMessage: AgentMessage,
@@ -351,28 +348,10 @@ export function useAgentHandlers() {
           setThinkingState(ThinkingState.PROCESSING);
           if (typeof content === 'string') {
             const colorReplacedText = terminalFormatter.cleanAnsi(content);
-            setMessages((prev) => {
-              const last = prev[prev.length - 1];
-              if (last && last.type === 'assistant') {
-                return [
-                  ...prev.slice(0, -1),
-                  {
-                    ...last,
-                    content: last.content + colorReplacedText,
-                    thoughtSignature: thoughtSignature ?? last.thoughtSignature,
-                  },
-                ];
-              } else {
-                return [
-                  ...prev,
-                  {
-                    type: 'assistant',
-                    content: colorReplacedText,
-                    timestamp: new Date(),
-                    thoughtSignature,
-                  },
-                ];
-              }
+            dispatchMessages({
+              type: 'APPEND_ASSISTANT',
+              content: colorReplacedText,
+              thoughtSignature,
             });
 
             // Sync to state machine
@@ -396,29 +375,10 @@ export function useAgentHandlers() {
                   terminalFormatter.stripSigmaMarkers(b.thinking || '')
                 )
                 .join('\n');
-              setMessages((prev) => {
-                const last = prev[prev.length - 1];
-                if (last && last.type === 'thinking') {
-                  return [
-                    ...prev.slice(0, -1),
-                    {
-                      ...last,
-                      content: last.content + thinking,
-                      thoughtSignature:
-                        thoughtSignature ?? last.thoughtSignature,
-                    },
-                  ];
-                } else {
-                  return [
-                    ...prev,
-                    {
-                      type: 'thinking',
-                      content: thinking,
-                      timestamp: new Date(),
-                      thoughtSignature,
-                    },
-                  ];
-                }
+              dispatchMessages({
+                type: 'APPEND_THINKING',
+                content: thinking,
+                thoughtSignature,
               });
             }
 
@@ -427,29 +387,10 @@ export function useAgentHandlers() {
                 .map((b) => terminalFormatter.stripSigmaMarkers(b.text || ''))
                 .join('\n');
               const colorReplacedText = terminalFormatter.cleanAnsi(text);
-              setMessages((prev) => {
-                const last = prev[prev.length - 1];
-                if (last && last.type === 'assistant') {
-                  return [
-                    ...prev.slice(0, -1),
-                    {
-                      ...last,
-                      content: last.content + colorReplacedText,
-                      thoughtSignature:
-                        thoughtSignature ?? last.thoughtSignature,
-                    },
-                  ];
-                } else {
-                  return [
-                    ...prev,
-                    {
-                      type: 'assistant',
-                      content: colorReplacedText,
-                      timestamp: new Date(),
-                      thoughtSignature,
-                    },
-                  ];
-                }
+              dispatchMessages({
+                type: 'APPEND_ASSISTANT',
+                content: colorReplacedText,
+                thoughtSignature,
               });
 
               // Sync to state machine
@@ -530,15 +471,15 @@ export function useAgentHandlers() {
                     activeToolCallIdRef.current = tool.id || null;
                   }
 
-                  setMessages((prev) => [
-                    ...prev,
-                    {
+                  dispatchMessages({
+                    type: 'ADD_MESSAGE',
+                    message: {
                       type: 'tool_progress',
                       content,
                       timestamp: new Date(),
                       toolCallId: tool.id,
                     },
-                  ]);
+                  });
 
                   // Sync to state machine
                   tuiSyncManager.handleEvent({
@@ -561,24 +502,7 @@ export function useAgentHandlers() {
         case 'thinking': {
           setThinkingState(ThinkingState.PROCESSING);
           if (typeof content === 'string') {
-            setMessages((prev) => {
-              const last = prev[prev.length - 1];
-              if (last && last.type === 'thinking') {
-                return [
-                  ...prev.slice(0, -1),
-                  { ...last, content: last.content + content },
-                ];
-              } else {
-                return [
-                  ...prev,
-                  {
-                    type: 'thinking',
-                    content: content,
-                    timestamp: new Date(),
-                  },
-                ];
-              }
-            });
+            dispatchMessages({ type: 'APPEND_THINKING', content });
           }
           break;
         }
@@ -639,15 +563,15 @@ export function useAgentHandlers() {
               activeToolCallIdRef.current = agentMessage.toolCallId || null;
             }
 
-            setMessages((prev) => [
-              ...prev,
-              {
+            dispatchMessages({
+              type: 'ADD_MESSAGE',
+              message: {
                 type: 'tool_progress',
                 content,
                 timestamp: new Date(),
                 toolCallId: agentMessage.toolCallId,
               },
-            ]);
+            });
 
             // Sync to state machine
             tuiSyncManager.handleEvent({
@@ -930,70 +854,23 @@ export function useAgentHandlers() {
               const isOutput = isOutputProducingTool(
                 agentMessage.toolName || ''
               );
+
+              // Use a full header for all tool results (including streaming ones) to ensure
+              // consistent UI recognition and better visibility for the user.
+              // We use a newline as the separator to ensure the content starts on its own line.
               const suffix = isOutput ? ' Output' : ' Result';
+              const header = `${resultIcon} ${toolInfo.name}${suffix}:`;
+              const separator = '\n';
 
-              // Layer 13: Tool Result Header Injection.
-              // Use a newline after the header to ensure the content starts on its own line.
-              // Normalize formattedResult to prevent double newlines when prepending header
               const cleanResult = formattedResult.trim();
-              formattedResult = `${resultIcon} ${toolInfo.name}${suffix}:${cleanResult.length > 0 ? `\n${cleanResult}` : ''}`;
+              formattedResult = `${header}${cleanResult.length > 0 ? `${separator}${cleanResult}` : ''}`;
 
-              setMessages((prev) => {
-                // Clean up any remaining streaming markers from the active tool_progress message.
-                // We search backwards to find it robustly.
-                const cleanedPrev = [...prev];
-                let targetIdx = -1;
-                const activeHeader = activeToolContentRef.current;
-
-                for (let i = cleanedPrev.length - 1; i >= 0; i--) {
-                  const msg = cleanedPrev[i];
-                  if (msg.type === 'tool_progress') {
-                    // If we were streaming, we prefer the message that we were streaming into.
-                    if (activeHeader && msg.content.startsWith(activeHeader)) {
-                      targetIdx = i;
-                      break;
-                    }
-                    // Fallback to the last tool_progress message if no header match
-                    if (targetIdx === -1) {
-                      targetIdx = i;
-                    }
-                  }
-                }
-
-                if (targetIdx !== -1) {
-                  cleanedPrev[targetIdx] = {
-                    ...cleanedPrev[targetIdx],
-                    content: cleanedPrev[targetIdx].content.replace(
-                      // eslint-disable-next-line no-control-regex
-                      /(?:\r?\n)*(?:\x1b\[[0-9;]*m)*\(streaming\)(?:\x1b\[[0-9;]*m)*$/,
-                      ''
-                    ),
-                  };
-
-                  // If we were streaming, we update the existing message to avoid duplication.
-                  // This prevents the "pushed down" look where the streaming output remains
-                  // and the final result is appended below it.
-                  if (
-                    isStreamingToolOutputRef.current &&
-                    activeHeader &&
-                    cleanedPrev[targetIdx].content.startsWith(activeHeader)
-                  ) {
-                    cleanedPrev[targetIdx] = {
-                      ...cleanedPrev[targetIdx],
-                      content: `${activeHeader}\n${formattedResult}`,
-                    };
-                    return cleanedPrev;
-                  }
-                }
-
-                return [
-                  ...cleanedPrev,
-                  {
-                    type: 'tool_progress',
-                    content: formattedResult,
-                    timestamp: new Date(),
-                  },
-                ];
+              dispatchMessages({
+                type: 'FINALIZE_TOOL_RESULT',
+                formattedResult,
+                isStreaming: isStreamingToolOutputRef.current,
+                toolCallId: agentMessage.toolCallId,
+                activeHeader: activeToolContentRef.current || undefined,
               });
 
               // Sync to state machine
@@ -1260,124 +1137,14 @@ This triggers a semantic compression event, flushing implementation noise while 
 
             // Layer 10: Aggressively hide terminal cursor while streaming tool output
             terminal.setCursorVisibility(false);
+            isStreamingToolOutputRef.current = true;
 
-            // Pre-strip cursor control sequences and ANSI from output chunks before storing
-            // This ensures clean processing and prevents rendering artifacts like extra newlines
-            const cleanChunk = terminalFormatter.cleanAnsi(
-              terminalFormatter.stripCursorSequences(chunk)
-            );
-
-            setMessages((prev) => {
-              // Robustly find the active tool_progress message by searching backwards.
-              // This ensures that intermediate assistant messages (e.g. from Gemini thought signatures)
-              // don't break streaming output updates.
-              let targetIdx = -1;
-
-              // Use provided toolCallId or fallback to the current active tool from the ref
-              const effectiveToolCallId =
-                toolCallId || activeToolCallIdRef.current;
-
-              // 1. Try finding by toolCallId if available (Primary mechanism for atomic batching)
-              if (effectiveToolCallId) {
-                for (let i = prev.length - 1; i >= 0; i--) {
-                  const msg = prev[i];
-                  if (
-                    msg.type === 'tool_progress' &&
-                    msg.toolCallId === effectiveToolCallId
-                  ) {
-                    targetIdx = i;
-                    break;
-                  }
-                }
-              }
-
-              // 2. Fallback to matching by active header (Legacy mechanism for tools without IDs)
-              if (targetIdx === -1) {
-                const activeHeader = activeToolContentRef.current;
-                for (let i = prev.length - 1; i >= 0; i--) {
-                  const msg = prev[i];
-                  if (msg.type === 'tool_progress') {
-                    // If we have an active tool header, we prefer a message that starts with it.
-                    // This prevents interleaved output (e.g. bash output appearing in SigmaTaskUpdate).
-                    if (activeHeader) {
-                      if (msg.content.startsWith(activeHeader)) {
-                        targetIdx = i;
-                        break;
-                      }
-                    } else {
-                      // Fallback to the last tool_progress message if no header is active
-                      targetIdx = i;
-                      break;
-                    }
-                  }
-                }
-              }
-
-              if (targetIdx !== -1) {
-                const target = prev[targetIdx];
-                isStreamingToolOutputRef.current = true;
-
-                // Truncation and stabilization logic
-                const lines = target.content.split(/\r?\n/);
-                const header = lines[0] || '';
-
-                // Strip existing streaming marker if present from previous chunk
-                // Use a non-capturing group for the optional newline to avoid issues
-                // Robustly strip the streaming marker AND any trailing newlines from content
-                // to prepare for clean appending. We use a regex that matches the marker
-                // with any ANSI color sequences (including multi-sequence themes).
-                let content = target.content.replace(
-                  // eslint-disable-next-line no-control-regex
-                  /(?:\r?\n)*(?:\x1b\[[0-9;]*m)*\(streaming\)(?:\x1b\[[0-9;]*m)*$/,
-                  ''
-                );
-
-                // Ensure clean chunk doesn't have leading newlines if we already have content
-                // This prevents double-newlines when joining chunks.
-                // We handle both \n and \r\n explicitly.
-                let effectiveChunk = cleanChunk;
-                if (content.length > 0) {
-                  effectiveChunk = effectiveChunk.replace(/^(\r?\n)+/, '');
-                }
-
-                // Append with exactly one newline separator if needed
-                if (content.length > 0 && !content.endsWith('\n')) {
-                  content += '\n';
-                }
-                content += effectiveChunk;
-
-                // FLOATING WINDOW LOGIC:
-                // If output becomes too long, truncate it to keep only the last 30 lines
-                // (25 lines + 5 lines buffer).
-                if (header) {
-                  // Split header from output
-                  const outputPart = content.slice(header.length);
-                  const outputLines = outputPart.split(/\r?\n/);
-                  const MAX_STREAM_LINES = MAX_STREAM_STABILIZATION_LINES; // Use shared stabilization constant
-
-                  if (outputLines.length > MAX_STREAM_LINES) {
-                    // Keep the header and the last N lines
-                    // We add a marker to indicate truncation
-                    const keptLines = outputLines.slice(-MAX_STREAM_LINES);
-                    content =
-                      header +
-                      `\n${grayColor}... (tail of stream)${terminalFormatter.ANSI_RESET}\n` +
-                      keptLines.join('\n');
-                  }
-                }
-
-                // Add streaming marker to the end - this triggers stabilization in ClaudePanelAgent
-                // We ensure it starts on a new line unless it's already there
-                if (!content.endsWith('\n')) {
-                  content += '\n';
-                }
-                content += `${grayColor}(streaming)${terminalFormatter.ANSI_RESET}`;
-
-                const newMessages = [...prev];
-                newMessages[targetIdx] = { ...target, content };
-                return newMessages;
-              }
-              return prev;
+            dispatchMessages({
+              type: 'APPEND_TOOL_OUTPUT',
+              chunk,
+              toolCallId:
+                toolCallId || activeToolCallIdRef.current || undefined,
+              activeHeader: activeToolContentRef.current || undefined,
             });
           },
           onCanUseTool: async (toolName, input) => {

@@ -66,6 +66,7 @@ describe('useAgentHandlers', () => {
     mockState = {
       messages: [],
       setMessages: vi.fn(),
+      dispatchMessages: vi.fn(),
       isThinking: false,
       setIsThinking: vi.fn(),
       setThinkingState: vi.fn(),
@@ -188,7 +189,12 @@ describe('useAgentHandlers', () => {
       });
     });
 
-    expect(mockState.setMessages).toHaveBeenCalled();
+    expect(mockState.dispatchMessages).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'APPEND_ASSISTANT',
+        content: 'Hello world',
+      })
+    );
   });
 
   it('should process tool_result messages correctly', async () => {
@@ -212,11 +218,11 @@ describe('useAgentHandlers', () => {
       });
     });
 
-    expect(mockState.setMessages).toHaveBeenCalled();
-    const call = vi.mocked(mockState.setMessages).mock.calls[0][0];
-    const newMessages = call([]);
-    expect(newMessages[0].type).toBe('tool_progress');
-    expect(newMessages[0].content).toContain('file content');
+    expect(mockState.dispatchMessages).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'FINALIZE_TOOL_RESULT',
+      })
+    );
   });
 
   it('should trigger preemptive compression for Gemini with SigmaTaskUpdate when token count > 50k', async () => {

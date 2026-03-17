@@ -26,7 +26,16 @@ export interface ProviderToolFactory {
     definition: ToolDefinition<T>,
     onCanUseTool?: OnCanUseTool,
     overrides?: { name?: string; description?: string }
-  ): { name: string; description: string; input_schema: unknown };
+  ): {
+    name: string;
+    description: string;
+    input_schema: {
+      type: 'object';
+      properties?: Record<string, unknown>;
+      required?: string[];
+      [key: string]: unknown;
+    };
+  };
 
   createGeminiTool<T extends z.ZodObject<z.ZodRawShape>>(
     definition: ToolDefinition<T>,
@@ -106,7 +115,12 @@ export const providerToolFactory: ProviderToolFactory = {
     onCanUseTool?: OnCanUseTool, // Not directly used here as Minimax execution is external
     overrides?: { name?: string; description?: string }
   ) {
-    const jsonSchema = zodToJsonSchema(definition.parameters);
+    const jsonSchema = zodToJsonSchema(definition.parameters) as {
+      type: 'object';
+      properties?: Record<string, unknown>;
+      required?: string[];
+      [key: string]: unknown;
+    };
 
     // Minimax/Anthropic-like tool format
     return {

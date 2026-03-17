@@ -297,7 +297,10 @@ describe('Tool Executors', () => {
       // Advance by 16 seconds (heartbeat is every 15s)
       vi.advanceTimersByTime(16000);
 
-      expect(onToolOutput).toHaveBeenCalledWith('', toolCallId);
+      expect(onToolOutput).toHaveBeenCalledWith(
+        { type: 'heartbeat' },
+        toolCallId
+      );
 
       mockProc.emit('close', 0);
       await promise;

@@ -21,6 +21,7 @@ import {
   archiveTaskLogs,
   TASK_LOG_EVICTION_THRESHOLD,
 } from '../../core/utils/eviction-utils.js';
+import { ExecutableTool } from '../../tools/unified-tools.js';
 
 interface ThinkingBlock {
   type: 'thinking';
@@ -196,7 +197,7 @@ export class MinimaxAgentProvider extends BaseAgentProvider {
           request.cwd || request.projectRoot || process.cwd()
         );
       }
-    ) as Anthropic.Tool[];
+    ) as ExecutableTool[];
 
     let turns = 0;
     const maxTurns = 50;
@@ -398,21 +399,17 @@ export class MinimaxAgentProvider extends BaseAgentProvider {
   private async executeTool(
     toolName: string,
     args: Record<string, unknown>,
-    tools: Anthropic.Tool[],
+    tools: ExecutableTool[],
     toolCallId?: string
   ): Promise<string> {
-    const tool = tools.find((t) => t.name === toolName) as unknown as {
-      execute?: (
-        args: Record<string, unknown>,
-        toolContext?: { functionCallId?: string }
-      ) => Promise<string>;
-    };
+    const tool = tools.find((t) => t.name === toolName);
     if (!tool || !tool.execute) {
       return `Tool ${toolName} not found or not executable.`;
     }
 
     try {
-      return await tool.execute(args, { functionCallId: toolCallId });
+      const result = await tool.execute(args, { functionCallId: toolCallId });
+      return typeof result === 'string' ? result : result.content;
     } catch (error) {
       return `Error executing tool ${toolName}: ${error instanceof Error ? error.message : String(error)}`;
     }
