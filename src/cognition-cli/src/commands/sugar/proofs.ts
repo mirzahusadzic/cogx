@@ -54,51 +54,20 @@
  * // Translates to: lattice "O6[identity]"
  */
 
-import { intro, outro, spinner, log } from '@clack/prompts';
+import { intro, outro, spinner as clackSpinner, log } from '@clack/prompts';
 import chalk from 'chalk';
 import { createQueryEngine } from '../../core/algebra/query-parser.js';
 import {
   OverlayItem,
   OverlayMetadata,
-  SetOperationResult,
 } from '../../core/algebra/overlay-algebra.js';
 import { meet } from '../../core/algebra/lattice-operations.js';
 import { environmentService } from '../../core/services/environment/EnvironmentService.js';
+import { createSugarCommand } from './factory.js';
+import { SugarCommandOptions } from './types.js';
+import { displayMeetResults } from './utils.js';
 
-interface ProofsOptions {
-  // ...
-  projectRoot: string;
-  format?: 'table' | 'json' | 'summary';
-  limit?: number;
-  verbose?: boolean;
-  type?: 'theorem' | 'lemma' | 'axiom' | 'proof' | 'identity';
-  threshold?: number; // Semantic similarity threshold for alignment (0.0-1.0)
-}
-
-/**
- * Resolve Grounded Context Pool (PGC) root directory
- *
- * @param startPath - Starting directory for the walk-up search
- * @returns Absolute path to .open_cognition directory
- * @throws {Error} Exits process if no workspace found
- */
-function resolvePgcRoot(startPath: string, options?: ProofsOptions): string {
-  const useJson =
-    options?.format === 'json' || process.env.COGNITION_FORMAT === 'json';
-
-  try {
-    return environmentService.resolvePgcDir(startPath);
-  } catch {
-    if (!useJson) {
-      log.error(
-        chalk.red(
-          'No .open_cognition workspace found. Run "cognition-cli init" to create one.'
-        )
-      );
-    }
-    process.exit(1);
-  }
-}
+type ProofsOptions = SugarCommandOptions;
 
 /**
  * Display all mathematical theorems from O₆ overlay
@@ -122,49 +91,14 @@ function resolvePgcRoot(startPath: string, options?: ProofsOptions): string {
  *   limit: 20
  * });
  */
-export async function proofsTheoremsCommand(
-  options: ProofsOptions
-): Promise<void> {
-  const useJson =
-    options.format === 'json' || process.env.COGNITION_FORMAT === 'json';
-
-  if (!useJson) {
-    intro(chalk.bold('Proofs: Theorems'));
-  }
-
-  const pgcRoot = resolvePgcRoot(options.projectRoot, options);
-
-  const s = spinner();
-  if (!useJson) {
-    s.start('Loading theorems');
-  }
-
-  try {
-    const workbenchUrl = process.env.WORKBENCH_URL || 'http://localhost:8000';
-    const engine = createQueryEngine(pgcRoot, workbenchUrl);
-
-    const query = 'O6[theorem]';
-    const result = await engine.execute(query);
-
-    if (!useJson) {
-      s.stop('Analysis complete');
-    }
-
-    displayItemList(result, options);
-    if (!useJson) {
-      outro(chalk.green('✓ Theorem analysis complete'));
-    }
-  } catch (error) {
-    if (!useJson) {
-      s.stop('Analysis failed');
-      log.error(chalk.red((error as Error).message));
-    }
-    if (options.verbose) {
-      console.error(error);
-    }
-    process.exit(1);
-  }
-}
+export const proofsTheoremsCommand = createSugarCommand({
+  name: 'Proofs: Theorems',
+  description: 'Loading theorems',
+  overlayType: 'O6',
+  queryType: 'theorem',
+  itemLabel: 'theorem',
+  pluralItemLabel: 'theorems',
+});
 
 /**
  * Display all mathematical lemmas from O₆ overlay
@@ -187,49 +121,14 @@ export async function proofsTheoremsCommand(
  *   format: 'summary'
  * });
  */
-export async function proofsLemmasCommand(
-  options: ProofsOptions
-): Promise<void> {
-  const useJson =
-    options.format === 'json' || process.env.COGNITION_FORMAT === 'json';
-
-  if (!useJson) {
-    intro(chalk.bold('Proofs: Lemmas'));
-  }
-
-  const pgcRoot = resolvePgcRoot(options.projectRoot, options);
-
-  const s = spinner();
-  if (!useJson) {
-    s.start('Loading lemmas');
-  }
-
-  try {
-    const workbenchUrl = process.env.WORKBENCH_URL || 'http://localhost:8000';
-    const engine = createQueryEngine(pgcRoot, workbenchUrl);
-
-    const query = 'O6[lemma]';
-    const result = await engine.execute(query);
-
-    if (!useJson) {
-      s.stop('Analysis complete');
-    }
-
-    displayItemList(result, options);
-    if (!useJson) {
-      outro(chalk.green('✓ Lemma analysis complete'));
-    }
-  } catch (error) {
-    if (!useJson) {
-      s.stop('Analysis failed');
-      log.error(chalk.red((error as Error).message));
-    }
-    if (options.verbose) {
-      console.error(error);
-    }
-    process.exit(1);
-  }
-}
+export const proofsLemmasCommand = createSugarCommand({
+  name: 'Proofs: Lemmas',
+  description: 'Loading lemmas',
+  overlayType: 'O6',
+  queryType: 'lemma',
+  itemLabel: 'lemma',
+  pluralItemLabel: 'lemmas',
+});
 
 /**
  * Display all mathematical statements from O₆ overlay
@@ -261,55 +160,13 @@ export async function proofsLemmasCommand(
  *   format: 'json'
  * });
  */
-export async function proofsListCommand(options: ProofsOptions): Promise<void> {
-  const useJson =
-    options.format === 'json' || process.env.COGNITION_FORMAT === 'json';
-
-  if (!useJson) {
-    intro(chalk.bold('Proofs: All Mathematical Statements'));
-  }
-
-  const pgcRoot = resolvePgcRoot(options.projectRoot, options);
-
-  const s = spinner();
-
-  let query = 'O6';
-  let description = 'Loading all mathematical statements';
-
-  if (options.type) {
-    query = `O6[${options.type}]`;
-    description = `Loading ${options.type}s`;
-  }
-
-  if (!useJson) {
-    s.start(description);
-  }
-
-  try {
-    const workbenchUrl = process.env.WORKBENCH_URL || 'http://localhost:8000';
-    const engine = createQueryEngine(pgcRoot, workbenchUrl);
-
-    const result = await engine.execute(query);
-
-    if (!useJson) {
-      s.stop('Analysis complete');
-    }
-
-    displayItemList(result, options);
-    if (!useJson) {
-      outro(chalk.green('✓ Mathematical analysis complete'));
-    }
-  } catch (error) {
-    if (!useJson) {
-      s.stop('Analysis failed');
-      log.error(chalk.red((error as Error).message));
-    }
-    if (options.verbose) {
-      console.error(error);
-    }
-    process.exit(1);
-  }
-}
+export const proofsListCommand = createSugarCommand({
+  name: 'Proofs: All Mathematical Statements',
+  description: 'Loading mathematical statements',
+  overlayType: 'O6',
+  itemLabel: 'statement',
+  pluralItemLabel: 'statements',
+});
 
 /**
  * Display mathematical proofs aligned with mission principles
@@ -346,7 +203,6 @@ export async function proofsListCommand(options: ProofsOptions): Promise<void> {
 export async function proofsAlignedCommand(
   options: ProofsOptions
 ): Promise<void> {
-  // Default threshold is lower (0.5) for cross-domain alignment (proofs ↔ principles)
   const threshold = options.threshold ?? 0.5;
   const useJson =
     options.format === 'json' || process.env.COGNITION_FORMAT === 'json';
@@ -359,9 +215,17 @@ export async function proofsAlignedCommand(
     );
   }
 
-  const pgcRoot = resolvePgcRoot(options.projectRoot, options);
+  let pgcRoot;
+  try {
+    pgcRoot = environmentService.resolvePgcDir(options.projectRoot || '.');
+  } catch {
+    if (!useJson) {
+      log.error(chalk.red('No .open_cognition workspace found.'));
+    }
+    process.exit(1);
+  }
 
-  const s = spinner();
+  const s = clackSpinner();
   if (!useJson) {
     s.start('Finding proofs aligned with mission principles');
   }
@@ -370,17 +234,13 @@ export async function proofsAlignedCommand(
     const workbenchUrl = process.env.WORKBENCH_URL || 'http://localhost:8000';
     const engine = createQueryEngine(pgcRoot, workbenchUrl);
 
-    // Get O6 (mathematical proofs) and O4 (mission concepts) items
     const o6Items = await engine.execute('O6');
     const o4Items = await engine.execute('O4[principle]');
 
-    // Helper to extract OverlayItems from query results
     const extractItems = (result: unknown): OverlayItem<OverlayMetadata>[] => {
-      if (!result) return [];
       if (Array.isArray(result)) {
-        // Check if it's an array of OverlayItems (has id, embedding, metadata)
         if (result.length === 0) return [];
-        if ('id' in result[0] && 'embedding' in result[0]) {
+        if (result[0] && 'id' in result[0] && 'embedding' in result[0]) {
           return result as OverlayItem<OverlayMetadata>[];
         }
       }
@@ -390,45 +250,15 @@ export async function proofsAlignedCommand(
     const proofsArray = extractItems(o6Items);
     const principlesArray = extractItems(o4Items);
 
-    if (proofsArray.length === 0) {
+    if (proofsArray.length === 0 || principlesArray.length === 0) {
       if (!useJson) {
-        s.stop('No proofs found');
-        log.warn(
-          chalk.yellow(
-            'O6 overlay is empty - run genesis to populate mathematical proofs'
-          )
-        );
-        outro(chalk.green('✓ Alignment analysis complete'));
+        s.stop('No proofs or principles found');
       } else {
         console.log(JSON.stringify([], null, 2));
       }
       return;
     }
 
-    if (principlesArray.length === 0) {
-      if (!useJson) {
-        s.stop('No principles found');
-        log.warn(
-          chalk.yellow(
-            'O4[principle] is empty - run genesis to populate mission concepts'
-          )
-        );
-        outro(chalk.green('✓ Alignment analysis complete'));
-      } else {
-        console.log(JSON.stringify([], null, 2));
-      }
-      return;
-    }
-
-    if (!useJson) {
-      log.info(
-        chalk.dim(
-          `Comparing ${proofsArray.length} proofs with ${principlesArray.length} principles...`
-        )
-      );
-    }
-
-    // Use meet with configurable threshold
     const result = await meet(proofsArray, principlesArray, {
       threshold,
       topK: 10,
@@ -438,237 +268,15 @@ export async function proofsAlignedCommand(
       s.stop('Analysis complete');
     }
 
-    displayMeetResults(result, options);
+    displayMeetResults(result, 'mathematical alignment', options);
+
     if (!useJson) {
       outro(chalk.green('✓ Alignment analysis complete'));
     }
   } catch (error) {
     if (!useJson) {
-      s.stop('Analysis failed');
-      log.error(chalk.red((error as Error).message));
-    }
-    if (options.verbose) {
-      console.error(error);
+      s.stop(`Analysis failed: ${(error as Error).message}`);
     }
     process.exit(1);
-  }
-}
-
-/**
- * Display results (handles different result types)
- */
-function displayItemList(result: unknown, options: ProofsOptions): void {
-  const format = options.format || 'table';
-  const limit = options.limit || 50;
-  const useJson =
-    options.format === 'json' || process.env.COGNITION_FORMAT === 'json';
-
-  // Type guard for OverlayItem array or SetOperationResult
-  const isOverlayItemArray = (value: unknown): value is OverlayItem[] => {
-    return (
-      Array.isArray(value) &&
-      (value.length === 0 ||
-        (value[0] &&
-          'id' in value[0] &&
-          'embedding' in value[0] &&
-          'metadata' in value[0]))
-    );
-  };
-
-  const isSetOperationResult = (
-    value: unknown
-  ): value is SetOperationResult<OverlayMetadata> => {
-    return (
-      value !== null &&
-      typeof value === 'object' &&
-      'items' in value &&
-      'metadata' in value
-    );
-  };
-
-  let items: OverlayItem[] = [];
-
-  if (isSetOperationResult(result)) {
-    items = result.items;
-    if (!useJson) {
-      log.info(
-        chalk.bold(
-          `\n${result.metadata.operation.toUpperCase()}: ${result.metadata.itemCount} item(s)`
-        )
-      );
-      log.info(
-        chalk.dim(
-          `  Source overlays: ${result.metadata.sourceOverlays.join(', ')}`
-        )
-      );
-      log.info('');
-    }
-  } else if (isOverlayItemArray(result)) {
-    items = result;
-  }
-
-  if (items.length === 0) {
-    if (!useJson) {
-      log.warn(chalk.yellow('No items found'));
-    } else {
-      console.log(JSON.stringify([], null, 2));
-    }
-    return;
-  }
-
-  if (useJson) {
-    console.log(JSON.stringify(items.slice(0, limit), null, 2));
-    return;
-  }
-
-  log.info(chalk.bold(`Results: ${items.length} item(s)`));
-  log.info('');
-
-  if (format === 'summary') {
-    log.info(
-      chalk.dim(`Showing summary of ${Math.min(limit, items.length)} items`)
-    );
-    for (const item of items.slice(0, limit)) {
-      log.info(`  ${chalk.cyan(item.id)}`);
-      log.info(chalk.dim(`    ${item.metadata.text}`));
-    }
-    return;
-  }
-
-  // Table format (default)
-  log.info(
-    chalk.dim(
-      `Showing ${Math.min(limit, items.length)} of ${items.length} items`
-    )
-  );
-  log.info('');
-
-  for (const item of items.slice(0, limit)) {
-    log.info(chalk.cyan(`${item.id}`));
-    log.info(chalk.dim(`  Type: ${item.metadata.type || 'unknown'}`));
-    log.info(chalk.dim(`  Statement: ${item.metadata.text}`));
-
-    // Show additional metadata
-    const otherKeys = Object.keys(item.metadata).filter(
-      (k) => !['text', 'type', 'weight'].includes(k)
-    );
-    if (otherKeys.length > 0) {
-      for (const key of otherKeys.slice(0, 3)) {
-        const value = item.metadata[key];
-        log.info(chalk.dim(`  ${key}: ${value}`));
-      }
-    }
-    log.info('');
-  }
-
-  if (items.length > limit) {
-    log.info(
-      chalk.dim(
-        `... and ${items.length - limit} more (use --limit to see more)`
-      )
-    );
-  }
-}
-
-/**
- * Display Meet results (semantic alignment)
- */
-function displayMeetResults(result: unknown, options: ProofsOptions): void {
-  const limit = options.limit || 50;
-  const useJson =
-    options.format === 'json' || process.env.COGNITION_FORMAT === 'json';
-
-  // Type guard for MeetResult (allows empty arrays)
-  const isMeetResultArray = (
-    value: unknown
-  ): value is Array<{
-    itemA: OverlayItem;
-    itemB: OverlayItem;
-    similarity: number;
-  }> => {
-    if (!Array.isArray(value)) return false;
-    // Empty array is a valid meet result (no alignments found)
-    if (value.length === 0) return true;
-    // Non-empty array must have the expected shape
-    return (
-      value[0] &&
-      'itemA' in value[0] &&
-      'itemB' in value[0] &&
-      'similarity' in value[0]
-    );
-  };
-
-  if (!isMeetResultArray(result)) {
-    if (!useJson) {
-      log.warn(chalk.yellow('Unexpected result format'));
-    } else {
-      console.log(JSON.stringify([], null, 2));
-    }
-    return;
-  }
-
-  if (result.length === 0) {
-    if (!useJson) {
-      log.warn(
-        chalk.yellow(
-          'No alignments found (O6 may be empty - run genesis to populate mathematical proofs)'
-        )
-      );
-    } else {
-      console.log(JSON.stringify([], null, 2));
-    }
-    return;
-  }
-
-  // Deduplicate by text content (same proof-principle text pair)
-  const seen = new Set<string>();
-  const uniqueResults = result.filter(({ itemA, itemB }) => {
-    const key = `${itemA.metadata.text}|||${itemB.metadata.text}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-
-  if (useJson) {
-    console.log(JSON.stringify(uniqueResults.slice(0, limit), null, 2));
-    return;
-  }
-
-  log.info(
-    chalk.bold(`\nMeet Results: ${uniqueResults.length} unique alignment(s)`)
-  );
-  if (uniqueResults.length < result.length) {
-    log.info(chalk.dim(`  (deduplicated from ${result.length} raw matches)`));
-  }
-  log.info('');
-
-  log.info(
-    chalk.dim(
-      `Showing ${Math.min(limit, uniqueResults.length)} of ${uniqueResults.length} pairs`
-    )
-  );
-  log.info('');
-
-  for (const { itemA, itemB, similarity } of uniqueResults.slice(0, limit)) {
-    // Color code similarity
-    const simColor =
-      similarity >= 0.9
-        ? chalk.green
-        : similarity >= 0.7
-          ? chalk.yellow
-          : chalk.dim;
-
-    log.info(simColor(`Similarity: ${(similarity * 100).toFixed(1)}%`));
-    log.info(chalk.cyan(`  Proof: ${itemA.metadata.text}`));
-    log.info(chalk.magenta(`  Principle: ${itemB.metadata.text}`));
-    log.info('');
-  }
-
-  if (uniqueResults.length > limit) {
-    log.info(
-      chalk.dim(
-        `... and ${uniqueResults.length - limit} more (use --limit to see more)`
-      )
-    );
   }
 }

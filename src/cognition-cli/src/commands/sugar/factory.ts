@@ -1,0 +1,111 @@
+import chalk from 'chalk';
+import { intro, outro, log, spinner as clackSpinner } from '@clack/prompts';
+import { createQueryEngine } from '../../core/algebra/query-parser.js';
+import { SugarCommandConfig, SugarCommandOptions } from './types.js';
+import { displayItemList, displayMeetResults } from './utils.js';
+import { environmentService } from '../../core/services/environment/EnvironmentService.js';
+
+/**
+ * Resolve Grounded Context Pool (PGC) root directory
+ *
+ * @param options - Command options containing projectRoot
+ * @returns Absolute path to .open_cognition directory
+ * @throws {Error} Exits process if no workspace found
+ */
+function resolvePgcPath(options: SugarCommandOptions): string {
+  const useJson =
+    options.format === 'json' || process.env.COGNITION_FORMAT === 'json';
+  try {
+    return environmentService.resolvePgcDir(options.projectRoot || '.');
+  } catch {
+    if (!useJson) {
+      log.error(
+        chalk.red(
+          'No .open_cognition workspace found. Run "cognition-cli init" to create one.'
+        )
+      );
+    }
+    process.exit(1);
+  }
+}
+
+/**
+ * Higher-order function to create a "sugar" command.
+ *
+ * Sugar commands wrap the lattice algebra query language with named commands
+ * that are easier to remember and use. This factory handles:
+ * 1. PGC root resolution
+ * 2. Query Engine initialization
+ * 3. Query construction (custom or metadata-driven)
+ * 4. UI management (spinners, success/fail messages)
+ * 5. Format-aware output (JSON vs human-readable)
+ *
+ * @param config - Metadata-driven configuration for the command
+ * @returns An async function that executes the command
+ */
+export function createSugarCommand(config: SugarCommandConfig) {
+  return async (options: SugarCommandOptions) => {
+    const useJson =
+      options.format === 'json' || process.env.COGNITION_FORMAT === 'json';
+
+    if (!useJson) {
+      intro(chalk.bold(config.name));
+    }
+
+    const pgcRoot = resolvePgcPath(options);
+    const s = clackSpinner();
+
+    if (!useJson) {
+      s.start(config.description);
+    }
+
+    try {
+      const workbenchUrl = process.env.WORKBENCH_URL || 'http://localhost:8000';
+      const engine = createQueryEngine(pgcRoot, workbenchUrl);
+
+      // Determine query: customQuery > overlay[type] > overlay
+      let query = config.customQuery;
+      if (!query) {
+        if (options.type || config.queryType) {
+          query = `${config.overlayType}[${options.type || config.queryType}]`;
+        } else {
+          query = config.overlayType;
+        }
+      }
+
+      const result = await engine.execute(query);
+
+      if (!useJson) {
+        s.stop(`Analysis of ${config.pluralItemLabel} complete.`);
+      }
+
+      // Check if it's a meet result (contains itemA and itemB)
+      const isMeetResult =
+        Array.isArray(result) &&
+        result.length > 0 &&
+        result[0] &&
+        'itemA' in result[0] &&
+        'itemB' in result[0];
+
+      if (isMeetResult) {
+        displayMeetResults(result, config.pluralItemLabel, options);
+      } else {
+        displayItemList(result, config.pluralItemLabel, options);
+      }
+
+      if (!useJson) {
+        outro(chalk.green(`✓ ${config.pluralItemLabel} analysis complete`));
+      }
+    } catch (error) {
+      if (!useJson) {
+        s.stop(
+          `Failed to analyze ${config.pluralItemLabel}: ${(error as Error).message}`
+        );
+      }
+      if (options.verbose) {
+        console.error(error);
+      }
+      process.exit(1);
+    }
+  };
+}
