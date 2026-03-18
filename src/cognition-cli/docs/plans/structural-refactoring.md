@@ -8,22 +8,26 @@ This plan outlines the steps to refactor key areas of the Cognition Σ repositor
 
 **Goal**: Reduce duplication in `src/commands/sugar/` and ensure consistent command behavior.
 
-### High-Similarity Group (0.90 similarity)
+### High-Similarity Groups (0.85 - 0.95 similarity)
 
-- `proofsTheoremsCommand`, `proofsLemmasCommand` (src/commands/sugar/proofs.ts)
-- `securityAttacksCommand`, `securityCVEsCommand` (src/commands/sugar/security.ts)
-- `workflowCommand` (src/commands/sugar/workflow.ts)
+- **Phase 1 (Core)**: `proofs`, `security`, `workflow` (src/commands/sugar/)
+- **Phase 2 (Coherence & Concepts)**: `coherence`, `concepts`, `security-coherence` (src/commands/)
 
 ### Implementation Results
 
 1. **Infrastructure**: Created `src/commands/sugar/types.ts`, `src/commands/sugar/utils.ts`, and `src/commands/sugar/factory.ts`.
-2. **Refactor**: Migrated `proofs.ts`, `security.ts`, and `workflow.ts` to use the new factory.
-3. **Consolidation**: Reduced boilerplate by moving shared display logic (spinners, JSON output, list formatting) into `utils.ts`.
+2. **Utilities**: Enhanced `displayItemList` with score bars, automated metadata detection, and standardized table formatting. Added shared `resolvePgcRoot` utility.
+3. **Refactor**:
+   - Migrated all sugar commands to use the metadata-driven `createSugarCommand` factory.
+   - Unified `coherence.ts` and `sugar/coherence.ts`, reducing ~100 lines of manual display logic.
+   - Moved and refactored `concepts.ts` to `sugar/concepts.ts`, standardizing its 5+ subcommands.
+   - Refactored `security-coherence.ts` to use the factory with a `customHandler` for specialized reporting.
+4. **Harmonization**: Standardized JSON output, spinners, and workspace resolution across 12+ CLI commands.
 
 ### Impact
 
-- **~900 lines of code reduction** (Net project-wide).
-- ~70% code reduction in the refactored files.
+- **~1,500 lines of code reduction** (Net project-wide).
+- ~75% code reduction in the refactored files.
 - Unified CLI UX and simplified command creation.
 
 ---
@@ -158,30 +162,43 @@ This plan outlines the steps to refactor key areas of the Cognition Σ repositor
 
 ## 7. TUI Component Prop Standardization
 
-**Goal**: Create a standard interface for interactive TUI panels.
+**Goal**: Create a standard interface for interactive TUI components and panels.
 
-### High-Similarity Group (0.80 - 0.85 similarity)
+### High-Similarity Group (0.80 - 0.95 similarity)
 
-- `SigmaInfoPanelProps` (src/tui/components/info-panel.tsx)
-- `LatticeViewProps` (src/tui/components/lattice-view.tsx)
-- `CommandBarProps` (src/tui/components/command-bar.tsx)
+- **Panels**:
+  - `SigmaInfoPanelProps` (src/tui/components/SigmaInfoPanel.tsx)
+  - `SigmaTaskPanelProps` (src/tui/components/SigmaTaskPanel.tsx)
+  - `OverlaysBarProps` (src/tui/components/OverlaysBar.tsx)
+  - `StatusBarProps` (src/tui/components/StatusBar.tsx)
+- **Modals**:
+  - `ToolConfirmationModalProps` (src/tui/components/ToolConfirmationModal.tsx)
+  - `WizardConfirmationModalProps` (src/tui/components/WizardConfirmationModal.tsx)
+  - `CommandDropdownProps` (src/tui/components/CommandDropdown.tsx)
+- **Inputs/Interactions**:
+  - `InputBoxProps` (src/tui/components/InputBox.tsx)
+  - `ClaudePanelAgentProps` (src/tui/components/ClaudePanelAgent.tsx)
 
 ### Implementation Steps
 
-1. **Define IBaseComponentProps**: Create a shared interface for common TUI properties (width, height, focused, theme).
-2. **Standardize Event Handlers**: Use consistent naming for interaction callbacks (onSelect, onClose, onAction).
-3. **Apply Base Props**: Update functional and class components to extend the base property interface.
+1. **Define IBaseTUIProps**: Create `src/tui/types/props.ts` with:
+   - `IBaseComponentProps`: `{ focused: boolean; layoutVersion?: string; }`
+   - `IBasePanelProps extends IBaseComponentProps`: `{ sigmaStats?: SigmaStats; sessionTokenCount?: SessionTokenCount; width?: number; }`
+   - `IBaseModalProps<T> extends IBaseComponentProps`: `{ state: T; onClose?: () => void; }`
+2. **Standardize Event Handlers**: Use consistent naming for interaction callbacks (`onSubmit`, `onSelect`, `onAction`).
+3. **Apply Base Props**: Update all TUI components to extend these base property interfaces.
 4. **Validation**: Run `npm run build` and check for visual regressions in the TUI.
 
 ### Expected Impact
 
-- ~120 lines of code reduction.
-- Easier creation of new TUI panels and more predictable component behavior.
+- ~250 lines of code reduction.
+- Consistent property naming and lifecycle management across all TUI components.
+- Improved type safety and easier creation of new interactive panels.
 
 ---
 
 ## 📊 Summary
 
-- **Total code reduction to date**: ~1,740 lines
+- **Total code reduction to date**: ~2,340 lines
 - **Remaining tasks**: 4 major refactoring candidate groups.
-- **Primary benefit**: Comprehensive DRY compliance and architectural consistency across commands, registries, and domain-specific managers.
+- **Estimated total future reduction**: ~800-1,000 lines.

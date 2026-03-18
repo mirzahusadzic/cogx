@@ -52,167 +52,54 @@
  * // jq '.overallSecurityCoherence >= 0.7'
  */
 
-import { intro, outro, spinner, log } from '@clack/prompts';
 import chalk from 'chalk';
-import path from 'path';
 import { CoherenceAlgebraAdapter } from '../../core/overlays/strategic-coherence/algebra-adapter.js';
-import { environmentService } from '../../core/services/environment/EnvironmentService.js';
-
-interface SecurityCoherenceOptions {
-  projectRoot: string;
-  format?: 'table' | 'json';
-  verbose?: boolean;
-}
+import { resolvePgcRoot, displayItemList } from './utils.js';
+import { createSugarCommand } from './factory.js';
+import { OverlayItem } from '../../core/algebra/overlay-algebra.js';
+import { SugarCommandOptions } from './types.js';
 
 /**
- * Resolve Grounded Context Pool (PGC) root directory
- *
- * Walks up the directory tree from startPath to find the nearest
- * .open_cognition workspace.
- *
- * @param startPath - Starting directory for the walk-up search
- * @returns Absolute path to .open_cognition directory
- * @throws {Error} Exits process if no workspace found
+ * Security coherence metrics command handler
  */
-function resolvePgcRoot(
-  startPath: string,
-  options?: SecurityCoherenceOptions
-): string {
-  const projectRoot = environmentService.findProjectRoot(startPath);
+export const securityCoherenceCommand = createSugarCommand({
+  name: '🔒 Security Coherence Metrics',
+  description:
+    'Analyzing security implementation alignment with mission principles',
+  overlayType: 'O7',
+  itemLabel: 'security symbol',
+  pluralItemLabel: 'security symbols',
+  customHandler: async (options: SugarCommandOptions) => {
+    const pgcRoot = resolvePgcRoot(options.projectRoot || '.');
+    const useJson =
+      options.format === 'json' || process.env.COGNITION_FORMAT === 'json';
 
-  if (!projectRoot) {
-    if (options?.format !== 'json' && process.env.COGNITION_FORMAT !== 'json') {
-      log.error(
-        chalk.red(
-          'No .open_cognition workspace found. Run "cognition-cli init" to create one.'
-        )
-      );
-    }
-    process.exit(1);
-  }
-
-  return path.join(projectRoot, '.open_cognition');
-}
-
-/**
- * Security coherence metrics interface
- */
-interface SecurityCoherenceMetrics {
-  // Security class scores
-  securityClassScores: Array<{
-    className: string;
-    filePath: string;
-    coherenceScore: number;
-    topConcept: string;
-    conceptScore: number;
-  }>;
-
-  // Mission concept alignments (dynamically extracted from top concepts)
-  topMissionConcepts: Array<{
-    concept: string;
-    alignedClasses: number;
-    averageScore: number;
-  }>;
-
-  // Implementation coverage
-  implementationCoverage: {
-    hasTransparencyLog: boolean;
-    hasDriftDetector: boolean;
-    hasValidator: boolean;
-    hasMissionIntegrity: boolean;
-    implementedComponents: string[];
-  };
-
-  // Overall
-  overallSecurityCoherence: number; // Average of all security class scores
-  securityClassCount: number;
-  medianSecurityScore: number;
-}
-
-/**
- * Calculate and display security coherence metrics
- *
- * Analyzes how well security implementation aligns with mission principles
- * by filtering O₇ coherence data to security-related symbols. Provides
- * overall scores, component coverage, and alignment insights.
- *
- * ANALYSIS PROCESS:
- * 1. Load all coherence data from O₇
- * 2. Filter to security symbols (file path or name contains security keywords)
- * 3. Calculate aggregate metrics (average, median, component presence)
- * 4. Group by top mission concepts to identify alignment patterns
- * 5. Display formatted report with recommendations
- *
- * @param options - Command options
- * @param options.projectRoot - Root directory of the project
- * @param options.format - Output format: 'table' | 'json'
- * @param options.verbose - Show detailed per-class breakdown
- * @returns Promise that resolves when analysis is complete
- *
- * @example
- * // Show security coherence report
- * await securityCoherenceCommand({
- *   projectRoot: '.',
- *   format: 'table',
- *   verbose: false
- * });
- *
- * @example
- * // Detailed analysis with all security classes
- * await securityCoherenceCommand({
- *   projectRoot: '.',
- *   verbose: true
- * });
- */
-export async function securityCoherenceCommand(
-  options: SecurityCoherenceOptions
-): Promise<void> {
-  const useJson =
-    options.format === 'json' || process.env.COGNITION_FORMAT === 'json';
-
-  if (!useJson) {
-    intro(chalk.bold.cyan('🔒 Security Coherence Metrics'));
-  }
-
-  const pgcRoot = resolvePgcRoot(options.projectRoot, options);
-
-  const s = spinner();
-  if (!useJson) {
-    s.start('Analyzing security implementation alignment');
-  }
-
-  try {
     // Load coherence data
     const coherenceAdapter = new CoherenceAlgebraAdapter(pgcRoot);
     const allItems = await coherenceAdapter.getAllItems();
 
     // Filter to security-related symbols
-    const securitySymbols = allItems.filter(
-      (item) =>
-        item.metadata.filePath.includes('security') ||
-        item.metadata.symbolName.toLowerCase().includes('security') ||
-        item.metadata.symbolName.toLowerCase().includes('validator') ||
-        item.metadata.symbolName.toLowerCase().includes('drift') ||
-        item.metadata.symbolName.toLowerCase().includes('transparency')
-    );
-
-    if (!useJson) {
-      s.stop('Analysis complete');
-    }
+    const securitySymbols = allItems.filter((item) => {
+      const metadata = item.metadata as Record<string, unknown>;
+      const filePath = (metadata.filePath as string) || '';
+      const symbolName = (metadata.symbolName as string) || '';
+      return (
+        filePath.includes('security') ||
+        symbolName.toLowerCase().includes('security') ||
+        symbolName.toLowerCase().includes('validator') ||
+        symbolName.toLowerCase().includes('drift') ||
+        symbolName.toLowerCase().includes('transparency')
+      );
+    });
 
     if (securitySymbols.length === 0) {
       if (!useJson) {
-        log.warn(
+        console.log(
           chalk.yellow(
             '\n⚠️  No security symbols found in coherence overlay.\n\n' +
-              'This might indicate:\n' +
-              '  1. Security classes not extracted into O₁ structural overlay\n' +
-              '  2. O₇ coherence overlay needs regeneration\n' +
-              '  3. Security symbols not matching filter criteria\n\n' +
               'Try: cognition-cli overlay generate strategic-coherence --force\n'
           )
         );
-        outro(chalk.dim('Security coherence analysis complete (no data)'));
       } else {
         console.log(JSON.stringify([], null, 2));
       }
@@ -220,87 +107,81 @@ export async function securityCoherenceCommand(
     }
 
     // Calculate metrics
-    const metrics = await calculateSecurityMetrics(securitySymbols);
+    const metrics = calculateSecurityMetrics(securitySymbols);
 
     // Display results
     if (useJson) {
       console.log(JSON.stringify(metrics, null, 2));
     } else {
-      displaySecurityCoherenceReport(metrics, options.verbose || false);
-    }
+      displaySecurityCoherenceReport(metrics);
 
-    if (!useJson) {
-      outro(chalk.green('✓ Security coherence analysis complete'));
+      // Also show the item list if verbose
+      if (options.verbose) {
+        console.log(chalk.bold('\n🔐 Security Classes (sorted by coherence):'));
+        displayItemList(securitySymbols, 'security symbols', options);
+      } else {
+        console.log(
+          chalk.dim(
+            `\n  Use --verbose to see detailed security class breakdown (${securitySymbols.length} symbols)`
+          )
+        );
+      }
     }
-  } catch (error) {
-    if (!useJson) {
-      s.stop('Analysis failed');
-      log.error(chalk.red((error as Error).message));
-    }
-    if (options.verbose) {
-      console.error(error);
-    }
-    process.exit(1);
-  }
-}
+  },
+});
 
-interface CoherenceSymbol {
-  metadata: {
-    symbolName: string;
+interface SecurityCoherenceMetrics {
+  securityClassScores: Array<{
+    className: string;
     filePath: string;
-    coherence?: number;
-    topConcept?: string;
-    topConceptScore?: number;
+    coherenceScore: number;
+    topConcept: string;
+    conceptScore: number;
+  }>;
+  topMissionConcepts: Array<{
+    concept: string;
+    alignedClasses: number;
+    averageScore: number;
+  }>;
+  implementationCoverage: {
+    hasTransparencyLog: boolean;
+    hasDriftDetector: boolean;
+    hasValidator: boolean;
+    hasMissionIntegrity: boolean;
+    implementedComponents: string[];
   };
+  overallSecurityCoherence: number;
+  securityClassCount: number;
+  medianSecurityScore: number;
 }
 
-/**
- * Calculate security-specific coherence metrics
- *
- * Processes security symbols from O₇ to extract:
- * - Per-class coherence scores
- * - Top mission concept alignments
- * - Security component coverage
- * - Statistical aggregates (mean, median)
- *
- * @param securitySymbols - Filtered security symbols from O₇ coherence data
- * @returns Structured security coherence metrics
- *
- * @example
- * const symbols = allItems.filter(item =>
- *   item.metadata.filePath.includes('security')
- * );
- * const metrics = await calculateSecurityMetrics(symbols);
- * // Returns: { overallSecurityCoherence, topMissionConcepts, ... }
- */
-async function calculateSecurityMetrics(
-  securitySymbols: CoherenceSymbol[]
-): Promise<SecurityCoherenceMetrics> {
+function calculateSecurityMetrics(
+  securitySymbols: OverlayItem[]
+): SecurityCoherenceMetrics {
   // Extract security class scores
-  const securityClassScores = securitySymbols.map((item) => ({
-    className: item.metadata.symbolName,
-    filePath: item.metadata.filePath,
-    coherenceScore: item.metadata.coherence || 0,
-    topConcept: item.metadata.topConcept || 'Unknown',
-    conceptScore: item.metadata.topConceptScore || 0,
-  }));
+  const securityClassScores = securitySymbols.map((item) => {
+    const metadata = item.metadata as Record<string, unknown>;
+    return {
+      className: (metadata.symbolName as string) || item.id,
+      filePath: (metadata.filePath as string) || '',
+      coherenceScore: (metadata.overallCoherence as number) || 0,
+      topConcept: (metadata.topConceptText as string) || 'Unknown',
+      conceptScore: (metadata.topConceptScore as number) || 0,
+    };
+  });
 
-  // Dynamically group by top concepts to find what security aligns with
+  // Dynamically group by top concepts
   const conceptMap = new Map<string, { scores: number[]; classes: string[] }>();
-
   for (const cls of securityClassScores) {
     if (!cls.topConcept || cls.topConcept === 'Unknown') continue;
-
     if (!conceptMap.has(cls.topConcept)) {
       conceptMap.set(cls.topConcept, { scores: [], classes: [] });
     }
-
     const entry = conceptMap.get(cls.topConcept)!;
     entry.scores.push(cls.coherenceScore);
     entry.classes.push(cls.className);
   }
 
-  // Convert to sorted array of top mission concepts
   const topMissionConcepts = Array.from(conceptMap.entries())
     .map(([concept, data]) => ({
       concept,
@@ -308,12 +189,13 @@ async function calculateSecurityMetrics(
       averageScore: data.scores.reduce((a, b) => a + b, 0) / data.scores.length,
     }))
     .sort((a, b) => b.averageScore - a.averageScore)
-    .slice(0, 5); // Top 5 mission concepts
+    .slice(0, 5);
 
-  // Check for specific security components
   const implementedComponents: string[] = [];
   const hasTransparencyLog = securitySymbols.some((s) => {
-    if (s.metadata.symbolName === 'TransparencyLog') {
+    const metadata = s.metadata as Record<string, unknown>;
+    const symbolName = (metadata.symbolName as string) || '';
+    if (symbolName === 'TransparencyLog') {
       implementedComponents.push('TransparencyLog');
       return true;
     }
@@ -321,35 +203,39 @@ async function calculateSecurityMetrics(
   });
 
   const hasDriftDetector = securitySymbols.some((s) => {
-    if (s.metadata.symbolName.includes('Drift')) {
-      implementedComponents.push(s.metadata.symbolName);
+    const metadata = s.metadata as Record<string, unknown>;
+    const symbolName = (metadata.symbolName as string) || '';
+    if (symbolName.includes('Drift')) {
+      implementedComponents.push(symbolName);
       return true;
     }
     return false;
   });
 
   const hasValidator = securitySymbols.some((s) => {
-    if (s.metadata.symbolName.includes('Validator')) {
-      implementedComponents.push(s.metadata.symbolName);
+    const metadata = s.metadata as Record<string, unknown>;
+    const symbolName = (metadata.symbolName as string) || '';
+    if (symbolName.includes('Validator')) {
+      implementedComponents.push(symbolName);
       return true;
     }
     return false;
   });
 
   const hasMissionIntegrity = securitySymbols.some((s) => {
-    if (s.metadata.symbolName.includes('Integrity')) {
-      implementedComponents.push(s.metadata.symbolName);
+    const metadata = s.metadata as Record<string, unknown>;
+    const symbolName = (metadata.symbolName as string) || '';
+    if (symbolName.includes('Integrity')) {
+      implementedComponents.push(symbolName);
       return true;
     }
     return false;
   });
 
-  // Calculate overall coherence (simple average)
   const overallSecurityCoherence =
     securityClassScores.reduce((sum, s) => sum + s.coherenceScore, 0) /
     securityClassScores.length;
 
-  // Calculate median
   const sorted = [...securityClassScores].sort(
     (a, b) => a.coherenceScore - b.coherenceScore
   );
@@ -376,35 +262,12 @@ async function calculateSecurityMetrics(
   };
 }
 
-/**
- * Display formatted security coherence report
- *
- * Renders security coherence metrics with:
- * - Color-coded overall score (green ≥70%, yellow ≥50%, red <50%)
- * - Top mission concepts security aligns with
- * - Component coverage checklist
- * - Actionable recommendations
- * - Optional verbose per-class breakdown
- *
- * @param metrics - Calculated security coherence metrics
- * @param verbose - Include detailed per-class scores
- *
- * @example
- * displaySecurityCoherenceReport(metrics, true);
- * // Shows:
- * // Overall: 78.5% (green)
- * // Top Concepts: ["transparency", "verifiability", ...]
- * // Coverage: ✓ Validator, ✓ Drift Detector, ✗ Transparency Log
- * // Classes: MissionValidator (85%), SemanticDriftDetector (72%), ...
- */
 function displaySecurityCoherenceReport(
-  metrics: SecurityCoherenceMetrics,
-  verbose: boolean
+  metrics: SecurityCoherenceMetrics
 ): void {
-  console.log(chalk.bold('\n📊 Security Coherence Report'));
+  console.log(chalk.bold('\n📊 Security Coherence Summary'));
   console.log(chalk.dim('━'.repeat(80)));
 
-  // Overall score
   const overallColor =
     metrics.overallSecurityCoherence >= 0.7
       ? chalk.green
@@ -422,7 +285,6 @@ function displaySecurityCoherenceReport(
     )
   );
 
-  // Top mission concepts (dynamically discovered)
   if (metrics.topMissionConcepts.length > 0) {
     console.log(chalk.bold('\n🎯 Top Mission Concept Alignments:'));
     metrics.topMissionConcepts.forEach((concept, i) => {
@@ -432,15 +294,8 @@ function displaySecurityCoherenceReport(
       );
       console.log(chalk.dim(`     Aligned classes: ${concept.alignedClasses}`));
     });
-  } else {
-    console.log(
-      chalk.yellow(
-        '\n⚠️  No mission concept alignments found (classes lack topConcept data)'
-      )
-    );
   }
 
-  // Implementation coverage
   console.log(chalk.bold('\n⚙️  Security Component Coverage:'));
   const coverage = metrics.implementationCoverage;
   console.log(
@@ -456,45 +311,6 @@ function displaySecurityCoherenceReport(
     `  Mission Integrity:  ${coverage.hasMissionIntegrity ? chalk.green('✓ Implemented') : chalk.red('✗ Missing')}`
   );
 
-  if (coverage.implementedComponents.length > 0) {
-    console.log(
-      chalk.dim(
-        `  Tracked components: ${coverage.implementedComponents.join(', ')}`
-      )
-    );
-  }
-
-  // Security classes
-  if (verbose) {
-    console.log(chalk.bold('\n🔐 Security Classes (sorted by coherence):'));
-    const sorted = [...metrics.securityClassScores].sort(
-      (a, b) => b.coherenceScore - a.coherenceScore
-    );
-
-    sorted.forEach((cls, i) => {
-      const scoreColor = formatScoreColor(cls.coherenceScore);
-
-      console.log(
-        `\n  ${i + 1}. ${chalk.cyan(cls.className)} ${chalk.dim(`[${cls.filePath}]`)}`
-      );
-      console.log(
-        `     Coherence: ${scoreColor(`${(cls.coherenceScore * 100).toFixed(1)}%`)}`
-      );
-      console.log(
-        chalk.dim(
-          `     Top concept: ${cls.topConcept.slice(0, 60)}${cls.topConcept.length > 60 ? '...' : ''} (${(cls.conceptScore * 100).toFixed(1)}%)`
-        )
-      );
-    });
-  } else {
-    console.log(
-      chalk.dim(
-        `\n  Use --verbose to see detailed security class breakdown (${metrics.securityClassCount} classes)`
-      )
-    );
-  }
-
-  // Recommendations
   console.log(chalk.bold('\n💡 Recommendations:'));
   if (metrics.overallSecurityCoherence < 0.7) {
     console.log(
@@ -515,13 +331,6 @@ function displaySecurityCoherenceReport(
       )
     );
   }
-  if (!coverage.hasDriftDetector) {
-    console.log(
-      chalk.red(
-        '  • Drift detection not tracked. Verify SemanticDriftDetector is extracted.'
-      )
-    );
-  }
   if (
     metrics.overallSecurityCoherence >= 0.7 &&
     coverage.hasValidator &&
@@ -533,23 +342,8 @@ function displaySecurityCoherenceReport(
   }
 }
 
-/**
- * Get color function for coherence score
- *
- * Returns chalk color function based on score thresholds:
- * - Green: ≥70% (well-aligned)
- * - Yellow: ≥50% (needs attention)
- * - Red: <50% (drifted)
- *
- * @param score - Coherence score (0.0 to 1.0)
- * @returns Chalk color function for formatting
- */
 function formatScoreColor(score: number): (text: string) => string {
-  if (score >= 0.7) {
-    return chalk.green;
-  } else if (score >= 0.5) {
-    return chalk.yellow;
-  } else {
-    return chalk.red;
-  }
+  if (score >= 0.7) return chalk.green;
+  if (score >= 0.5) return chalk.yellow;
+  return chalk.red;
 }

@@ -5,6 +5,7 @@ export interface SugarCommandOptions {
   verbose?: boolean;
   type?: string;
   threshold?: number;
+  scoreField?: string;
 }
 
 export interface SugarCommandConfig {
@@ -15,4 +16,6 @@ export interface SugarCommandConfig {
   itemLabel: string;
   pluralItemLabel: string;
   customQuery?: string;
+  scoreField?: string;
+  customHandler?: (options: SugarCommandOptions) => Promise<void>;
 }

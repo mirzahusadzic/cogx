@@ -1,33 +1,12 @@
 import chalk from 'chalk';
-import { intro, outro, log, spinner as clackSpinner } from '@clack/prompts';
+import { intro, outro, spinner as clackSpinner } from '@clack/prompts';
 import { createQueryEngine } from '../../core/algebra/query-parser.js';
 import { SugarCommandConfig, SugarCommandOptions } from './types.js';
-import { displayItemList, displayMeetResults } from './utils.js';
-import { environmentService } from '../../core/services/environment/EnvironmentService.js';
-
-/**
- * Resolve Grounded Context Pool (PGC) root directory
- *
- * @param options - Command options containing projectRoot
- * @returns Absolute path to .open_cognition directory
- * @throws {Error} Exits process if no workspace found
- */
-function resolvePgcPath(options: SugarCommandOptions): string {
-  const useJson =
-    options.format === 'json' || process.env.COGNITION_FORMAT === 'json';
-  try {
-    return environmentService.resolvePgcDir(options.projectRoot || '.');
-  } catch {
-    if (!useJson) {
-      log.error(
-        chalk.red(
-          'No .open_cognition workspace found. Run "cognition-cli init" to create one.'
-        )
-      );
-    }
-    process.exit(1);
-  }
-}
+import {
+  displayItemList,
+  displayMeetResults,
+  resolvePgcRoot,
+} from './utils.js';
 
 /**
  * Higher-order function to create a "sugar" command.
@@ -52,7 +31,7 @@ export function createSugarCommand(config: SugarCommandConfig) {
       intro(chalk.bold(config.name));
     }
 
-    const pgcRoot = resolvePgcPath(options);
+    const pgcRoot = resolvePgcRoot(options.projectRoot || '.');
     const s = clackSpinner();
 
     if (!useJson) {
@@ -60,6 +39,15 @@ export function createSugarCommand(config: SugarCommandConfig) {
     }
 
     try {
+      if (config.customHandler) {
+        await config.customHandler(options);
+
+        if (!useJson) {
+          outro(chalk.green(`✓ ${config.pluralItemLabel} analysis complete`));
+        }
+        return;
+      }
+
       const workbenchUrl = process.env.WORKBENCH_URL || 'http://localhost:8000';
       const engine = createQueryEngine(pgcRoot, workbenchUrl);
 
@@ -88,9 +76,15 @@ export function createSugarCommand(config: SugarCommandConfig) {
         'itemB' in result[0];
 
       if (isMeetResult) {
-        displayMeetResults(result, config.pluralItemLabel, options);
+        displayMeetResults(result, config.pluralItemLabel, {
+          ...options,
+          scoreField: config.scoreField,
+        });
       } else {
-        displayItemList(result, config.pluralItemLabel, options);
+        displayItemList(result, config.pluralItemLabel, {
+          ...options,
+          scoreField: config.scoreField,
+        });
       }
 
       if (!useJson) {

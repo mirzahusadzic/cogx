@@ -1,7 +1,7 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { addConceptsCommands } from '../concepts.js';
+import { addConceptsCommands } from '../sugar/concepts.js';
 
 describe('concepts command', () => {
   let program: Command;

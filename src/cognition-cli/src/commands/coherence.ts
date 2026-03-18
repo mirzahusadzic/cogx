@@ -43,11 +43,9 @@ import { getVerboseState } from '../utils/verbose.js';
 import chalk from 'chalk';
 import path from 'path';
 import { OverlayRegistry } from '../core/algebra/overlay-registry.js';
-import type {
-  CoherenceMetadata,
-  CoherenceAlgebraAdapter,
-} from '../core/overlays/strategic-coherence/algebra-adapter.js';
+import type { CoherenceAlgebraAdapter } from '../core/overlays/strategic-coherence/algebra-adapter.js';
 import { environmentService } from '../core/services/environment/EnvironmentService.js';
+import { displayItemList } from './sugar/utils.js';
 
 /**
  * Adds strategic coherence query commands to the CLI program.
@@ -404,11 +402,12 @@ export function addCoherenceCommands(program: Command) {
           return;
         }
 
-        displayCoherenceItems(
-          filtered,
-          { ...options, format: useJson ? 'json' : options.format },
-          minScore
-        );
+        displayItemList(filtered, 'aligned symbols', {
+          ...options,
+          format: useJson ? 'json' : options.format,
+          limit: parseInt(options.limit || '50'),
+          scoreField: 'overallCoherence',
+        });
       } catch (error) {
         console.error(chalk.red(`\n✗ ${(error as Error).message}\n`));
         if (isVerbose) {
@@ -512,12 +511,12 @@ export function addCoherenceCommands(program: Command) {
           return;
         }
 
-        displayCoherenceItems(
-          filtered,
-          { ...options, format: useJson ? 'json' : options.format },
-          maxScore,
-          true
-        );
+        displayItemList(filtered, 'drifted symbols', {
+          ...options,
+          format: useJson ? 'json' : options.format,
+          limit: parseInt(options.limit || '50'),
+          scoreField: 'overallCoherence',
+        });
       } catch (error) {
         console.error(chalk.red(`\n✗ ${(error as Error).message}\n`));
         if (isVerbose) {
@@ -585,9 +584,11 @@ export function addCoherenceCommands(program: Command) {
           return;
         }
 
-        displayCoherenceItems(items, {
+        displayItemList(items, 'symbols', {
           ...options,
           format: useJson ? 'json' : options.format,
+          limit: parseInt(options.limit || '50'),
+          scoreField: 'overallCoherence',
         });
       } catch (error) {
         console.error(chalk.red(`\n✗ ${(error as Error).message}\n`));
@@ -597,111 +598,4 @@ export function addCoherenceCommands(program: Command) {
         process.exit(1);
       }
     });
-}
-
-/**
- * Display coherence items in requested format.
- *
- * Supports three output formats:
- * - table: Visual progress bars and detailed metadata
- * - json: Raw JSON data suitable for further processing
- * - summary: Compact list of symbol names with scores
- *
- * @param items - Array of coherence items with metadata and embeddings
- * @param options - Display options (format, limit)
- * @param threshold - Optional threshold for filtering display message
- * @param isDrifted - Whether displaying drifted (low) symbols vs aligned (high)
- * @example
- * displayCoherenceItems(coherenceItems, { format: 'table', limit: '50' }, 0.7);
- */
-function displayCoherenceItems(
-  items: Array<{
-    id: string;
-    metadata: CoherenceMetadata;
-    embedding: number[];
-  }>,
-  options: { format?: string; limit?: string },
-  threshold?: number,
-  isDrifted = false
-): void {
-  const format = options.format || 'table';
-  const limit = parseInt(options.limit || '50');
-
-  console.log('');
-  console.log(
-    chalk.bold(
-      isDrifted
-        ? `⚠ Drifted Symbols (score ${threshold ? `< ${threshold.toFixed(2)}` : '< 0.5'})`
-        : threshold
-          ? `✓ Aligned Symbols (score ≥ ${threshold.toFixed(2)})`
-          : `All Symbols (${items.length} total)`
-    )
-  );
-  console.log(chalk.gray('━'.repeat(60)));
-
-  if (format === 'json') {
-    console.log(JSON.stringify(items.slice(0, limit), null, 2));
-    return;
-  }
-
-  if (format === 'summary') {
-    console.log(chalk.dim(`Showing ${Math.min(limit, items.length)} items`));
-    for (const item of items.slice(0, limit)) {
-      const score = (item.metadata.overallCoherence * 100).toFixed(1);
-      console.log(`  ${chalk.cyan(item.metadata.symbolName)} - ${score}%`);
-    }
-    console.log('');
-    return;
-  }
-
-  // Table format (default)
-  console.log(
-    chalk.dim(
-      `Showing ${Math.min(limit, items.length)} of ${items.length} items`
-    )
-  );
-  console.log('');
-
-  for (const item of items.slice(0, limit)) {
-    const score = item.metadata.overallCoherence;
-    const scoreBar = '█'.repeat(Math.round(score * 20));
-    const scorePct = (score * 100).toFixed(1);
-
-    const scoreColor =
-      score >= 0.7 ? chalk.green : score >= 0.5 ? chalk.yellow : chalk.red;
-
-    console.log(
-      `${chalk.cyan.bold(item.metadata.symbolName)} ${chalk.dim(`[${item.metadata.filePath}]`)}`
-    );
-    console.log(`  ${scoreColor(scoreBar)} ${scorePct}%`);
-    console.log(
-      chalk.dim(
-        `  Top concept: ${truncate(item.metadata.topConceptText, 60)} (${(item.metadata.topConceptScore * 100).toFixed(1)}%)`
-      )
-    );
-    console.log('');
-  }
-
-  if (items.length > limit) {
-    console.log(
-      chalk.dim(
-        `... and ${items.length - limit} more (use --limit to see more)`
-      )
-    );
-    console.log('');
-  }
-}
-
-/**
- * Truncate text to maximum length with ellipsis.
- *
- * @param text - Text to truncate
- * @param maxLength - Maximum length including ellipsis
- * @returns Truncated text with '...' if longer than maxLength
- * @example
- * truncate("Long concept text here", 20); // "Long concept tex..."
- */
-function truncate(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength - 3) + '...';
 }

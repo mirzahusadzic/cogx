@@ -6,6 +6,49 @@ import {
   SetOperationResult,
   OverlayMetadata,
 } from '../../core/algebra/overlay-algebra.js';
+import { environmentService } from '../../core/services/environment/EnvironmentService.js';
+
+/**
+ * Resolve Grounded Context Pool (PGC) root directory
+ *
+ * @param startPath - Starting directory for the walk-up search
+ * @returns Absolute path to .open_cognition directory
+ * @throws {Error} Exits process if no workspace found
+ */
+export function resolvePgcRoot(startPath: string): string {
+  try {
+    return environmentService.resolvePgcDir(startPath);
+  } catch {
+    log.error(
+      chalk.red(
+        'No .open_cognition workspace found. Run "cognition-cli init" to create one.'
+      )
+    );
+    process.exit(1);
+  }
+}
+
+/**
+ * Render a visual score bar.
+ *
+ * @param score - Score between 0 and 1
+ * @param width - Character width of the bar
+ * @returns Formatted string with chalk colors
+ */
+export function renderScoreBar(score: number, width: number = 20): string {
+  const bar = '█'.repeat(Math.round(score * width));
+  const color =
+    score >= 0.7 ? chalk.green : score >= 0.5 ? chalk.yellow : chalk.red;
+  return color(bar);
+}
+
+/**
+ * Truncate text to maximum length with ellipsis.
+ */
+export function truncate(text: string, maxLength: number): string {
+  if (!text || text.length <= maxLength) return text;
+  return text.substring(0, maxLength - 3) + '...';
+}
 
 /**
  * Display a list of items from a query result.
@@ -96,8 +139,21 @@ export function displayItemList(
       chalk.dim(`Showing summary of ${Math.min(limit, items.length)} items`)
     );
     for (const item of items.slice(0, limit)) {
-      log.info(`  ${chalk.cyan(item.id)}`);
-      log.info(chalk.dim(`    ${item.metadata.text}`));
+      const metadata = item.metadata as Record<string, unknown>;
+      const scoreKey =
+        options.scoreField ||
+        ['overallCoherence', 'weight', 'score', 'confidence'].find(
+          (k) => typeof metadata[k] === 'number'
+        );
+      const scorePart =
+        scoreKey && typeof metadata[scoreKey] === 'number'
+          ? ` - ${((metadata[scoreKey] as number) * 100).toFixed(1)}%`
+          : '';
+
+      log.info(`  ${chalk.cyan(item.id)}${scorePart}`);
+      log.info(
+        chalk.dim(`    ${truncate((metadata.text as string) || '', 80)}`)
+      );
     }
     return;
   }
@@ -110,21 +166,82 @@ export function displayItemList(
   );
   log.info('');
 
-  for (const item of items.slice(0, limit)) {
-    log.info(chalk.cyan(`${item.id}`));
-    log.info(chalk.dim(`  Type: ${item.metadata.type || 'unknown'}`));
-    log.info(chalk.dim(`  Statement: ${item.metadata.text}`));
+  for (const [index, item] of items.slice(0, limit).entries()) {
+    const metadata = item.metadata as Record<string, unknown>;
 
-    // Show additional metadata
-    const otherKeys = Object.keys(item.metadata).filter(
-      (k) => !['text', 'type', 'weight'].includes(k)
+    // Detect score field
+    const scoreKey =
+      options.scoreField ||
+      ['overallCoherence', 'weight', 'score', 'confidence'].find(
+        (k) => typeof metadata[k] === 'number'
+      );
+    const score =
+      scoreKey && typeof metadata[scoreKey] === 'number'
+        ? (metadata[scoreKey] as number)
+        : null;
+
+    // Line 1: Index + ID/Name
+    const displayName = (metadata.symbolName as string) || item.id;
+    const locationPart = metadata.filePath ? ` [${metadata.filePath}]` : '';
+    log.info(
+      `${chalk.dim((index + 1).toString().padStart(3))}. ${chalk.cyan.bold(displayName)}${chalk.dim(locationPart)}`
     );
-    if (otherKeys.length > 0) {
-      for (const key of otherKeys.slice(0, 3)) {
-        const value = item.metadata[key];
-        log.info(chalk.dim(`  ${key}: ${value}`));
+
+    // Line 2: Score Bar (if exists)
+    if (score !== null) {
+      const scoreBar = renderScoreBar(score, 30);
+      const scorePct = (score * 100).toFixed(1);
+      log.info(`     ${scoreBar} ${chalk.white(scorePct + '%')}`);
+    }
+
+    // Line 3: Statement/Text
+    if (metadata.text && metadata.text !== displayName) {
+      log.info(`     ${chalk.white(truncate(metadata.text as string, 120))}`);
+    }
+
+    // Line 4: Additional Metadata (Coherence / Concept specific)
+    const extraInfo = [];
+    if (metadata.topConceptText) {
+      extraInfo.push(
+        `Top concept: ${truncate(metadata.topConceptText as string, 40)} (${((metadata.topConceptScore as number) * 100).toFixed(1)}%)`
+      );
+    }
+    if (metadata.section) {
+      extraInfo.push(`Section: ${metadata.section}`);
+    }
+    if (metadata.occurrences) {
+      extraInfo.push(`Occurrences: ${metadata.occurrences}`);
+    }
+
+    if (extraInfo.length > 0) {
+      log.info(chalk.dim(`     ${extraInfo.join(' | ')}`));
+    } else {
+      // Fallback for other metadata
+      const otherKeys = Object.keys(metadata).filter(
+        (k) =>
+          ![
+            'text',
+            'type',
+            'weight',
+            'symbolName',
+            'filePath',
+            'id',
+            'overallCoherence',
+            'topConceptText',
+            'topConceptScore',
+            'section',
+            'occurrences',
+          ].includes(k)
+      );
+      if (otherKeys.length > 0) {
+        const otherInfo = otherKeys
+          .slice(0, 3)
+          .map((k) => `${k}: ${metadata[k]}`)
+          .join(' | ');
+        log.info(chalk.dim(`     ${otherInfo}`));
       }
     }
+
     log.info('');
   }
 
