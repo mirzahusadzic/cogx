@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import chalk from 'chalk';
+import path from 'path';
 import { environmentService } from '../../core/services/environment/EnvironmentService.js';
+import { log } from '@clack/prompts';
 import { overlayCommand } from '../overlay.js';
 import { createGenerateCommand } from '../overlay/generate.js';
 import { createListCommand } from '../overlay/list.js';
@@ -36,6 +38,20 @@ vi.mock('undici', () => ({
 
 vi.mock('yaml', () => ({
   parse: vi.fn(),
+}));
+
+vi.mock('@clack/prompts', () => ({
+  intro: vi.fn(),
+  outro: vi.fn(),
+  spinner: vi.fn(() => ({
+    start: vi.fn(),
+    stop: vi.fn(),
+  })),
+  log: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
 }));
 
 vi.mock('../../utils/progress-protocol.js', () => ({
@@ -422,6 +438,9 @@ describe('overlay command - list subcommand', () => {
     vi.mocked(environmentService.findProjectRoot).mockReturnValue(
       '/test/project'
     );
+    vi.mocked(environmentService.resolvePgcDir).mockImplementation((root) =>
+      path.join(root || '/test/project', '.open_cognition')
+    );
 
     const { LanceVectorStore } =
       await import('../../core/overlays/vector-db/lance-store.js');
@@ -477,8 +496,8 @@ describe('overlay command - list subcommand', () => {
       const command = createListCommand();
       await command.parseAsync([], { from: 'user' });
 
-      expect(mockConsoleLog).toHaveBeenCalledWith(
-        expect.stringContaining('Available Overlay Types')
+      expect(log.info).toHaveBeenCalledWith(
+        expect.stringContaining('Results: 7 overlays')
       );
       expect(mockVectorStore.close).toHaveBeenCalled();
     });
@@ -492,7 +511,12 @@ describe('overlay command - list subcommand', () => {
       const command = createListCommand();
       await command.parseAsync([], { from: 'user' });
 
-      const logCalls = mockConsoleLog.mock.calls
+      const logCalls = [
+        ...mockConsoleLog.mock.calls,
+        ...vi.mocked(log.info).mock.calls,
+        ...vi.mocked(log.warn).mock.calls,
+        ...vi.mocked(log.error).mock.calls,
+      ]
         .map((call: unknown[]) => call[0])
         .join('\n');
       expect(logCalls).toContain('not generated');
@@ -528,7 +552,12 @@ describe('overlay command - list subcommand', () => {
       const command = createListCommand();
       await command.parseAsync([], { from: 'user' });
 
-      const logCalls = mockConsoleLog.mock.calls
+      const logCalls = [
+        ...mockConsoleLog.mock.calls,
+        ...vi.mocked(log.info).mock.calls,
+        ...vi.mocked(log.warn).mock.calls,
+        ...vi.mocked(log.error).mock.calls,
+      ]
         .map((call: unknown[]) => call[0])
         .join('\n');
       expect(logCalls).toContain('10 patterns');
@@ -553,7 +582,12 @@ describe('overlay command - list subcommand', () => {
       const command = createListCommand();
       await command.parseAsync([], { from: 'user' });
 
-      const logCalls = mockConsoleLog.mock.calls
+      const logCalls = [
+        ...mockConsoleLog.mock.calls,
+        ...vi.mocked(log.info).mock.calls,
+        ...vi.mocked(log.warn).mock.calls,
+        ...vi.mocked(log.error).mock.calls,
+      ]
         .map((call: unknown[]) => call[0])
         .join('\n');
       expect(logCalls).toContain('3 security document(s)');
@@ -585,7 +619,12 @@ describe('overlay command - list subcommand', () => {
       const command = createListCommand();
       await command.parseAsync([], { from: 'user' });
 
-      const logCalls = mockConsoleLog.mock.calls
+      const logCalls = [
+        ...mockConsoleLog.mock.calls,
+        ...vi.mocked(log.info).mock.calls,
+        ...vi.mocked(log.warn).mock.calls,
+        ...vi.mocked(log.error).mock.calls,
+      ]
         .map((call: unknown[]) => call[0])
         .join('\n');
       expect(logCalls).toContain('100 symbols analyzed');
@@ -623,7 +662,12 @@ describe('overlay command - list subcommand', () => {
       const command = createListCommand();
       await command.parseAsync([], { from: 'user' });
 
-      const logCalls = mockConsoleLog.mock.calls
+      const logCalls = [
+        ...mockConsoleLog.mock.calls,
+        ...vi.mocked(log.info).mock.calls,
+        ...vi.mocked(log.warn).mock.calls,
+        ...vi.mocked(log.error).mock.calls,
+      ]
         .map((call: unknown[]) => call[0])
         .join('\n');
       expect(logCalls).toContain('manifest: 10');
@@ -636,7 +680,12 @@ describe('overlay command - list subcommand', () => {
       const command = createListCommand();
       await command.parseAsync([], { from: 'user' });
 
-      const logCalls = mockConsoleLog.mock.calls
+      const logCalls = [
+        ...mockConsoleLog.mock.calls,
+        ...vi.mocked(log.info).mock.calls,
+        ...vi.mocked(log.warn).mock.calls,
+        ...vi.mocked(log.error).mock.calls,
+      ]
         .map((call) => call[0])
         .join('\n');
 
@@ -653,7 +702,12 @@ describe('overlay command - list subcommand', () => {
       const command = createListCommand();
       await command.parseAsync([], { from: 'user' });
 
-      const logCalls = mockConsoleLog.mock.calls
+      const logCalls = [
+        ...mockConsoleLog.mock.calls,
+        ...vi.mocked(log.info).mock.calls,
+        ...vi.mocked(log.warn).mock.calls,
+        ...vi.mocked(log.error).mock.calls,
+      ]
         .map((call) => call[0])
         .join('\n');
 
@@ -670,7 +724,12 @@ describe('overlay command - list subcommand', () => {
       const command = createListCommand();
       await command.parseAsync([], { from: 'user' });
 
-      const logCalls = mockConsoleLog.mock.calls
+      const logCalls = [
+        ...mockConsoleLog.mock.calls,
+        ...vi.mocked(log.info).mock.calls,
+        ...vi.mocked(log.warn).mock.calls,
+        ...vi.mocked(log.error).mock.calls,
+      ]
         .map((call) => call[0])
         .join('\n');
 
@@ -688,8 +747,8 @@ describe('overlay command - list subcommand', () => {
       const command = createListCommand();
       await command.parseAsync([], { from: 'user' });
 
-      expect(mockConsoleLog).toHaveBeenCalledWith(
-        expect.stringContaining('Available Overlay Types')
+      expect(log.info).toHaveBeenCalledWith(
+        expect.stringContaining('Results: 7 overlays')
       );
     });
 
@@ -711,7 +770,12 @@ describe('overlay command - list subcommand', () => {
       const command = createListCommand();
       await command.parseAsync([], { from: 'user' });
 
-      const logCalls = mockConsoleLog.mock.calls
+      const logCalls = [
+        ...mockConsoleLog.mock.calls,
+        ...vi.mocked(log.info).mock.calls,
+        ...vi.mocked(log.warn).mock.calls,
+        ...vi.mocked(log.error).mock.calls,
+      ]
         .map((call: unknown[]) => call[0])
         .join('\n');
       expect(logCalls).toContain('error reading manifest');
@@ -738,7 +802,12 @@ describe('overlay command - list subcommand', () => {
       const command = createListCommand();
       await command.parseAsync([], { from: 'user' });
 
-      const logCalls = mockConsoleLog.mock.calls
+      const logCalls = [
+        ...mockConsoleLog.mock.calls,
+        ...vi.mocked(log.info).mock.calls,
+        ...vi.mocked(log.warn).mock.calls,
+        ...vi.mocked(log.error).mock.calls,
+      ]
         .map((call: unknown[]) => call[0])
         .join('\n');
       expect(logCalls).toContain('error reading overlay');

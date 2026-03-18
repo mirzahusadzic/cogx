@@ -5,7 +5,9 @@ import {
   coherenceAlignedCommand,
   coherenceDriftedCommand,
   coherenceListCommand,
-} from '../coherence.js';
+} from '../../coherence.js';
+import { environmentService } from '../../../core/services/environment/EnvironmentService.js';
+import { StrategicCoherenceManager } from '../../../core/overlays/strategic-coherence/manager.js';
 
 // Mock dependencies
 vi.mock('@clack/prompts', () => ({
@@ -33,15 +35,53 @@ vi.mock('../../../core/algebra/overlay-registry.js', () => ({
 
 vi.mock('../../../core/services/environment/EnvironmentService.js', () => ({
   environmentService: {
+    findProjectRoot: vi.fn().mockReturnValue('/test/project'),
     resolvePgcDir: vi.fn().mockReturnValue('/test/project/.open_cognition'),
   },
 }));
 
+// Mock the manager
+vi.mock('../../../core/overlays/strategic-coherence/manager.js', () => ({
+  StrategicCoherenceManager: vi.fn().mockImplementation(() => ({
+    retrieve: vi.fn(),
+  })),
+}));
+
 describe('Coherence Sugar Commands', () => {
   const options = { projectRoot: '/test/project' };
+  const mockCommand = {
+    optsWithGlobals: vi.fn().mockReturnValue({}),
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(environmentService.findProjectRoot).mockReturnValue(
+      '/test/project'
+    );
+    vi.mocked(environmentService.resolvePgcDir).mockReturnValue(
+      '/test/project/.open_cognition'
+    );
+    vi.mocked(StrategicCoherenceManager).mockImplementation(
+      () =>
+        ({
+          retrieve: vi.fn().mockResolvedValue({
+            generated_at: new Date().toISOString(),
+            mission_document_hashes: ['abc'],
+            mission_concepts_count: 10,
+            overall_metrics: {
+              average_coherence: 0.6,
+              weighted_coherence: 0.65,
+              lattice_coherence: 0.7,
+              median_coherence: 0.6,
+              top_quartile_coherence: 0.8,
+              bottom_quartile_coherence: 0.4,
+              std_deviation: 0.1,
+              high_alignment_threshold: 0.7,
+            },
+            symbol_coherence: [],
+          }),
+        }) as any
+    );
     vi.spyOn(process, 'exit').mockImplementation(() => {
       throw new Error('process.exit');
     });
@@ -70,7 +110,7 @@ describe('Coherence Sugar Commands', () => {
           }) as any
       );
 
-      await coherenceReportCommand(options);
+      await coherenceReportCommand(options, mockCommand);
 
       expect(mockAdapter.getAllItems).toHaveBeenCalled();
     });
@@ -90,7 +130,7 @@ describe('Coherence Sugar Commands', () => {
           }) as any
       );
 
-      await coherenceAlignedCommand(options);
+      await coherenceAlignedCommand(options, mockCommand);
 
       expect(mockAdapter.getItemsByCoherence).toHaveBeenCalledWith(true);
     });
@@ -110,7 +150,7 @@ describe('Coherence Sugar Commands', () => {
           }) as any
       );
 
-      await coherenceDriftedCommand(options);
+      await coherenceDriftedCommand(options, mockCommand);
 
       expect(mockAdapter.getItemsByCoherence).toHaveBeenCalledWith(false);
     });
@@ -130,7 +170,7 @@ describe('Coherence Sugar Commands', () => {
           }) as any
       );
 
-      await coherenceListCommand(options);
+      await coherenceListCommand(options, mockCommand);
 
       expect(mockAdapter.getItemsByCoherence).toHaveBeenCalledWith(true);
     });

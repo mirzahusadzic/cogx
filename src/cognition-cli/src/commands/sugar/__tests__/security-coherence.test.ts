@@ -30,6 +30,7 @@ vi.mock(
 vi.mock('../../../core/services/environment/EnvironmentService.js', () => ({
   environmentService: {
     findProjectRoot: vi.fn().mockReturnValue('/test/project'),
+    resolvePgcDir: vi.fn().mockReturnValue('/test/project/.open_cognition'),
   },
 }));
 
@@ -40,6 +41,9 @@ describe('Security Coherence Sugar Commands', () => {
     vi.clearAllMocks();
     vi.mocked(environmentService.findProjectRoot).mockReturnValue(
       '/test/project'
+    );
+    vi.mocked(environmentService.resolvePgcDir).mockReturnValue(
+      '/test/project/.open_cognition'
     );
     vi.spyOn(process, 'exit').mockImplementation(() => {
       throw new Error('process.exit');
@@ -59,8 +63,8 @@ describe('Security Coherence Sugar Commands', () => {
         metadata: {
           symbolName: 'MissionValidator',
           filePath: 'src/security/validator.ts',
-          coherence: 0.9,
-          topConcept: 'Verification',
+          overallCoherence: 0.9,
+          topConceptText: 'Verification',
           topConceptScore: 0.95,
         },
       },
@@ -68,8 +72,8 @@ describe('Security Coherence Sugar Commands', () => {
         metadata: {
           symbolName: 'SomeUtils',
           filePath: 'src/utils/misc.ts',
-          coherence: 0.5,
-          topConcept: 'Mission',
+          overallCoherence: 0.5,
+          topConceptText: 'Mission',
           topConceptScore: 0.6,
         },
       },
@@ -96,8 +100,8 @@ describe('Security Coherence Sugar Commands', () => {
         metadata: {
           symbolName: 'MissionValidator',
           filePath: 'src/security/validator.ts',
-          coherence: 0.9,
-          topConcept: 'Verification',
+          overallCoherence: 0.9,
+          topConceptText: 'Verification',
           topConceptScore: 0.95,
         },
       },

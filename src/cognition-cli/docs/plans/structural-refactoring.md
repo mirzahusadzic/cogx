@@ -12,6 +12,7 @@ This plan outlines the steps to refactor key areas of the Cognition Σ repositor
 
 - **Phase 1 (Core)**: `proofs`, `security`, `workflow` (src/commands/sugar/)
 - **Phase 2 (Coherence & Concepts)**: `coherence`, `concepts`, `security-coherence` (src/commands/)
+- **Phase 3 (Secondary Candidates)**: `overlay list`, `patterns list`, `status`
 
 ### Implementation Results
 
@@ -22,7 +23,8 @@ This plan outlines the steps to refactor key areas of the Cognition Σ repositor
    - Unified `coherence.ts` and `sugar/coherence.ts`, reducing ~100 lines of manual display logic.
    - Moved and refactored `concepts.ts` to `sugar/concepts.ts`, standardizing its 5+ subcommands.
    - Refactored `security-coherence.ts` to use the factory with a `customHandler` for specialized reporting.
-4. **Harmonization**: Standardized JSON output, spinners, and workspace resolution across 12+ CLI commands.
+   - (Planned) Migrate `overlay list`, `patterns list`, and `status` to use the shared utilities.
+4. **Harmonization**: Standardized JSON output, spinners, and workspace resolution across 15+ CLI commands.
 
 ### Impact
 

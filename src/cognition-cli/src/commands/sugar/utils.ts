@@ -15,17 +15,18 @@ import { environmentService } from '../../core/services/environment/EnvironmentS
  * @returns Absolute path to .open_cognition directory
  * @throws {Error} Exits process if no workspace found
  */
-export function resolvePgcRoot(startPath: string): string {
-  try {
-    return environmentService.resolvePgcDir(startPath);
-  } catch {
-    log.error(
+export function resolvePgcRoot(startPath: string = '.'): string {
+  const projectRoot = environmentService.findProjectRoot(startPath);
+  if (!projectRoot) {
+    console.error(
       chalk.red(
-        'No .open_cognition workspace found. Run "cognition-cli init" to create one.'
+        '\n✗ No .open_cognition workspace found. Run "cognition-cli init" to create one.\n'
       )
     );
     process.exit(1);
+    return ''; // Should not reach here
   }
+  return environmentService.resolvePgcDir(projectRoot);
 }
 
 /**

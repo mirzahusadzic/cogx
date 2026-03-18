@@ -57,7 +57,7 @@ import fs from 'fs-extra';
 import path from 'path';
 import { LanceVectorStore } from '../../core/overlays/vector-db/lance-store.js';
 import chalk from 'chalk';
-import { environmentService } from '../../core/services/environment/EnvironmentService.js';
+import { displayItemList, resolvePgcRoot } from '../sugar/utils.js';
 
 /**
  * Represents metadata for an available overlay type
@@ -128,33 +128,13 @@ export const createListCommand = () =>
     .description('List available overlay types and their status.')
     .option('--json', 'Output as JSON')
     .action(async (options, command) => {
-      // Overlay commands use current working directory - PGC discovery walks up to find .open_cognition
-      const projectRoot = environmentService.findProjectRoot(process.cwd());
+      const pgcRoot = resolvePgcRoot(options.projectRoot || '.');
+      const overlaysPath = path.join(pgcRoot, 'overlays');
 
       const allOpts = command.optsWithGlobals();
       const useJson =
         allOpts.json || options.json || process.env.COGNITION_FORMAT === 'json';
 
-      if (!projectRoot) {
-        if (!useJson) {
-          console.error(
-            chalk.red(
-              '\n✗ No .open_cognition workspace found. Run "cognition-cli init" to create one.\n'
-            )
-          );
-        }
-        process.exit(1);
-        return; // Prevent further execution when process.exit is mocked in tests
-      }
-
-      const pgcRoot = path.join(projectRoot, '.open_cognition');
-      const overlaysPath = path.join(pgcRoot, 'overlays');
-
-      if (!useJson) {
-        console.log('\nAvailable Overlay Types:\n');
-      }
-
-      // Initialize vector store
       const results = [];
 
       for (const overlay of OVERLAY_TYPES) {
@@ -282,27 +262,24 @@ export const createListCommand = () =>
           details = { manifestCount, vectorCount };
         }
 
-        if (useJson) {
-          results.push({
-            name: overlay.name,
-            description: overlay.description,
+        results.push({
+          id: overlay.name,
+          embedding: [],
+          metadata: {
+            text: overlay.description,
             status,
-            details,
-          });
-        } else {
-          const generateNote = overlay.generateSupported
-            ? ''
-            : ' (use other commands)';
-
-          console.log(`  ${overlay.name}${generateNote}`);
-          console.log(`    ${overlay.description}`);
-          console.log(`    Status: ${status}\n`);
-        }
+            generateSupported: overlay.generateSupported,
+            ...details,
+          },
+        });
       }
 
-      if (useJson) {
-        console.log(JSON.stringify(results, null, 2));
-      } else {
+      displayItemList(results, 'overlays', {
+        ...options,
+        format: useJson ? 'json' : 'table',
+      });
+
+      if (!useJson) {
         console.log('Usage (reads from PGC index - run genesis first):');
         console.log('  cognition-cli overlay generate <type>');
         console.log('  cognition-cli overlay generate structural_patterns');

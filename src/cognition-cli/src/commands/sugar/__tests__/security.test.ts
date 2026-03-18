@@ -8,6 +8,7 @@ import {
   securityCVEsCommand,
   securityQueryCommand,
 } from '../security.js';
+import { environmentService } from '../../../core/services/environment/EnvironmentService.js';
 
 // Mock dependencies
 vi.mock('@clack/prompts', () => ({
@@ -32,6 +33,7 @@ vi.mock('../../../core/algebra/query-parser.js', () => ({
 
 vi.mock('../../../core/services/environment/EnvironmentService.js', () => ({
   environmentService: {
+    findProjectRoot: vi.fn().mockReturnValue('/test/project'),
     resolvePgcDir: vi.fn().mockReturnValue('/test/project/.open_cognition'),
   },
 }));
@@ -49,6 +51,12 @@ describe('Security Sugar Commands', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(environmentService.findProjectRoot).mockReturnValue(
+      '/test/project'
+    );
+    vi.mocked(environmentService.resolvePgcDir).mockReturnValue(
+      '/test/project/.open_cognition'
+    );
     vi.spyOn(process, 'exit').mockImplementation(() => {
       // Silently throw to stop execution without process.exit(1) noise in tests
       throw new Error('process.exit');

@@ -53,11 +53,12 @@ import { Command } from 'commander';
 import { getVerboseState } from '../utils/verbose.js';
 import chalk from 'chalk';
 
-import { environmentService } from '../core/services/environment/EnvironmentService.js';
 import { DirtyStateManager } from '../core/watcher/dirty-state.js';
 import { Index } from '../core/pgc/index.js';
 import { DirtyState } from '../core/types/watcher.js';
 import { addExamples, combineHelpSections } from '../utils/help-formatter.js';
+import { resolvePgcRoot } from './sugar/utils.js';
+import { intro } from '@clack/prompts';
 
 /**
  * Impact analysis data for a modified file
@@ -179,6 +180,7 @@ export async function statusCommand(options: {
   const useJson = options.json || process.env.COGNITION_FORMAT === 'json';
 
   if (!useJson) {
+    intro(chalk.bold('PGC Coherence Status'));
     console.log(chalk.cyan('📦 PGC = Grounded Context Pool'));
     console.log(
       chalk.dim(
@@ -187,21 +189,7 @@ export async function statusCommand(options: {
     );
   }
 
-  const projectRoot = environmentService.findProjectRoot(process.cwd());
-
-  if (!projectRoot) {
-    if (!useJson) {
-      console.error(
-        chalk.red(
-          '\n✗ No .open_cognition workspace found. Run "cognition-cli init" to create one.\n'
-        )
-      );
-    }
-    process.exit(1);
-    return; // Prevent further execution
-  }
-
-  const pgcRoot = environmentService.resolvePgcDir(projectRoot);
+  const pgcRoot = resolvePgcRoot(process.cwd());
 
   const dirtyStateManager = new DirtyStateManager(pgcRoot);
   const index = new Index(pgcRoot);

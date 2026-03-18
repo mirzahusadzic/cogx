@@ -55,6 +55,7 @@
 
 import { getVerboseState } from '../utils/verbose.js';
 import { Command } from 'commander';
+import path from 'path';
 import { PGCManager } from '../core/pgc/manager.js';
 import {
   LanceVectorStore,
@@ -68,11 +69,16 @@ import chalk from 'chalk';
 import { z } from 'zod';
 
 import { PatternManager } from '../core/pgc/patterns.js';
+import { displayItemList, resolvePgcRoot } from './sugar/utils.js';
 
 /**
  * Adds pattern management and query commands to the CLI program
  *
- * Registers all pattern-related subcommands under the `patterns` command group.
+ * Registers subcommands for:
+ * - compact: Maintenance for pattern tables (LanceDB table compaction)
+ * - query: Find patterns similar to a given symbol using vector similarity
+ * - list: List patterns by type (structural/lineage) and optionally by architectural role
+ *
  * Each subcommand operates on structural or lineage patterns stored in the PGC.
  *
  * @param program - Commander program instance to add commands to
@@ -91,7 +97,7 @@ export function addPatternsCommands(program: Command) {
       'all'
     )
     .action(async (options) => {
-      const pgc = new PGCManager(process.cwd());
+      const pgcRoot = resolvePgcRoot(options.projectRoot || '.');
       const types =
         options.type === 'all'
           ? ['structural', 'lineage', 'mission_concepts', 'operational']
@@ -102,7 +108,7 @@ export function addPatternsCommands(program: Command) {
           ? type
           : `${type}_patterns`;
         console.log(chalk.blue(`[Patterns] Compacting ${tableName} table...`));
-        const vectorDB = new LanceVectorStore(pgc.pgcRoot);
+        const vectorDB = new LanceVectorStore(pgcRoot);
         try {
           await vectorDB.initialize(tableName);
           await vectorDB.compact();
@@ -126,8 +132,9 @@ export function addPatternsCommands(program: Command) {
     )
     .option('--json', 'Output raw JSON')
     .action(async (symbol, options, command) => {
-      const pgc = new PGCManager(process.cwd());
-      const vectorDB = new LanceVectorStore(pgc.pgcRoot);
+      const pgcRoot = resolvePgcRoot(options.projectRoot || '.');
+      const pgc = new PGCManager(path.dirname(pgcRoot));
+      const vectorDB = new LanceVectorStore(pgcRoot);
       const tableName = `${options.type}_patterns`;
       await vectorDB.initialize(tableName);
 
@@ -146,40 +153,31 @@ export function addPatternsCommands(program: Command) {
       const allOpts = command.optsWithGlobals();
       const useJson = allOpts.json || options.json;
 
-      if (useJson) {
-        console.log(JSON.stringify(results, null, 2));
-      } else {
-        console.log(
-          chalk.bold(
-            `\n🔍 ${
-              options.type === 'structural' ? 'Structural' : 'Lineage'
-            } patterns similar to ${chalk.cyan(symbol)}:\n`
-          )
-        );
-        results.forEach(
-          (
-            r: {
-              symbol: string;
-              filePath: string;
-              similarity: number;
-              architecturalRole: string;
-              explanation: string;
-            },
-            i: number
-          ) => {
-            const simBar = '█'.repeat(Math.round(r.similarity * 20));
-            console.log(
-              `${i + 1}. ${chalk.green(r.symbol)} ` +
-                `${chalk.gray(`[${r.architecturalRole}]`)}`
-            );
-            console.log(`   ${chalk.dim('📁 ' + r.filePath)}`);
-            console.log(
-              `   ${chalk.yellow(simBar)} ${(r.similarity * 100).toFixed(1)}%`
-            );
-            console.log(`   ${chalk.dim(r.explanation)}\n`);
-          }
-        );
-      }
+      const mappedResults = results.map(
+        (r: {
+          symbol: string;
+          filePath: string;
+          architecturalRole: string;
+          explanation: string;
+          similarity: number;
+        }) => ({
+          id: r.symbol,
+          embedding: [],
+          metadata: {
+            symbolName: r.symbol,
+            filePath: r.filePath,
+            role: r.architecturalRole,
+            text: r.explanation,
+            similarity: r.similarity,
+          },
+        })
+      );
+
+      displayItemList(mappedResults, `patterns similar to ${symbol}`, {
+        ...options,
+        scoreField: 'similarity',
+        format: useJson ? 'json' : 'table',
+      });
     });
 
   const analyzeCommand = patternsCommand
@@ -244,8 +242,8 @@ export function addPatternsCommands(program: Command) {
     )
     .option('--json', 'Output as JSON')
     .action(async (options, command) => {
-      const pgc = new PGCManager(process.cwd());
-      const vectorDB = new LanceVectorStore(pgc.pgcRoot);
+      const pgcRoot = resolvePgcRoot(options.projectRoot || '.');
+      const vectorDB = new LanceVectorStore(pgcRoot);
 
       const allOpts = command.optsWithGlobals();
       const useJson = allOpts.json || options.json;
@@ -278,56 +276,28 @@ export function addPatternsCommands(program: Command) {
         return path || 'unknown';
       };
 
-      if (filteredVectors.length === 0) {
-        if (!useJson) {
-          if (options.role) {
-            console.log(
-              chalk.yellow(
-                `\nNo patterns found with role: ${chalk.cyan(options.role)}`
-              )
-            );
-          } else {
-            console.log(chalk.yellow('\nNo patterns found.'));
-          }
-        } else {
-          console.log(JSON.stringify([], null, 2));
-        }
-        return;
-      }
-
-      if (useJson) {
-        const results = filteredVectors.map((v) => ({
-          symbol: v.symbol,
+      const results = filteredVectors.map((v) => ({
+        id: v.id as string,
+        embedding: (v.vector as number[]) || [],
+        metadata: {
+          symbolName: (v.symbol as string) || 'unknown',
           filePath: getFilePathFromId(v.id as string),
-          role: v.architectural_role,
-        }));
-        console.log(JSON.stringify(results, null, 2));
-        return;
-      }
+          role: v.architectural_role as string,
+          text: (v.symbol as string) || (v.id as string),
+        },
+      }));
 
-      const title = options.role
-        ? `Patterns with role: ${chalk.cyan(options.role)}`
-        : `All ${options.type} patterns`;
+      const label = options.role
+        ? `${options.type} patterns (role: ${options.role})`
+        : `${options.type} patterns`;
 
-      console.log(
-        chalk.bold(`\n📋 ${title} (${filteredVectors.length} found):\n`)
-      );
-
-      filteredVectors.forEach((v, i) => {
-        const symbol = (v.symbol as string) || 'unknown';
-        const filePath = getFilePathFromId(v.id as string);
-        const role = v.architectural_role as string;
-
-        console.log(`${i + 1}. ${chalk.green(symbol)}`);
-        console.log(`   📁 ${chalk.dim(filePath)}`);
-        if (!options.role) {
-          console.log(`   🏷️  ${chalk.cyan(role)}`);
-        }
-        console.log('');
+      displayItemList(results, label, {
+        ...options,
+        format: useJson ? 'json' : 'table',
       });
 
-      // Show available roles if no filter applied
-      if (!options.role) {
+      // Show available roles if no filter applied and not JSON
+      if (!options.role && !useJson) {
         const roles = new Set(
           allVectors.map((v) => v.architectural_role as string)
         );
