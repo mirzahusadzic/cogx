@@ -1,30 +1,8 @@
-/**
- * Provider Registry
- *
- * Central registry for managing LLM providers in the Cognition system.
- * Handles provider registration, lookup, and default provider management.
- *
- * Supports both basic LLMProvider and AgentProvider interfaces, enabling
- * the TUI to work with different LLM providers while maintaining full
- * feature parity.
- *
- * @example
- * ```typescript
- * import { registry } from './llm/index.js';
- *
- * // Get agent provider for TUI
- * const provider = registry.getAgent('claude');
- *
- * // List available agent providers
- * const agents = registry.listAgentProviders();
- * systemDiagnosticsService.systemLog('llm', 'Available agents:', agents);
- * ```
- */
-
 import type { LLMProvider } from './interfaces/provider.js';
 import type { AgentProvider } from './interfaces/agent-provider.js';
 import { isAgentProvider } from './interfaces/agent-provider.js';
 import { systemDiagnosticsService } from '../../core/services/diagnostics/SystemDiagnosticsService.js';
+import { BaseRegistry } from '../../core/common/registry.js';
 
 /**
  * Provider Registry
@@ -32,59 +10,43 @@ import { systemDiagnosticsService } from '../../core/services/diagnostics/System
  * Singleton registry for LLM providers. Manages provider lifecycle
  * and provides convenient access methods.
  */
-export class ProviderRegistry {
-  private providers = new Map<string, LLMProvider>();
+export class ProviderRegistry extends BaseRegistry<LLMProvider> {
   private defaultProvider = 'claude';
+
+  constructor() {
+    super('ProviderRegistry');
+  }
 
   /**
    * Register a provider
    *
    * @param provider - Provider instance to register
-   * @throws Error if provider with same name already registered
-   *
-   * @example
-   * ```typescript
-   * const claude = new ClaudeProvider(apiKey);
-   * registry.register(claude);
-   * ```
+   * @throws RegistryError if provider with same name already registered
    */
-  register(provider: LLMProvider): void {
-    if (this.providers.has(provider.name)) {
-      throw new Error(
-        `Provider '${provider.name}' is already registered. Unregister first if you want to replace it.`
-      );
-    }
-
-    this.providers.set(provider.name, provider);
+  registerProvider(provider: LLMProvider): void {
+    super.register(provider.name, provider);
 
     // Set as default if it's the first provider
-    if (this.providers.size === 1) {
+    if (this.items.size === 1) {
       this.defaultProvider = provider.name;
     }
   }
 
   /**
-   * Get provider by name
-   *
-   * @param name - Provider name
-   * @returns Provider instance
-   * @throws Error if provider not registered
-   *
-   * @example
-   * ```typescript
-   * const provider = registry.get('claude');
-   * await provider.complete(request);
-   * ```
+   * @deprecated Use registerProvider instead for better type safety,
+   * or follow the BaseRegistry signature.
    */
-  get(name: string): LLMProvider {
-    const provider = this.providers.get(name);
-    if (!provider) {
-      const available = this.list().join(', ') || 'none';
-      throw new Error(
-        `Provider '${name}' not registered. Available providers: ${available}`
-      );
+  override register(name: string, provider: LLMProvider): void;
+  override register(provider: LLMProvider): void;
+  override register(
+    nameOrProvider: string | LLMProvider,
+    provider?: LLMProvider
+  ): void {
+    if (typeof nameOrProvider === 'string') {
+      super.register(nameOrProvider, provider!);
+    } else {
+      this.registerProvider(nameOrProvider);
     }
-    return provider;
   }
 
   /**
@@ -93,15 +55,6 @@ export class ProviderRegistry {
    * @param name - Provider name
    * @returns AgentProvider instance
    * @throws Error if provider doesn't support agent mode
-   *
-   * @example
-   * ```typescript
-   * const agent = registry.getAgent('claude');
-   *
-   * for await (const response of agent.executeAgent(request)) {
-   *   console.log(response.messages);
-   * }
-   * ```
    */
   getAgent(name: string): AgentProvider {
     const provider = this.get(name);
@@ -119,14 +72,9 @@ export class ProviderRegistry {
    *
    * @returns Default provider instance
    * @throws Error if no providers registered
-   *
-   * @example
-   * ```typescript
-   * const provider = registry.getDefault();
-   * ```
    */
   getDefault(): LLMProvider {
-    if (this.providers.size === 0) {
+    if (this.items.size === 0) {
       throw new Error(
         'No providers registered. Register at least one provider before use.'
       );
@@ -139,11 +87,6 @@ export class ProviderRegistry {
    *
    * @returns Default AgentProvider instance
    * @throws Error if default provider doesn't support agent mode
-   *
-   * @example
-   * ```typescript
-   * const agent = registry.getDefaultAgent();
-   * ```
    */
   getDefaultAgent(): AgentProvider {
     return this.getAgent(this.defaultProvider);
@@ -154,14 +97,9 @@ export class ProviderRegistry {
    *
    * @param name - Provider name to set as default
    * @throws Error if provider not registered
-   *
-   * @example
-   * ```typescript
-   * registry.setDefault('gemini');
-   * ```
    */
   setDefault(name: string): void {
-    if (!this.providers.has(name)) {
+    if (!this.has(name)) {
       const available = this.list().join(', ') || 'none';
       throw new Error(
         `Cannot set default to unregistered provider '${name}'. ` +
@@ -175,12 +113,6 @@ export class ProviderRegistry {
    * Get name of default provider
    *
    * @returns Name of current default provider
-   *
-   * @example
-   * ```typescript
-   * const defaultName = registry.getDefaultName();
-   * systemDiagnosticsService.systemLog('llm', `Default provider: ${defaultName}`);
-   * ```
    */
   getDefaultName(): string {
     return this.defaultProvider;
@@ -194,14 +126,6 @@ export class ProviderRegistry {
    * @param name - Provider name
    * @returns True if provider is available
    * @throws Error if provider not registered
-   *
-   * @example
-   * ```typescript
-   * const available = await registry.healthCheck('claude');
-   * if (!available) {
-   *   console.warn('Claude is unavailable');
-   * }
-   * ```
    */
   async healthCheck(name: string): Promise<boolean> {
     const provider = this.get(name);
@@ -218,34 +142,13 @@ export class ProviderRegistry {
   }
 
   /**
-   * List all registered providers
-   *
-   * @returns Array of provider names
-   *
-   * @example
-   * ```typescript
-   * const providers = registry.list();
-   * systemDiagnosticsService.systemLog('llm', 'Available:', providers);
-   * ```
-   */
-  list(): string[] {
-    return Array.from(this.providers.keys());
-  }
-
-  /**
    * List providers that support agent mode
    *
    * @returns Array of agent provider names
-   *
-   * @example
-   * ```typescript
-   * const agents = registry.listAgentProviders();
-   * systemDiagnosticsService.systemLog('llm', 'Agent providers:', agents);
-   * ```
    */
   listAgentProviders(): string[] {
     return this.list().filter((name) => {
-      const provider = this.providers.get(name);
+      const provider = this.items.get(name);
       return provider && isAgentProvider(provider);
     });
   }
@@ -255,34 +158,10 @@ export class ProviderRegistry {
    *
    * @param name - Provider name
    * @returns True if provider supports agent mode
-   *
-   * @example
-   * ```typescript
-   * if (registry.supportsAgent('claude')) {
-   *   // Use agent features
-   * }
-   * ```
    */
   supportsAgent(name: string): boolean {
-    const provider = this.providers.get(name);
+    const provider = this.items.get(name);
     return !!provider && isAgentProvider(provider);
-  }
-
-  /**
-   * Check if provider is registered
-   *
-   * @param name - Provider name
-   * @returns True if provider exists
-   *
-   * @example
-   * ```typescript
-   * if (registry.has('gemini')) {
-   *   // Use Gemini
-   * }
-   * ```
-   */
-  has(name: string): boolean {
-    return this.providers.has(name);
   }
 
   /**
@@ -290,21 +169,13 @@ export class ProviderRegistry {
    *
    * @param name - Provider name
    * @returns True if provider was removed, false if not found
-   *
-   * @example
-   * ```typescript
-   * const removed = registry.unregister('old-provider');
-   * if (!removed) {
-   *   console.warn('Provider was not registered');
-   * }
-   * ```
    */
-  unregister(name: string): boolean {
-    const removed = this.providers.delete(name);
+  override unregister(name: string): boolean {
+    const removed = super.unregister(name);
 
     if (removed && this.defaultProvider === name) {
       // Reset default to first available provider or 'claude'
-      const firstProvider = this.providers.keys().next().value;
+      const firstProvider = this.items.keys().next().value;
       this.defaultProvider = firstProvider || 'claude';
     }
 
@@ -315,14 +186,9 @@ export class ProviderRegistry {
    * Clear all providers
    *
    * Removes all registered providers and resets default to 'claude'.
-   *
-   * @example
-   * ```typescript
-   * registry.clear();
-   * ```
    */
-  clear(): void {
-    this.providers.clear();
+  override clear(): void {
+    super.clear();
     this.defaultProvider = 'claude';
   }
 
@@ -330,15 +196,9 @@ export class ProviderRegistry {
    * Get count of registered providers
    *
    * @returns Number of registered providers
-   *
-   * @example
-   * ```typescript
-   * const count = registry.count();
-   * systemDiagnosticsService.systemLog('llm', `${count} providers registered`);
-   * ```
    */
   count(): number {
-    return this.providers.size;
+    return this.items.size;
   }
 
   /**
@@ -347,14 +207,6 @@ export class ProviderRegistry {
    * Checks availability of all registered providers.
    *
    * @returns Object mapping provider names to availability status
-   *
-   * @example
-   * ```typescript
-   * const results = await registry.healthCheckAll();
-   * for (const [name, available] of Object.entries(results)) {
-   *   systemDiagnosticsService.systemLog('llm', `${name}: ${available ? 'available' : 'unavailable'}`);
-   * }
-   * ```
    */
   async healthCheckAll(): Promise<Record<string, boolean>> {
     const results: Record<string, boolean> = {};
@@ -373,14 +225,5 @@ export class ProviderRegistry {
 
 /**
  * Global provider registry instance
- *
- * Import this to access registered providers throughout the application.
- *
- * @example
- * ```typescript
- * import { registry } from './llm/index.js';
- *
- * const provider = registry.getAgent('claude');
- * ```
  */
 export const registry = new ProviderRegistry();

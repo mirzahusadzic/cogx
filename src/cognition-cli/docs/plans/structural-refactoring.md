@@ -99,7 +99,9 @@ This plan outlines the steps to refactor key areas of the Cognition Σ repositor
 
 ---
 
-## 5. Registry Pattern Standardization
+## 5. Registry Pattern Standardization [COMPLETED]
+
+**Status**: COMPLETED (March 18, 2026)
 
 **Goal**: Create a reusable base for registry-like services to ensure consistent item management.
 
@@ -108,19 +110,22 @@ This plan outlines the steps to refactor key areas of the Cognition Σ repositor
 - `OverlayRegistry` (src/core/algebra/overlay-registry.ts)
 - `ConversationOverlayRegistry` (src/sigma/conversation-registry.ts)
 - `ProviderRegistry` (src/llm/core/provider-registry.ts)
+- `AgentRegistry` (src/ipc/AgentRegistry.ts)
+- `ASTParserRegistry` (src/core/orchestrators/miners/ast-parsers/index.ts)
 - `ExtractorRegistry` (src/core/analyzers/document-extractor.ts)
 
-### Implementation Steps
+### Implementation Results
 
-1. **Create Base Registry**: Implement `src/core/common/base-registry.ts` with generic `register`, `get`, `list`, and `has` methods.
-2. **Refactor Registries**: Update the identified registries to extend the base class.
-3. **Harmonize Error Handling**: Use a standard `RegistryError` for missing or duplicate items.
-4. **Validation**: Run `npm run build` and ensure all registries are correctly instantiated.
+1. **Infrastructure**: Created `src/core/common/registry.ts` with `BaseRegistry<T>`, `AsyncBaseRegistry<T>`, and `RegistryError`.
+2. **Refactor**: Migrated all 6 identified registries to extend these base classes.
+3. **Harmonization**: Standardized `get()`, `register()`, `list()`, and `has()` across the system. Added `tryGet()` for safe lookups and unified error messages.
+4. **Validation**: Verified with 63 unit tests across 3 major registry suites.
 
-### Expected Impact
+### Impact
 
-- ~150 lines of code reduction.
-- Uniform interface for all plugin/extension points in the system.
+- **~500 lines of code reduction** (Net project-wide).
+- Unified interface for all plugin/extension points in the system.
+- Improved error reporting with "available items" context.
 
 ---
 
@@ -174,6 +179,6 @@ This plan outlines the steps to refactor key areas of the Cognition Σ repositor
 
 ## 📊 Summary
 
-- **Total estimated code reduction**: ~1,120 lines (Increased from ~800)
-- **Total estimated effort**: 16-22 hours
-- **Primary benefit**: Comprehensive DRY compliance and architectural consistency across commands, overlays, stores, registries, analyzers, and UI components.
+- **Total code reduction to date**: ~1,400 lines
+- **Remaining tasks**: 5 major refactoring candidate groups.
+- **Primary benefit**: Comprehensive DRY compliance and architectural consistency across commands, registries, and domain-specific managers.

@@ -1,5 +1,6 @@
 import { MarkdownDocument } from '../parsers/markdown-parser.js';
 import { DocumentType } from './document-classifier.js';
+import { BaseRegistry } from '../common/registry.js';
 
 /**
  * Base interface for extracted knowledge
@@ -111,20 +112,35 @@ export interface DocumentExtractor<
  * Registry for managing document extractors
  *
  * DESIGN:
+ * - Extends BaseRegistry for standard registry operations
  * - Maintains a mapping of document types to extractors
  * - Allows registration of new extractors dynamically
  * - Enables overlay-specific extraction strategies
  */
-export class ExtractorRegistry {
-  private extractors: DocumentExtractor[] = [];
+export class ExtractorRegistry extends BaseRegistry<DocumentExtractor> {
+  constructor() {
+    super('ExtractorRegistry');
+  }
 
   /**
    * Register a new extractor
    *
    * @param extractor - Document extractor to register
    */
-  register(extractor: DocumentExtractor): void {
-    this.extractors.push(extractor);
+  // @ts-expect-error - Compatibility override: ExtractorRegistry.register uses a single argument
+  override register(extractor: DocumentExtractor): void {
+    // We use the constructor name as the key to satisfy BaseRegistry
+    const name = extractor.constructor.name;
+
+    // Maintain original behavior: allow multiple registrations by using a unique key
+    // if constructor name is already present (though unlikely)
+    let uniqueName = name;
+    let counter = 1;
+    while (this.has(uniqueName)) {
+      uniqueName = `${name}_${counter++}`;
+    }
+
+    super.register(uniqueName, extractor);
   }
 
   /**
@@ -134,7 +150,7 @@ export class ExtractorRegistry {
    * @returns Matching extractor or undefined if none found
    */
   getExtractor(docType: DocumentType): DocumentExtractor | undefined {
-    return this.extractors.find((e) => e.supports(docType));
+    return this.getAll().find((e) => e.supports(docType));
   }
 
   /**
@@ -143,7 +159,7 @@ export class ExtractorRegistry {
    * @returns Array of all registered extractors
    */
   getAllExtractors(): DocumentExtractor[] {
-    return [...this.extractors];
+    return this.getAll();
   }
 
   /**
@@ -153,6 +169,6 @@ export class ExtractorRegistry {
    * @returns Array of extractors targeting the specified layer
    */
   getExtractorsByLayer(layer: string): DocumentExtractor[] {
-    return this.extractors.filter((e) => e.getOverlayLayer() === layer);
+    return this.getAll().filter((e) => e.getOverlayLayer() === layer);
   }
 }

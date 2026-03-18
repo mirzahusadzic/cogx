@@ -1,34 +1,10 @@
-/**
- * Conversation Overlay Registry
- *
- * Central registry for all 7 conversation overlays (O1-O7).
- * Mirrors OverlayRegistry but for conversation lattice stored in .sigma/
- *
- * DESIGN:
- * - Same interface as OverlayRegistry
- * - Points to .sigma/overlays/ instead of .open_cognition/overlays/
- * - Enables Meet operations between conversation and project lattices
- *
- * USAGE:
- * ```typescript
- * const conversationRegistry = new ConversationOverlayRegistry(sigmaRoot);
- * const structural = await conversationRegistry.get('O1');
- *
- * // Meet: Conversation ∧ Project
- * const projectRegistry = new OverlayRegistry(pgcRoot);
- * const alignment = await meet(
- *   await conversationRegistry.get('O1'),
- *   await projectRegistry.get('O1')
- * );
- * ```
- */
-
 import { OverlayAlgebra } from '../core/algebra/overlay-algebra.js';
 import { ConversationLanceStore } from './conversation-lance-store.js';
 import { ConversationOverlayManager } from './overlays/conversation-overlay-manager.js';
 import { CONVERSATION_OVERLAY_CONFIGS } from './overlays/types.js';
 import { AsyncMutex } from './utils/AsyncMutex.js';
 import { systemDiagnosticsService } from '../core/services/diagnostics/SystemDiagnosticsService.js';
+import { AsyncBaseRegistry } from '../core/common/registry.js';
 
 /**
  * Overlay identifiers (same as project)
@@ -57,12 +33,11 @@ export interface ConversationOverlayInfo {
 /**
  * Registry of all conversation overlay managers
  */
-export class ConversationOverlayRegistry {
-  private managers = new Map<OverlayId, OverlayAlgebra>();
+export class ConversationOverlayRegistry extends AsyncBaseRegistry<OverlayAlgebra> {
   private workbenchUrl?: string;
   private debug: boolean;
   private writeMutex = new AsyncMutex(); // Serialize LanceDB writes
-  private currentSessionId: string | null = null; // CRITICAL FIX: Store session ID for lazy-loaded managers
+  private currentSessionId: string | null = null; // Store session ID for lazy-loaded managers
   private lanceStore: ConversationLanceStore;
 
   constructor(
@@ -70,6 +45,7 @@ export class ConversationOverlayRegistry {
     workbenchUrl?: string,
     debug?: boolean
   ) {
+    super('ConversationOverlayRegistry');
     this.workbenchUrl = workbenchUrl;
     this.debug = debug || false;
     this.lanceStore = new ConversationLanceStore(sigmaRoot);
@@ -83,61 +59,46 @@ export class ConversationOverlayRegistry {
    *
    * @param overlayId - Overlay identifier (O1-O7)
    * @returns Promise resolving to the overlay manager instance
-   *
-   * @example
-   * const structural = await registry.get('O1');
-   * const results = await structural.query("TUI architecture", 5);
    */
-  async get(overlayId: OverlayId): Promise<OverlayAlgebra> {
-    // Return cached manager if exists
-    if (this.managers.has(overlayId)) {
-      return this.managers.get(overlayId)!;
-    }
+  override async get(overlayId: string): Promise<OverlayAlgebra> {
+    const isNew = !this.has(overlayId);
+    const manager = await super.get(overlayId);
 
-    // Create and cache manager
-    const manager = this.createManager(overlayId);
-
-    // CRITICAL FIX: Set current session ID on newly created manager
-    // This ensures lazy-loaded managers get the session filter
-    if (this.debug) {
-      systemDiagnosticsService.systemLog(
-        'sigma',
-        `[Registry] Creating ${overlayId}`,
-        {
-          currentSessionId: this.currentSessionId || 'NULL',
-        }
-      );
-    }
-    if (this.currentSessionId && 'setCurrentSession' in manager) {
+    if (isNew) {
+      // CRITICAL FIX: Set current session ID on newly created manager
       if (this.debug) {
         systemDiagnosticsService.systemLog(
           'sigma',
-          `[Registry] Setting session ${this.currentSessionId} on ${overlayId}`
+          `[Registry] Creating ${overlayId}`,
+          {
+            currentSessionId: this.currentSessionId || 'NULL',
+          }
         );
       }
-      (manager as ConversationOverlayWithLifecycle).setCurrentSession!(
-        this.currentSessionId
-      );
-    } else if (this.debug) {
-      systemDiagnosticsService.systemLog(
-        'sigma',
-        `[Registry] NOT setting session on ${overlayId}`,
-        { currentSessionId: this.currentSessionId },
-        'warn'
-      );
+
+      if (this.currentSessionId && 'setCurrentSession' in manager) {
+        if (this.debug) {
+          systemDiagnosticsService.systemLog(
+            'sigma',
+            `[Registry] Setting session ${this.currentSessionId} on ${overlayId}`
+          );
+        }
+        (manager as ConversationOverlayWithLifecycle).setCurrentSession!(
+          this.currentSessionId
+        );
+      }
+
+      // Initialize LanceDB store if supported
+      if (
+        'initializeLanceStore' in manager &&
+        typeof (manager as ConversationOverlayWithLifecycle)
+          .initializeLanceStore === 'function'
+      ) {
+        await (manager as ConversationOverlayWithLifecycle)
+          .initializeLanceStore!();
+      }
     }
 
-    // Initialize LanceDB store if supported
-    if (
-      'initializeLanceStore' in manager &&
-      typeof (manager as ConversationOverlayWithLifecycle)
-        .initializeLanceStore === 'function'
-    ) {
-      await (manager as ConversationOverlayWithLifecycle)
-        .initializeLanceStore!();
-    }
-
-    this.managers.set(overlayId, manager);
     return manager;
   }
 
@@ -174,14 +135,11 @@ export class ConversationOverlayRegistry {
    * Create manager instance based on overlay ID
    *
    * @param overlayId - Overlay identifier to create manager for
-   * @returns Overlay manager instance implementing OverlayAlgebra interface
-   *
-   * @throws Error if overlay ID is unknown
-   *
-   * @private
+   * @returns Promise resolving to overlay manager instance
+   * @protected
    */
-  private createManager(overlayId: OverlayId): OverlayAlgebra {
-    const config = CONVERSATION_OVERLAY_CONFIGS[overlayId];
+  protected async createItem(overlayId: string): Promise<OverlayAlgebra> {
+    const config = CONVERSATION_OVERLAY_CONFIGS[overlayId as OverlayId];
     if (!config) {
       throw new Error(`Unknown conversation overlay: ${overlayId}`);
     }
@@ -198,14 +156,7 @@ export class ConversationOverlayRegistry {
   /**
    * Flush all in-memory overlays to disk
    *
-   * Uses write mutex to serialize LanceDB writes and prevent
-   * "Too many concurrent writers" errors.
-   *
    * @param sessionId - Session UUID to flush turns for
-   *
-   * @example
-   * await registry.flushAll(sessionId);
-   * console.log('All conversation overlays persisted to LanceDB');
    */
   async flushAll(sessionId: string): Promise<void> {
     return this.writeMutex.runLocked(async () => {
@@ -222,7 +173,6 @@ export class ConversationOverlayRegistry {
       for (const overlayId of allOverlays) {
         const manager = await this.get(overlayId);
 
-        // Use type assertion to access flush method
         if (
           'flush' in manager &&
           typeof (manager as ConversationOverlayWithLifecycle).flush ===
@@ -236,9 +186,6 @@ export class ConversationOverlayRegistry {
 
   /**
    * Clear all in-memory overlays (after flush)
-   *
-   * Frees memory after overlay data has been persisted to disk.
-   * Call this after flushAll() to reset in-memory state.
    */
   async clearAllMemory(): Promise<void> {
     const allOverlays: OverlayId[] = ['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7'];
@@ -246,7 +193,6 @@ export class ConversationOverlayRegistry {
     for (const overlayId of allOverlays) {
       const manager = await this.get(overlayId);
 
-      // Use type assertion to access clearMemory method
       if (
         'clearMemory' in manager &&
         typeof (manager as ConversationOverlayWithLifecycle).clearMemory ===
@@ -258,15 +204,11 @@ export class ConversationOverlayRegistry {
   }
 
   /**
-   * Set current session ID for all managers (for LanceDB filtering)
-   *
-   * Updates all initialized overlay managers to filter queries by the current session.
-   * Only affects managers that have already been lazy-loaded.
+   * Set current session ID for all managers
    *
    * @param sessionId - Session UUID to set as current
    */
   async setCurrentSession(sessionId: string): Promise<void> {
-    // CRITICAL FIX: Store session ID so lazy-loaded managers get it too
     if (this.debug) {
       systemDiagnosticsService.systemLog(
         'sigma',
@@ -279,8 +221,9 @@ export class ConversationOverlayRegistry {
 
     for (const overlayId of allOverlays) {
       // Set session on already initialized managers
-      if (this.managers.has(overlayId)) {
-        const manager = this.managers.get(overlayId)!;
+      if (this.has(overlayId)) {
+        // We know it's already there, so get() will be fast/sync
+        const manager = await this.get(overlayId);
 
         if (
           'setCurrentSession' in manager &&
@@ -292,7 +235,6 @@ export class ConversationOverlayRegistry {
           );
         }
       }
-      // Note: Lazy-loaded managers will get currentSessionId in get() method
     }
   }
 }

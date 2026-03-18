@@ -1,10 +1,3 @@
-/**
- * Agent Registry
- *
- * Central registry for agent discovery and capability-based routing.
- * Each TUI maintains a local view of all registered agents via pub/sub.
- */
-
 import { ZeroMQBus } from './ZeroMQBus.js';
 import {
   AgentMessage,
@@ -15,14 +8,10 @@ import {
   AgentStatusChangedPayload,
 } from './index.js';
 import { systemDiagnosticsService } from '../core/services/diagnostics/SystemDiagnosticsService.js';
+import { BaseRegistry } from '../core/common/registry.js';
 
 /**
  * Represents an agent's capability.
- *
- * @interface AgentCapability
- * @property {string} name The unique name of the capability (e.g., 'code_review').
- * @property {string} description A brief description of what the capability does.
- * @property {string} model The preferred model for this capability (e.g., 'opus').
  */
 export interface AgentCapability {
   name: string; // e.g., 'code_review', 'architecture_design'
@@ -32,19 +21,6 @@ export interface AgentCapability {
 
 /**
  * Represents a registered agent in the system.
- *
- * @interface RegisteredAgent
- * @property {string} id The unique identifier for the agent.
- * @property {'interactive' | 'background'} type The type of the agent.
- * @property {string} model The underlying model of the agent.
- * @property {AgentCapability[]} capabilities The capabilities of the agent.
- * @property {'idle' | 'thinking' | 'working'} status The current status of the agent.
- * @property {Set<string>} subscriptions The set of message topics the agent is subscribed to.
- * @property {number} registeredAt Unix timestamp of when the agent was registered.
- * @property {number} lastSeen Unix timestamp of the agent's last activity.
- * @property {string} [projectRoot] Absolute path to the project root directory.
- * @property {string} [projectName] Project name (inferred from package.json or folder name).
- * @property {string} [scope] Subsystem or path within project this agent manages (e.g., "drivers/net", "kernel/mm"). Used for fractal lattice topology discovery in PGC delegation protocol.
  */
 export interface RegisteredAgent {
   id: string; // Unique agent ID (e.g., 'claude-1')
@@ -57,18 +33,11 @@ export interface RegisteredAgent {
   lastSeen: number; // Unix timestamp (for heartbeat)
   projectRoot?: string; // Absolute path to project directory
   projectName?: string; // Inferred from package.json or folder name
-  scope?: string; // Subsystem/path this agent manages (e.g., "drivers/net" for fractal lattice)
+  scope?: string; // Subsystem/path this agent manages (e.g., "drivers/net", "kernel/mm").
 }
 
 /**
  * Statistics about the agent registry.
- *
- * @interface RegistryStats
- * @property {number} totalAgents The total number of registered agents.
- * @property {number} interactive The number of interactive agents.
- * @property {number} background The number of background agents.
- * @property {object} byModel The count of agents grouped by model.
- * @property {object} byStatus The count of agents grouped by status.
  */
 export interface RegistryStats {
   totalAgents: number;
@@ -91,31 +60,8 @@ export interface RegistryStats {
  *
  * This class maintains a local view of all registered agents by listening to
  * registration, unregistration, and status change events on the ZeroMQ bus.
- * It provides methods for querying agents based on their capabilities, model,
- * or status, which is essential for dynamic task routing.
- *
- * @class AgentRegistry
- *
- * @example
- * const bus = new ZeroMQBus();
- * await bus.connect();
- * const registry = new AgentRegistry(bus, 'local-agent-1');
- *
- * // Register a local agent
- * registry.register({
- *   id: 'local-agent-1',
- *   type: 'interactive',
- *   model: 'gemini',
- *   capabilities: [{ name: 'coding', description: 'Writes code', model: 'gemini' }],
- *   status: 'idle',
- *   subscriptions: new Set(['code.*']),
- * });
- *
- * // Find an agent for a specific task
- * const codeReviewer = registry.findByCapability('code_review');
  */
-export class AgentRegistry {
-  private agents: Map<string, RegisteredAgent>;
+export class AgentRegistry extends BaseRegistry<RegisteredAgent> {
   private bus: ZeroMQBus;
   private localAgentId: string;
 
@@ -126,7 +72,7 @@ export class AgentRegistry {
    * @param {string} localAgentId The ID of the local agent.
    */
   constructor(bus: ZeroMQBus, localAgentId: string) {
-    this.agents = new Map();
+    super('AgentRegistry');
     this.bus = bus;
     this.localAgentId = localAgentId;
 
@@ -162,18 +108,11 @@ export class AgentRegistry {
    * Registers a new agent and broadcasts its presence to the network.
    *
    * @param {Omit<RegisteredAgent, 'registeredAt' | 'lastSeen'>} agent The agent to register.
-   *
-   * @example
-   * registry.register({
-   *   id: 'gemini-coder-1',
-   *   type: 'background',
-   *   model: 'gemini',
-   *   capabilities: [{ name: 'coding', description: 'Writes TypeScript code', model: 'gemini' }],
-   *   status: 'idle',
-   *   subscriptions: new Set(['code.completion_request']),
-   * });
    */
-  register(agent: Omit<RegisteredAgent, 'registeredAt' | 'lastSeen'>): void {
+  // @ts-expect-error - Compatibility override: AgentRegistry.register uses a single argument
+  override register(
+    agent: Omit<RegisteredAgent, 'registeredAt' | 'lastSeen'>
+  ): void {
     const now = Date.now();
 
     const fullAgent: RegisteredAgent = {
@@ -182,7 +121,10 @@ export class AgentRegistry {
       lastSeen: now,
     };
 
-    this.agents.set(agent.id, fullAgent);
+    if (this.has(agent.id)) {
+      super.unregister(agent.id);
+    }
+    super.register(agent.id, fullAgent);
 
     // Publish registration event (broadcast to all agents)
     const message = MessageFactory.agentRegistered(this.localAgentId, '*', {
@@ -208,8 +150,8 @@ export class AgentRegistry {
    *
    * @param {string} agentId The ID of the agent to unregister.
    */
-  unregister(agentId: string): void {
-    this.agents.delete(agentId);
+  override unregister(agentId: string): boolean {
+    const removed = super.unregister(agentId);
 
     const message = MessageFactory.create(
       this.localAgentId,
@@ -223,6 +165,7 @@ export class AgentRegistry {
     this.bus.publish(Topics.AGENT_UNREGISTERED, message);
 
     systemDiagnosticsService.systemLog('ipc', `Unregistered agent: ${agentId}`);
+    return removed;
   }
 
   /**
@@ -232,7 +175,7 @@ export class AgentRegistry {
    * @param {RegisteredAgent['status']} status The new status.
    */
   updateStatus(agentId: string, status: RegisteredAgent['status']): void {
-    const agent = this.agents.get(agentId);
+    const agent = this.tryGet(agentId);
 
     if (agent) {
       agent.status = status;
@@ -258,73 +201,43 @@ export class AgentRegistry {
    * @param {string} agentId The ID of the agent to retrieve.
    * @returns {RegisteredAgent | undefined} The agent, or undefined if not found.
    */
-  get(agentId: string): RegisteredAgent | undefined {
-    return this.agents.get(agentId);
-  }
-
-  /**
-   * Retrieves all registered agents.
-   *
-   * @returns {RegisteredAgent[]} An array of all registered agents.
-   */
-  getAll(): RegisteredAgent[] {
-    return Array.from(this.agents.values());
+  // @ts-expect-error - Compatibility override: AgentRegistry.get returns undefined instead of throwing
+  override get(agentId: string): RegisteredAgent | undefined {
+    return this.tryGet(agentId);
   }
 
   /**
    * Finds all agents that have a specific capability.
-   *
-   * @param {string} capability The capability to search for.
-   * @returns {RegisteredAgent[]} A list of agents with the specified capability.
-   *
-   * @example
-   * const reviewers = registry.findByCapability('code_review');
    */
   findByCapability(capability: string): RegisteredAgent[] {
-    return Array.from(this.agents.values()).filter((agent) =>
+    return this.getAll().filter((agent) =>
       agent.capabilities.some((cap) => cap.name === capability)
     );
   }
 
   /**
    * Finds all agents of a specific model.
-   *
-   * @param {string} model The model to search for (e.g., 'gemini').
-   * @returns {RegisteredAgent[]} A list of agents of the specified model.
    */
   findByModel(model: string): RegisteredAgent[] {
-    return Array.from(this.agents.values()).filter(
-      (agent) => agent.model === model
-    );
+    return this.getAll().filter((agent) => agent.model === model);
   }
 
   /**
    * Finds all agents of a specific type.
-   *
-   * @param {'interactive' | 'background'} type The agent type to search for.
-   * @returns {RegisteredAgent[]} A list of agents of the specified type.
    */
   findByType(type: 'interactive' | 'background'): RegisteredAgent[] {
-    return Array.from(this.agents.values()).filter(
-      (agent) => agent.type === type
-    );
+    return this.getAll().filter((agent) => agent.type === type);
   }
 
   /**
    * Retrieves all agents that are not idle.
-   *
-   * @returns {RegisteredAgent[]} A list of active agents.
    */
   getActiveAgents(): RegisteredAgent[] {
-    return Array.from(this.agents.values()).filter(
-      (agent) => agent.status !== 'idle'
-    );
+    return this.getAll().filter((agent) => agent.status !== 'idle');
   }
 
   /**
    * Handles an incoming `agent.registered` event from the bus.
-   * @private
-   * @param {AgentMessage<AgentRegisteredPayload>} msg The registration message.
    */
   private handleAgentRegistered(
     msg: AgentMessage<AgentRegisteredPayload>
@@ -346,7 +259,7 @@ export class AgentRegistry {
 
     const now = Date.now();
 
-    // Create agent entry with minimal info (we don't have full details)
+    // Create agent entry with minimal info
     const agent: RegisteredAgent = {
       id: agentId,
       type,
@@ -365,7 +278,11 @@ export class AgentRegistry {
       scope,
     };
 
-    this.agents.set(agentId, agent);
+    if (this.has(agentId)) {
+      super.unregister(agentId);
+    }
+    // We call BaseRegistry.register directly to avoid the Omit type mismatch in our override
+    super.register(agentId, agent);
 
     systemDiagnosticsService.systemLog(
       'ipc',
@@ -375,8 +292,6 @@ export class AgentRegistry {
 
   /**
    * Handles an incoming `agent.unregistered` event from the bus.
-   * @private
-   * @param {AgentMessage<AgentUnregisteredPayload>} msg The unregistration message.
    */
   private handleAgentUnregistered(
     msg: AgentMessage<AgentUnregisteredPayload>
@@ -388,7 +303,7 @@ export class AgentRegistry {
       return;
     }
 
-    this.agents.delete(agentId);
+    this.unregister(agentId);
 
     systemDiagnosticsService.systemLog(
       'ipc',
@@ -398,8 +313,6 @@ export class AgentRegistry {
 
   /**
    * Handles an incoming `agent.status_changed` event from the bus.
-   * @private
-   * @param {AgentMessage<AgentStatusChangedPayload>} msg The status change message.
    */
   private handleAgentStatusChanged(
     msg: AgentMessage<AgentStatusChangedPayload>
@@ -407,7 +320,7 @@ export class AgentRegistry {
     const { agentId, status } = msg.payload;
 
     // Update status for remote agents
-    const agent = this.agents.get(agentId);
+    const agent = this.tryGet(agentId);
 
     if (agent && agentId !== this.localAgentId) {
       agent.status = status;
@@ -417,24 +330,20 @@ export class AgentRegistry {
 
   /**
    * Removes stale agents that have not been seen for a certain period.
-   * This method should be called periodically to keep the registry clean.
-   *
-   * @example
-   * setInterval(() => registry.cleanupStaleAgents(), 30000);
    */
   cleanupStaleAgents(): void {
     const now = Date.now();
     const staleThreshold = 30000; // 30 seconds
 
-    for (const [agentId, agent] of this.agents.entries()) {
+    for (const agent of this.getAll()) {
       if (
-        agentId !== this.localAgentId &&
+        agent.id !== this.localAgentId &&
         now - agent.lastSeen > staleThreshold
       ) {
-        this.agents.delete(agentId);
+        this.unregister(agent.id);
         systemDiagnosticsService.systemLog(
           'ipc',
-          `Cleaned up stale agent: ${agentId}`
+          `Cleaned up stale agent: ${agent.id}`
         );
       }
     }
@@ -442,8 +351,6 @@ export class AgentRegistry {
 
   /**
    * Retrieves statistics about the agent registry.
-   *
-   * @returns {RegistryStats} An object containing registry statistics.
    */
   getStats(): RegistryStats {
     const agents = this.getAll();
@@ -467,14 +374,11 @@ export class AgentRegistry {
 
   /**
    * Discovers the lattice topology based on agent scopes.
-   * Enables fractal lattice query routing.
-   *
-   * @returns {Record<string, string[]>} Map of scope -> agent IDs
    */
   getLatticeTopology(): Record<string, string[]> {
     const topology: Record<string, string[]> = {};
 
-    for (const agent of this.agents.values()) {
+    for (const agent of this.getAll()) {
       if (agent.scope) {
         if (!topology[agent.scope]) {
           topology[agent.scope] = [];

@@ -196,6 +196,25 @@ export class CompressionError extends CognitionError {
 }
 
 /**
+ * Registry operation errors (duplicate registration, item not found, etc.)
+ *
+ * @example
+ * throw new RegistryError('Item not found: my-provider', {
+ *   registry: 'ProviderRegistry',
+ *   name: 'my-provider'
+ * });
+ */
+export class RegistryError extends CognitionError {
+  constructor(
+    message: string,
+    context?: Record<string, unknown>,
+    cause?: Error
+  ) {
+    super(message, 'REGISTRY_ERROR', context, { cause });
+  }
+}
+
+/**
  * Configuration errors (missing env vars, invalid settings, etc.)
  *
  * @example

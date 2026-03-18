@@ -129,7 +129,7 @@ describe('ProviderRegistry', () => {
 
     it('should throw when getting unregistered provider', () => {
       expect(() => registry.get('nonexistent')).toThrow(
-        /Provider 'nonexistent' not registered/
+        /Item 'nonexistent' not found/
       );
     });
 
@@ -137,7 +137,7 @@ describe('ProviderRegistry', () => {
       const provider = new MockProvider('test');
       registry.register(provider);
 
-      expect(() => registry.get('wrong')).toThrow(/Available providers: test/);
+      expect(() => registry.get('wrong')).toThrow(/Available: test/);
     });
   });
 

@@ -1,28 +1,3 @@
-/**
- * Overlay Registry
- *
- * Central registry mapping overlay IDs (O1, O2, O4, O5, O6, O7) to manager instances.
- * Enables algebraic operations by providing unified access to all overlays.
- *
- * DESIGN:
- * - Single source of truth for overlay lookup
- * - Lazy initialization (managers created on demand)
- * - Type-safe access to domain-specific managers
- *
- * USAGE:
- * ```typescript
- * const registry = new OverlayRegistry(pgcRoot);
- * const security = await registry.get('O2');
- * const mission = await registry.get('O4');
- *
- * // Now perform lattice operations
- * const aligned = await meet(
- *   await security.filter(m => m.type === 'attack_vector'),
- *   await mission.filter(m => m.type === 'principle')
- * );
- * ```
- */
-
 import { OverlayAlgebra } from './overlay-algebra.js';
 import { MissionConceptsManager } from '../overlays/mission-concepts/manager.js';
 import { SecurityGuidelinesManager } from '../overlays/security-guidelines/manager.js';
@@ -31,6 +6,7 @@ import { MathematicalProofsManager } from '../overlays/mathematical-proofs/manag
 import { StructuralPatternsManager } from '../overlays/structural-patterns/manager.js';
 import { LineageAlgebraAdapter } from '../overlays/lineage/algebra-adapter.js';
 import { CoherenceAlgebraAdapter } from '../overlays/strategic-coherence/algebra-adapter.js';
+import { AsyncBaseRegistry } from '../common/registry.js';
 
 /**
  * Overlay identifiers following the lattice architecture
@@ -59,8 +35,7 @@ export interface OverlayStatus {
 /**
  * Registry of all overlay managers in the PGC
  */
-export class OverlayRegistry {
-  private managers = new Map<OverlayId, OverlayAlgebra>();
+export class OverlayRegistry extends AsyncBaseRegistry<OverlayAlgebra> {
   private workbenchUrl?: string;
 
   /**
@@ -73,26 +48,8 @@ export class OverlayRegistry {
     private pgcRoot: string,
     workbenchUrl?: string
   ) {
+    super('OverlayRegistry');
     this.workbenchUrl = workbenchUrl;
-  }
-
-  /**
-   * Get overlay manager by ID
-   * Lazy-initializes the manager on first access
-   *
-   * @param overlayId - Overlay identifier (O1-O7)
-   * @returns Promise resolving to the overlay manager instance
-   */
-  async get(overlayId: OverlayId): Promise<OverlayAlgebra> {
-    // Return cached manager if exists
-    if (this.managers.has(overlayId)) {
-      return this.managers.get(overlayId)!;
-    }
-
-    // Create and cache manager
-    const manager = this.createManager(overlayId);
-    this.managers.set(overlayId, manager);
-    return manager;
   }
 
   /**
@@ -212,13 +169,12 @@ export class OverlayRegistry {
 
   /**
    * Create manager instance for overlay
-   * Note: Managers will need to be refactored to implement OverlayAlgebra
    *
    * @param overlayId - Overlay identifier to create manager for
-   * @returns Overlay manager instance implementing OverlayAlgebra interface
-   * @private
+   * @returns Promise resolving to overlay manager instance
+   * @protected
    */
-  private createManager(overlayId: OverlayId): OverlayAlgebra {
+  protected async createItem(overlayId: string): Promise<OverlayAlgebra> {
     switch (overlayId) {
       case 'O1':
         return new StructuralPatternsManager(this.pgcRoot, this.workbenchUrl);
@@ -253,10 +209,6 @@ export class OverlayRegistry {
  * @param pgcRoot - Root directory of the PGC (Grounded Context Pool)
  * @param workbenchUrl - Optional URL for workbench API access
  * @returns New OverlayRegistry instance
- *
- * @example
- * const registry = createOverlayRegistry('/path/to/pgc');
- * const security = await registry.get('O2');
  */
 export function createOverlayRegistry(
   pgcRoot: string,
