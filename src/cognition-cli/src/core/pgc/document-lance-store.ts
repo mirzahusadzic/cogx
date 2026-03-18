@@ -10,10 +10,7 @@ import {
   Int64,
 } from 'apache-arrow';
 import { DEFAULT_EMBEDDING_DIMENSIONS } from '../../config.js';
-import {
-  AbstractLanceStore,
-  LANCE_DUMMY_ID,
-} from '../overlays/vector-db/abstract-lance-store.js';
+import { BaseLanceStore, LANCE_DUMMY_ID } from '../common/lance-store.js';
 
 /**
  * Compute hash of embedding vector for content-based ID generation.
@@ -145,19 +142,12 @@ export interface DocumentQueryFilter {
  * Unified store for all document-based overlays: O₂ (Security), O₄ (Mission),
  * O₅ (Operational), O₆ (Mathematical).
  */
-export class DocumentLanceStore extends AbstractLanceStore<DocumentConceptRecord> {
-  constructor(private pgcRoot: string) {
-    super(path.join(pgcRoot, 'lance', 'documents.lancedb'));
-  }
-
-  /**
-   * Initialize the document LanceDB store.
-   * Creates or opens the documents.lancedb database.
-   */
-  public override async initialize(
+export class DocumentLanceStore extends BaseLanceStore<DocumentConceptRecord> {
+  constructor(
+    private pgcRoot: string,
     tableName: string = 'document_concepts'
-  ): Promise<void> {
-    return super.initialize(tableName);
+  ) {
+    super(path.join(pgcRoot, 'lance', 'documents.lancedb'), tableName);
   }
 
   protected getSchema(): Schema {
@@ -231,8 +221,6 @@ export class DocumentLanceStore extends AbstractLanceStore<DocumentConceptRecord
       embedding: number[];
     }>
   ): Promise<string[]> {
-    if (!this.isInitialized) await this.initialize();
-
     const baseTimestamp = Date.now();
     const records: DocumentConceptRecord[] = concepts.map((concept, index) => {
       if (concept.embedding.length !== DEFAULT_EMBEDDING_DIMENSIONS) {
@@ -272,6 +260,7 @@ export class DocumentLanceStore extends AbstractLanceStore<DocumentConceptRecord
   /**
    * Semantic similarity search across document concepts.
    */
+  // @ts-expect-error - Overriding with specialized domain signature
   async similaritySearch(
     queryEmbedding: number[],
     topK: number,
@@ -296,7 +285,7 @@ export class DocumentLanceStore extends AbstractLanceStore<DocumentConceptRecord
       };
     }>
   > {
-    if (!this.isInitialized) await this.initialize();
+    await this.ensureInitialized();
 
     if (queryEmbedding.length !== DEFAULT_EMBEDDING_DIMENSIONS) {
       throw new Error(
@@ -393,7 +382,7 @@ export class DocumentLanceStore extends AbstractLanceStore<DocumentConceptRecord
   async getConcept(
     conceptId: string
   ): Promise<DocumentConceptRecord | undefined> {
-    if (!this.isInitialized) await this.initialize();
+    await this.ensureInitialized();
 
     const escapedId = this.escapeSqlString(conceptId);
     const records = await this.table!.query()
@@ -413,7 +402,7 @@ export class DocumentLanceStore extends AbstractLanceStore<DocumentConceptRecord
     overlayType: string,
     documentHash: string
   ): Promise<DocumentConceptRecord[]> {
-    if (!this.isInitialized) await this.initialize();
+    await this.ensureInitialized();
 
     const escapedOverlay = this.escapeSqlString(overlayType);
     const escapedHash = this.escapeSqlString(documentHash);
@@ -438,7 +427,7 @@ export class DocumentLanceStore extends AbstractLanceStore<DocumentConceptRecord
   async getOverlayConcepts(
     overlayType: string
   ): Promise<DocumentConceptRecord[]> {
-    if (!this.isInitialized) await this.initialize();
+    await this.ensureInitialized();
 
     const escapedOverlay = this.escapeSqlString(overlayType);
     const records = await this.table!.query()
@@ -484,7 +473,7 @@ export class DocumentLanceStore extends AbstractLanceStore<DocumentConceptRecord
     by_overlay: Record<string, number>;
     avg_weight: number;
   }> {
-    if (!this.isInitialized) await this.initialize();
+    await this.ensureInitialized();
 
     const allRecords = await this.table!.query().toArray();
 
@@ -505,19 +494,6 @@ export class DocumentLanceStore extends AbstractLanceStore<DocumentConceptRecord
       by_overlay: overlayCounts,
       avg_weight: allRecords.length > 0 ? totalWeight / allRecords.length : 0,
     };
-  }
-
-  /**
-   * Close the database connection.
-   */
-  async close(): Promise<void> {
-    if (this.db) {
-      await this.db.close();
-      this.isInitialized = false;
-      this.initializationPromise = null;
-      this.table = undefined;
-      this.db = undefined;
-    }
   }
 
   private toPlainRecord(

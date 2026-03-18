@@ -9,7 +9,7 @@ import {
 } from 'apache-arrow';
 import { DEFAULT_EMBEDDING_DIMENSIONS } from '../../../config.js';
 
-import { AbstractLanceStore, LANCE_DUMMY_ID } from './abstract-lance-store.js';
+import { BaseLanceStore, LANCE_DUMMY_ID } from '../../common/lance-store.js';
 
 /**
  * Creates Apache Arrow schema for lineage pattern records.
@@ -100,30 +100,22 @@ export const VECTOR_RECORD_SCHEMA = new Schema([
  * with associated metadata. Supports the Shadow architecture (Monument 4.7)
  * with dual embeddings (structural and semantic).
  */
-export class LanceVectorStore extends AbstractLanceStore<VectorRecord> {
+export class LanceVectorStore extends BaseLanceStore<VectorRecord> {
   /**
    * Create a new LanceDB vector store
    *
    * @param pgcRoot - Root directory of the PGC (Grounded Context Pool)
-   */
-  constructor(private pgcRoot: string) {
-    super(path.join(pgcRoot, 'patterns.lancedb'));
-  }
-
-  /**
-   * Initialize the vector store connection and table
-   *
    * @param tableName - Name of the table to initialize (default: 'structural_patterns')
-   * @returns Promise that resolves when initialization is complete
    */
-  public override async initialize(
+  constructor(
+    private pgcRoot: string,
     tableName: string = 'structural_patterns'
-  ): Promise<void> {
-    return super.initialize(tableName);
+  ) {
+    super(path.join(pgcRoot, 'patterns.lancedb'), tableName);
   }
 
-  protected getSchema(tableName: string): Schema {
-    if (tableName === 'lineage_patterns') {
+  protected getSchema(): Schema {
+    if (this.tableName === 'lineage_patterns') {
       return createLineagePatternSchema();
     }
     return VECTOR_RECORD_SCHEMA;
@@ -155,8 +147,6 @@ export class LanceVectorStore extends AbstractLanceStore<VectorRecord> {
     embedding: number[],
     metadata: Omit<VectorRecord, 'id' | 'embedding'>
   ): Promise<string> {
-    if (!this.isInitialized) await this.initialize();
-
     // Check for missing required fields
     const requiredFields = ['architectural_role', 'lineage_hash'];
     const missingFields = requiredFields.filter(
@@ -203,8 +193,6 @@ export class LanceVectorStore extends AbstractLanceStore<VectorRecord> {
       metadata: Omit<VectorRecord, 'id' | 'embedding'>;
     }>
   ): Promise<string[]> {
-    if (!this.isInitialized) await this.initialize();
-
     const records: VectorRecord[] = [];
     const requiredFields = ['architectural_role', 'lineage_hash'];
 
@@ -248,6 +236,7 @@ export class LanceVectorStore extends AbstractLanceStore<VectorRecord> {
   /**
    * Perform similarity search to find nearest neighbors
    */
+  // @ts-expect-error - Overriding with specialized domain signature
   async similaritySearch(
     queryEmbedding: number[],
     topK: number,
@@ -260,7 +249,7 @@ export class LanceVectorStore extends AbstractLanceStore<VectorRecord> {
       metadata: Omit<VectorRecord, 'id' | 'embedding'>;
     }>
   > {
-    if (!this.isInitialized) await this.initialize();
+    await this.ensureInitialized();
 
     if (queryEmbedding.length !== DEFAULT_EMBEDDING_DIMENSIONS) {
       throw new Error(
@@ -318,7 +307,7 @@ export class LanceVectorStore extends AbstractLanceStore<VectorRecord> {
    * Retrieve a vector by its ID
    */
   async getVector(id: string): Promise<VectorRecord | undefined> {
-    if (!this.isInitialized) await this.initialize();
+    await this.ensureInitialized();
 
     const escapedId = this.escapeSqlString(id);
     const records = await this.table!.query()
@@ -358,7 +347,7 @@ export class LanceVectorStore extends AbstractLanceStore<VectorRecord> {
    * Delete all vectors for a specific document (used by --force flag)
    */
   async deleteByDocumentHash(documentHash: string): Promise<number> {
-    if (!this.isInitialized) await this.initialize();
+    await this.ensureInitialized();
 
     const beforeCount = await this.table!.query().toArray();
     const matchingBefore = beforeCount.filter(
@@ -377,7 +366,7 @@ export class LanceVectorStore extends AbstractLanceStore<VectorRecord> {
    * Retrieve all vectors from the store
    */
   async getAllVectors(): Promise<VectorRecord[]> {
-    if (!this.isInitialized) await this.initialize();
+    await this.ensureInitialized();
 
     const records = await this.table!.query().toArray();
 
@@ -400,7 +389,7 @@ export class LanceVectorStore extends AbstractLanceStore<VectorRecord> {
   async *getAllVectorsPaginated(
     pageSize: number = 1000
   ): AsyncGenerator<VectorRecord[]> {
-    if (!this.isInitialized) await this.initialize();
+    await this.ensureInitialized();
 
     let offset = 0;
 
@@ -435,7 +424,7 @@ export class LanceVectorStore extends AbstractLanceStore<VectorRecord> {
    * Remove duplicate vectors, keeping the most recent one for each symbol
    */
   async removeDuplicateVectors(): Promise<number> {
-    if (!this.isInitialized) await this.initialize();
+    await this.ensureInitialized();
 
     const allVectors = await this.getAllVectors();
 
@@ -499,25 +488,10 @@ export class LanceVectorStore extends AbstractLanceStore<VectorRecord> {
   }
 
   /**
-   * Close the database connection and reset state
-   */
-  async close(): Promise<void> {
-    if (this.db) {
-      await this.db.close();
-      this.isInitialized = false;
-      this.initializationPromise = null;
-      this.table = undefined;
-      this.db = undefined;
-    }
-  }
-
-  /**
    * Drop a table from the database
    */
   async dropTable(tableName: string): Promise<void> {
-    if (!this.db) {
-      await this.initialize(tableName);
-    }
+    await this.ensureInitialized();
 
     try {
       await this.db!.dropTable(tableName);

@@ -11,10 +11,7 @@ import {
 } from 'apache-arrow';
 import { DEFAULT_EMBEDDING_DIMENSIONS } from '../config.js';
 import { systemDiagnosticsService } from '../core/services/diagnostics/SystemDiagnosticsService.js';
-import {
-  AbstractLanceStore,
-  LANCE_DUMMY_ID,
-} from '../core/overlays/vector-db/abstract-lance-store.js';
+import { BaseLanceStore, LANCE_DUMMY_ID } from '../core/common/lance-store.js';
 
 /**
  * Represents a conversation turn record stored in LanceDB.
@@ -140,20 +137,12 @@ export interface ConversationQueryFilter {
  * Manages conversational lattice storage and semantic search using LanceDB.
  * Optimized for Sigma's infinite context with full vector operations.
  */
-export class ConversationLanceStore extends AbstractLanceStore<ConversationTurnRecord> {
-  constructor(private sigmaRoot: string) {
-    super(path.join(sigmaRoot, 'conversations.lancedb'));
-  }
-
-  /**
-   * Initialize the conversation LanceDB store
-   *
-   * @param tableName - Name of the table to create/open (default: 'conversation_turns')
-   */
-  public override async initialize(
+export class ConversationLanceStore extends BaseLanceStore<ConversationTurnRecord> {
+  constructor(
+    private sigmaRoot: string,
     tableName: string = 'conversation_turns'
-  ): Promise<void> {
-    return super.initialize(tableName);
+  ) {
+    super(path.join(sigmaRoot, 'conversations.lancedb'), tableName);
   }
 
   protected getSchema(): Schema {
@@ -207,8 +196,6 @@ export class ConversationLanceStore extends AbstractLanceStore<ConversationTurnR
       references?: string[];
     }
   ): Promise<string> {
-    if (!this.isInitialized) await this.initialize();
-
     // Validate embedding dimensions
     if (embedding.length !== DEFAULT_EMBEDDING_DIMENSIONS) {
       throw new Error(
@@ -244,6 +231,7 @@ export class ConversationLanceStore extends AbstractLanceStore<ConversationTurnR
   /**
    * Semantic similarity search across conversation history
    */
+  // @ts-expect-error - Overriding with specialized domain signature
   async similaritySearch(
     queryEmbedding: number[],
     topK: number,
@@ -273,7 +261,7 @@ export class ConversationLanceStore extends AbstractLanceStore<ConversationTurnR
       };
     }>
   > {
-    if (!this.isInitialized) await this.initialize();
+    await this.ensureInitialized();
 
     if (queryEmbedding.length !== DEFAULT_EMBEDDING_DIMENSIONS) {
       throw new Error(
@@ -376,7 +364,7 @@ export class ConversationLanceStore extends AbstractLanceStore<ConversationTurnR
    * Get a specific turn by ID
    */
   async getTurn(turnId: string): Promise<ConversationTurnRecord | undefined> {
-    if (!this.isInitialized) await this.initialize();
+    await this.ensureInitialized();
 
     const escapedId = this.escapeSqlString(turnId);
     const records = await this.table!.query()
@@ -435,7 +423,7 @@ export class ConversationLanceStore extends AbstractLanceStore<ConversationTurnR
     sessionId: string,
     orderBy: 'asc' | 'desc' = 'asc'
   ): Promise<ConversationTurnRecord[]> {
-    if (!this.isInitialized) await this.initialize();
+    await this.ensureInitialized();
 
     const escapedSessionId = this.escapeSqlString(sessionId);
     const records = await this.table!.query()
@@ -489,7 +477,7 @@ export class ConversationLanceStore extends AbstractLanceStore<ConversationTurnR
   async getParadigmShifts(
     sessionId?: string
   ): Promise<ConversationTurnRecord[]> {
-    if (!this.isInitialized) await this.initialize();
+    await this.ensureInitialized();
 
     let whereClause = 'is_paradigm_shift = true';
     if (sessionId) {
@@ -557,7 +545,7 @@ export class ConversationLanceStore extends AbstractLanceStore<ConversationTurnR
     avg_importance: number;
     avg_novelty: number;
   }> {
-    if (!this.isInitialized) await this.initialize();
+    await this.ensureInitialized();
 
     const allRecords = await this.table!.query().toArray();
 
@@ -581,19 +569,6 @@ export class ConversationLanceStore extends AbstractLanceStore<ConversationTurnR
         allRecords.length > 0 ? totalImportance / allRecords.length : 0,
       avg_novelty: allRecords.length > 0 ? totalNovelty / allRecords.length : 0,
     };
-  }
-
-  /**
-   * Close the database connection
-   */
-  async close(): Promise<void> {
-    if (this.db) {
-      await this.db.close();
-      this.isInitialized = false;
-      this.initializationPromise = null;
-      this.table = undefined;
-      this.db = undefined;
-    }
   }
 
   private parseJsonField(value: string): string[] {

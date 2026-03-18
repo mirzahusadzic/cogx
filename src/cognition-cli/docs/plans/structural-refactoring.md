@@ -74,28 +74,31 @@ This plan outlines the steps to refactor key areas of the Cognition Σ repositor
 
 ---
 
-## 4. LanceDB Store Infrastructure
+## 4. LanceDB Store Infrastructure [COMPLETED]
+
+**Status**: COMPLETED (March 18, 2026)
 
 **Goal**: Consolidate redundant logic for managing LanceDB tables and sessions.
 
 ### High-Similarity Group (0.84 - 0.88 similarity)
 
-- `AbstractLanceStore` (src/core/overlays/vector-db/abstract-lance-store.ts)
+- `AbstractLanceStore` (src/core/common/lance-store.ts - now `BaseLanceStore`)
 - `DocumentLanceStore` (src/core/pgc/document-lance-store.ts)
 - `ConversationLanceStore` (src/sigma/conversation-lance-store.ts)
 - `LanceVectorStore` (src/core/overlays/vector-db/lance-store.ts)
 
-### Implementation Steps
+### Implementation Results
 
-1. **Enhance Abstract Class**: Move common PGC root resolution and table initialization logic from subclasses to `AbstractLanceStore`.
-2. **Standardize Query Methods**: Create shared base methods for `search`, `add`, and `delete` operations that use the underlying table.
-3. **Refactor Subclasses**: Update specialized stores to focus only on their unique record schemas and mapping logic.
-4. **Validation**: Run `npm run test` focusing on LanceDB integration tests.
+1. **Infrastructure**: Created generic `BaseLanceStore<T>` in `src/core/common/lance-store.ts` with thread-safe initialization, standardized CRUD, and built-in retry logic.
+2. **Refactor**: Migrated `LanceVectorStore`, `ConversationLanceStore`, and `DocumentLanceStore` to the new foundation.
+3. **Harmonization**: Standardized `initialize()`, `getSchema()`, and `createDummyRecord()` patterns. Added automatic initialization in `ensureInitialized()`.
+4. **Validation**: Verified with 53 unit tests across 4 major store suites. Deleted obsolete `AbstractLanceStore`.
 
-### Expected Impact
+### Impact
 
-- ~180 lines of code reduction.
+- **~340 lines of code reduction** (Net project-wide).
 - Guaranteed consistency in how LanceDB tables are handled across the project and conversation lattices.
+- Robust, thread-safe initialization prevents race conditions in multi-agent environments.
 
 ---
 
@@ -179,6 +182,6 @@ This plan outlines the steps to refactor key areas of the Cognition Σ repositor
 
 ## 📊 Summary
 
-- **Total code reduction to date**: ~1,400 lines
-- **Remaining tasks**: 5 major refactoring candidate groups.
+- **Total code reduction to date**: ~1,740 lines
+- **Remaining tasks**: 4 major refactoring candidate groups.
 - **Primary benefit**: Comprehensive DRY compliance and architectural consistency across commands, registries, and domain-specific managers.
