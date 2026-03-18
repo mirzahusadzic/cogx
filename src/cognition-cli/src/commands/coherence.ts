@@ -38,6 +38,46 @@
  * cognition-cli coherence list --format json --limit 1000
  */
 
+/**
+ * Coherence Commands: Analyze Strategic Alignment with Mission
+ *
+ * The coherence command suite analyzes how well code symbols align with organizational mission,
+ * principles, and constraints. It identifies both high-alignment components and drift risks.
+ *
+ * COHERENCE METRICS:
+ * - Average Coherence: Equal-weighted alignment across all symbols
+ * - Weighted Coherence: Centrality-adjusted (more used = more important)
+ * - Lattice Coherence: Synthesized via Gaussian distribution + lattice algebra
+ * - Distribution Analysis: Top/median/bottom quartile breakdown
+ * - Drift Detection: Identifies symbols at risk of mission misalignment
+ *
+ * COMMANDS:
+ * - coherence report: Dashboard with overall metrics and thresholds
+ * - coherence aligned: List symbols meeting alignment threshold (default >= 60th percentile)
+ * - coherence drifted: List symbols in bottom quartile (high risk)
+ * - coherence list: All symbols with coherence scores
+ *
+ * THRESHOLDS (Data-Driven):
+ * - Alignment: >= 60th percentile (~top 40% of symbols)
+ * - Drift: <= bottom_quartile_coherence (bottom 25% of distribution)
+ *
+ * @example
+ * // View strategic coherence dashboard
+ * cognition-cli coherence report
+ *
+ * @example
+ * // Find well-aligned symbols
+ * cognition-cli coherence aligned --min-score 0.8
+ *
+ * @example
+ * // Identify at-risk components
+ * cognition-cli coherence drifted
+ *
+ * @example
+ * // Export coherence data as JSON
+ * cognition-cli coherence list --format json --limit 1000
+ */
+
 import { Command } from 'commander';
 import { getVerboseState } from '../utils/verbose.js';
 import chalk from 'chalk';
@@ -47,6 +87,21 @@ import type { CoherenceAlgebraAdapter } from '../core/overlays/strategic-coheren
 import { environmentService } from '../core/services/environment/EnvironmentService.js';
 import { displayItemList } from './sugar/utils.js';
 
+/**
+ * Adds strategic coherence query commands to the CLI program.
+ *
+ * Registers four subcommands:
+ * - report: Overall metrics dashboard
+ * - aligned: Filter by minimum coherence score
+ * - drifted: Filter by maximum coherence score
+ * - list: Show all symbols
+ *
+ * Each uses OverlayRegistry to access O7 (Strategic Coherence overlay) via algebra interface.
+ *
+ * @param program - Commander program instance to add commands to
+ * @example
+ * addCoherenceCommands(program);
+ */
 /**
  * Adds strategic coherence query commands to the CLI program.
  *
