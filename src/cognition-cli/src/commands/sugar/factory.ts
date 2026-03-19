@@ -43,6 +43,7 @@ export function createSugarCommand(config: SugarCommandConfig) {
         await config.customHandler(options);
 
         if (!useJson) {
+          s.stop();
           outro(chalk.green(`✓ ${config.pluralItemLabel} analysis complete`));
         }
         return;

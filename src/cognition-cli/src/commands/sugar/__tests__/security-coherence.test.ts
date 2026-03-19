@@ -82,6 +82,7 @@ describe('Security Coherence Sugar Commands', () => {
       () =>
         ({
           getAllItems: vi.fn().mockResolvedValue(mockSymbols),
+          close: vi.fn().mockResolvedValue(undefined),
         }) as any
     );
 
@@ -110,6 +111,7 @@ describe('Security Coherence Sugar Commands', () => {
       () =>
         ({
           getAllItems: vi.fn().mockResolvedValue(mockSymbols),
+          close: vi.fn().mockResolvedValue(undefined),
         }) as any
     );
 

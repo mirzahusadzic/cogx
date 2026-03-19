@@ -107,7 +107,10 @@
  */
 
 import chalk from 'chalk';
-import { CoherenceAlgebraAdapter } from '../../core/overlays/strategic-coherence/algebra-adapter.js';
+import {
+  CoherenceAlgebraAdapter,
+  CoherenceMetadata,
+} from '../../core/overlays/strategic-coherence/algebra-adapter.js';
 import { resolvePgcRoot, displayItemList } from './utils.js';
 import { createSugarCommand } from './factory.js';
 import { OverlayItem } from '../../core/algebra/overlay-algebra.js';
@@ -130,7 +133,13 @@ export const securityCoherenceCommand = createSugarCommand({
 
     // Load coherence data
     const coherenceAdapter = new CoherenceAlgebraAdapter(pgcRoot);
-    const allItems = await coherenceAdapter.getAllItems();
+    let allItems: OverlayItem<CoherenceMetadata>[] = [];
+
+    try {
+      allItems = await coherenceAdapter.getAllItems();
+    } finally {
+      await coherenceAdapter.close();
+    }
 
     // Filter to security-related symbols
     const securitySymbols = allItems.filter((item) => {

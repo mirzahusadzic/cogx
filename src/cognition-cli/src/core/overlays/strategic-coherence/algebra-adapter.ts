@@ -53,6 +53,13 @@ export class CoherenceAlgebraAdapter implements OverlayAlgebra<CoherenceMetadata
     );
   }
 
+  /**
+   * Close all resources
+   */
+  async close(): Promise<void> {
+    await this.coherenceManager.close();
+  }
+
   // ========================================
   // OVERLAY ALGEBRA INTERFACE
   // ========================================

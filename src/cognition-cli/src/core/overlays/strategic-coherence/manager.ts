@@ -156,6 +156,13 @@ export class StrategicCoherenceManager {
   }
 
   /**
+   * Close all resources
+   */
+  async close(): Promise<void> {
+    await this.vectorStore.close();
+  }
+
+  /**
    * Compute cosine similarity between two 768-dimensional vectors
    */
   private cosineSimilarity(vecA: number[], vecB: number[]): number {
