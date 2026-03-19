@@ -23,12 +23,12 @@
  * // Returns: [{ text: "SQL Injection: Malicious SQL via user input", type: "threat_model", ... }, ...]
  */
 
-import {
-  MarkdownDocument,
-  MarkdownSection,
-} from '../parsers/markdown-parser.js';
+import { MarkdownSection } from '../parsers/markdown-parser.js';
 import { DocumentType } from './document-classifier.js';
-import { DocumentExtractor, SecurityKnowledge } from './document-extractor.js';
+import {
+  BaseMarkdownExtractor,
+  SecurityKnowledge,
+} from './document-extractor.js';
 
 /**
  * SecurityExtractor
@@ -49,54 +49,12 @@ import { DocumentExtractor, SecurityKnowledge } from './document-extractor.js';
  * const extractor = new SecurityExtractor();
  * const knowledge = extractor.extract(threatModelDoc);
  * knowledge.forEach(k => {
- *   console.log(`${k.securityType}: ${k.text}`);
+ *   console.log(`${k.type}: ${k.text}`);
  * });
  */
-export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
-  /**
-   * Extract security knowledge from document
-   *
-   * Recursively processes all sections to extract threats, mitigations,
-   * attack vectors, boundaries, and vulnerabilities.
-   *
-   * @param doc - Parsed markdown document
-   * @returns Array of security knowledge items
-   *
-   * @example
-   * const doc = parser.parse(securityMd);
-   * const knowledge = extractor.extract(doc);
-   * const threats = knowledge.filter(k => k.securityType === 'threat_model');
-   */
-  extract(doc: MarkdownDocument): SecurityKnowledge[] {
-    const knowledge: SecurityKnowledge[] = [];
-
-    // Extract from each section (recursively process nested sections)
-    const extractRecursively = (sections: MarkdownSection[]) => {
-      sections.forEach((section, index) => {
-        const extracted = this.extractFromSection(
-          section,
-          index,
-          sections.length
-        );
-        knowledge.push(...extracted);
-
-        // Recursively process child sections
-        if (section.children && section.children.length > 0) {
-          extractRecursively(section.children);
-        }
-      });
-    };
-
-    extractRecursively(doc.sections);
-
-    return knowledge;
-  }
-
+export class SecurityExtractor extends BaseMarkdownExtractor<SecurityKnowledge> {
   /**
    * Supports security documents
-   *
-   * @param docType - Document type to check
-   * @returns True if document type is SECURITY
    */
   supports(docType: DocumentType): boolean {
     return docType === DocumentType.SECURITY;
@@ -104,8 +62,6 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
 
   /**
    * Targets O₂ (Security) overlay - foundational layer
-   *
-   * @returns Overlay layer identifier "O2_Security"
    */
   getOverlayLayer(): string {
     return 'O2_Security';
@@ -113,17 +69,8 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
 
   /**
    * Extract security knowledge from a single section
-   *
-   * Applies position-based weighting and extracts all security types
-   * (threats, attacks, mitigations, boundaries, vulnerabilities).
-   *
-   * @private
-   * @param section - Section to extract from
-   * @param sectionIndex - Position in parent array
-   * @param totalSections - Total number of sections
-   * @returns Array of extracted security knowledge
    */
-  private extractFromSection(
+  protected extractFromSection(
     section: MarkdownSection,
     sectionIndex: number,
     totalSections: number
@@ -132,9 +79,9 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
     const content = section.content;
 
     // Position weight
-    const positionWeight = 1.0 - (sectionIndex / totalSections) * 0.4;
+    const positionWeight = this.getPositionWeight(sectionIndex, totalSections);
 
-    // 1. Extract threat models from ALL sections (threats can appear anywhere)
+    // 1. Extract threat models from ALL sections
     const threats = this.extractThreats(content);
     threats.forEach((threat) => {
       knowledge.push({
@@ -203,41 +150,7 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
   }
 
   /**
-   * Check if section is about threat models
-   *
-   * @private
-   * @param heading - Section heading text
-   * @returns True if heading contains "threat" or "attack"
-   */
-  private isThreatModelSection(heading: string): boolean {
-    const lower = heading.toLowerCase();
-    return lower.includes('threat') || lower.includes('attack');
-  }
-
-  /**
-   * Check if section is about attack vectors
-   *
-   * @private
-   * @param heading - Section heading text
-   * @returns True if heading contains "vector" or "exploit"
-   */
-  private isAttackVectorSection(heading: string): boolean {
-    const lower = heading.toLowerCase();
-    return lower.includes('vector') || lower.includes('exploit');
-  }
-
-  /**
    * Extract threat models from content
-   *
-   * Supports two formats:
-   * 1. Single-line: **Threat Name** — Description
-   * 2. Multi-field structured: **Threat**: Name, **Severity**: ..., etc.
-   *
-   * Infers severity from text (critical/high/medium/low).
-   *
-   * @private
-   * @param content - Section content to extract from
-   * @returns Array of threat objects with text and optional severity
    */
   private extractThreats(content: string): Array<{
     text: string;
@@ -262,7 +175,6 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
       const trimmed = lines[i].trim();
 
       // Match single-line format: **Threat Name** — Description
-      // ONLY in lines that don't look like boundaries/assets (no words like "Boundary", "Credentials", etc.)
       const singleLineThreatMatch = trimmed.match(
         /^\*\*([^*]+)\*\*\s*[—-]\s*(.+)$/
       );
@@ -280,7 +192,7 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
           lowerName.includes('gateway') ||
           lowerName.includes('service')
         ) {
-          continue; // Skip - likely a boundary or asset, not a threat
+          continue;
         }
 
         const severity = this.inferSeverity(name + ' ' + description);
@@ -295,7 +207,6 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
       // Match multi-field structured format: **Threat**: Name
       const threatFieldMatch = trimmed.match(/^\*\*Threat\*\*:\s*(.+)$/i);
       if (threatFieldMatch) {
-        // Save previous threat if exists
         if (currentThreat?.name) {
           threats.push(this.formatStructuredThreat(currentThreat));
         }
@@ -333,18 +244,15 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
           /^\*\*Mitigation\*\*:\s*$/i
         );
         if (mitigationHeaderMatch) {
-          // Next lines are mitigation bullets
           continue;
         }
 
-        // Collect mitigation bullets
         const mitigationBulletMatch = trimmed.match(/^[-*]\s+(.+)$/);
         if (mitigationBulletMatch && currentThreat.mitigation) {
           currentThreat.mitigation.push(mitigationBulletMatch[1].trim());
           continue;
         }
 
-        // Empty line or new section - end current threat
         if (!trimmed || trimmed.startsWith('##')) {
           if (currentThreat.name) {
             threats.push(this.formatStructuredThreat(currentThreat));
@@ -354,7 +262,6 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
       }
     }
 
-    // Save last threat if exists
     if (currentThreat?.name) {
       threats.push(this.formatStructuredThreat(currentThreat));
     }
@@ -364,13 +271,6 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
 
   /**
    * Format structured threat into SecurityKnowledge format
-   *
-   * Combines multi-field threat data (name, attack vector, impact, mitigations)
-   * into a single formatted security knowledge item.
-   *
-   * @private
-   * @param threat - Structured threat object with optional fields
-   * @returns Formatted threat with text and severity
    */
   private formatStructuredThreat(threat: {
     name?: string;
@@ -404,13 +304,6 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
 
   /**
    * Extract attack vectors
-   *
-   * Only matches lines explicitly labeled as "Attack Vector" to avoid
-   * misclassifying boundaries, assets, or other bold text.
-   *
-   * @private
-   * @param content - Section content to extract from
-   * @returns Array of attack vector objects with text and optional severity
    */
   private extractAttackVectors(content: string): Array<{
     text: string;
@@ -425,7 +318,6 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
     for (const line of lines) {
       const trimmed = line.trim();
 
-      // ONLY match lines explicitly labeled as "Attack Vector:"
       const attackMatch = trimmed.match(/^\*\*Attack Vector\*\*:\s*(.+)$/i);
       if (attackMatch) {
         const description = attackMatch[1].trim();
@@ -441,13 +333,6 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
 
   /**
    * Extract mitigations (countermeasures)
-   *
-   * Pattern: `- Mitigation: description` or `- **Pattern**: context`
-   * Looks for mitigation keywords (prevention, defense, protection, etc.)
-   *
-   * @private
-   * @param content - Section content to extract from
-   * @returns Array of mitigation objects
    */
   private extractMitigations(
     content: string
@@ -461,7 +346,6 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
     for (const line of lines) {
       const trimmed = line.trim();
 
-      // Match: - Mitigation: description
       const mitMatch = trimmed.match(
         /^[-*]\s+(Mitigation|Prevention|Defense):\s*(.+)$/i
       );
@@ -473,7 +357,6 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
         });
       }
 
-      // Also match: - **Pattern**: context
       const patternMatch = trimmed.match(/^[-*]\s+\*\*([^*]+)\*\*:\s*(.+)$/);
       if (patternMatch && this.isMitigationKeyword(patternMatch[1])) {
         mitigations.push({
@@ -488,10 +371,6 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
 
   /**
    * Check if keyword indicates mitigation
-   *
-   * @private
-   * @param text - Text to check for mitigation keywords
-   * @returns True if text contains mitigation-related keywords
    */
   private isMitigationKeyword(text: string): boolean {
     const keywords = [
@@ -509,12 +388,6 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
 
   /**
    * Extract security boundaries (trust zones)
-   *
-   * Pattern: Bold statements containing "boundary", "trust", or "zone"
-   *
-   * @private
-   * @param content - Section content to extract from
-   * @returns Array of boundary statements
    */
   private extractBoundaries(content: string): Array<{ text: string }> {
     const boundaries: Array<{ text: string }> = [];
@@ -523,7 +396,6 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
     for (const line of lines) {
       const trimmed = line.trim();
 
-      // Match bold statements about boundaries
       const boundaryMatch = trimmed.match(
         /\*\*([^*]*(?:boundary|trust|zone)[^*]*)\*\*/i
       );
@@ -539,14 +411,6 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
 
   /**
    * Extract vulnerabilities (CVEs, known issues)
-   *
-   * Pattern: CVE-YYYY-NNNNN identifiers with surrounding context.
-   * Strips code blocks to avoid extracting from examples.
-   * Infers severity from context.
-   *
-   * @private
-   * @param content - Section content to extract from
-   * @returns Array of vulnerability objects with CVE metadata
    */
   private extractVulnerabilities(content: string): Array<{
     text: string;
@@ -567,37 +431,30 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
       };
     }> = [];
 
-    // Strip code blocks before processing
     const contentWithoutCodeBlocks = this.stripCodeBlocks(content);
-
     const lines = contentWithoutCodeBlocks.split('\n');
     const processedCVEs = new Set<string>();
 
-    // Match CVE identifiers and extract complete context
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const cveMatch = line.match(/CVE-\d{4}-\d{4,}/g);
 
       if (cveMatch) {
         for (const cveId of cveMatch) {
-          // Skip if already processed
           if (processedCVEs.has(cveId)) continue;
           processedCVEs.add(cveId);
 
-          // Extract meaningful description from the same line or nearby lines
           let description = line
             .replace(cveId, '')
             .replace(/^[-*#\s]+/, '')
             .trim();
 
-          // If description is too short or looks like code/JSON, try next lines
           if (
             description.length < 10 ||
             /^[{}[\],"':]+$/.test(description) ||
             description.endsWith(',') ||
             description.endsWith(':')
           ) {
-            // Look for description in next few lines
             for (let j = i + 1; j < Math.min(i + 3, lines.length); j++) {
               const nextLine = lines[j].trim();
               if (
@@ -613,13 +470,12 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
             }
           }
 
-          // Still invalid? Skip this CVE (likely from documentation example)
           if (
             !description ||
             description.length < 10 ||
             /^[{}[\],"':]+$/.test(description)
           ) {
-            continue; // Skip instead of using placeholder
+            continue;
           }
 
           vulnerabilities.push({
@@ -637,29 +493,7 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
   }
 
   /**
-   * Strip code blocks from content to avoid extracting from examples
-   *
-   * Removes fenced code blocks (```...```) to prevent extracting
-   * CVEs and other security content from documentation examples.
-   *
-   * @private
-   * @param content - Content to strip code blocks from
-   * @returns Content without code blocks
-   */
-  private stripCodeBlocks(content: string): string {
-    // Remove fenced code blocks
-    return content.replace(/```[\s\S]*?```/g, '');
-  }
-
-  /**
    * Infer severity from text
-   *
-   * Looks for severity keywords (critical, high, medium, low) and
-   * threat indicators (exploit, injection).
-   *
-   * @private
-   * @param text - Text to analyze for severity
-   * @returns Inferred severity level or undefined
    */
   private inferSeverity(
     text: string
@@ -671,7 +505,6 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
     if (lower.includes('medium') || lower.includes('moderate')) return 'medium';
     if (lower.includes('low') || lower.includes('minor')) return 'low';
 
-    // Default severity based on keywords
     if (lower.includes('exploit') || lower.includes('injection')) {
       return 'high';
     }

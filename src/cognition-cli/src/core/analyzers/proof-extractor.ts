@@ -27,13 +27,10 @@
  * // Returns theorems, lemmas, axioms, invariants, complexity bounds, proofs, identities
  */
 
-import {
-  MarkdownDocument,
-  MarkdownSection,
-} from '../parsers/markdown-parser.js';
+import { MarkdownSection } from '../parsers/markdown-parser.js';
 import { DocumentType } from './document-classifier.js';
 import {
-  DocumentExtractor,
+  BaseMarkdownExtractor,
   MathematicalKnowledge,
 } from './document-extractor.js';
 
@@ -55,114 +52,9 @@ import {
  * @example
  * const extractor = new ProofExtractor();
  * const knowledge = extractor.extract(proofsDoc);
- * const theorems = knowledge.filter(k => k.statementType === 'theorem');
+ * const theorems = knowledge.filter(k => k.type === 'theorem');
  */
-export class ProofExtractor implements DocumentExtractor<MathematicalKnowledge> {
-  /**
-   * Extract mathematical knowledge from document
-   *
-   * Recursively processes all sections to extract theorems, lemmas,
-   * axioms, invariants, complexity bounds, proofs, and identities.
-   *
-   * @param doc - Parsed markdown document
-   * @returns Array of mathematical knowledge items
-   */
-  extract(doc: MarkdownDocument): MathematicalKnowledge[] {
-    const knowledge: MathematicalKnowledge[] = [];
-
-    // Extract from each section (recursively including children)
-    doc.sections.forEach((section, index) => {
-      knowledge.push(
-        ...this.extractFromSectionRecursive(section, index, doc.sections.length)
-      );
-    });
-
-    // Deduplicate by normalized text (strip type prefixes before comparison)
-    // This prevents duplicates from section-based + inline extraction paths
-    return this.deduplicateKnowledge(knowledge);
-  }
-
-  /**
-   * Normalize text by stripping type prefixes for deduplication comparison
-   */
-  private normalizeForDedup(text: string): string {
-    return text
-      .replace(
-        /^(THEOREM|LEMMA|AXIOM|INVARIANT|COMPLEXITY|PROOF|IDENTITY):\s*/i,
-        ''
-      )
-      .trim()
-      .toLowerCase();
-  }
-
-  /**
-   * Deduplicate knowledge items by normalized text content
-   * Prefers items without type prefix in text (cleaner display)
-   */
-  private deduplicateKnowledge(
-    knowledge: MathematicalKnowledge[]
-  ): MathematicalKnowledge[] {
-    const seen = new Map<string, MathematicalKnowledge>();
-
-    for (const item of knowledge) {
-      const key = this.normalizeForDedup(item.text);
-      const existing = seen.get(key);
-
-      if (!existing) {
-        seen.set(key, item);
-      } else {
-        // Prefer the version WITHOUT a type prefix in the text (cleaner)
-        const existingHasPrefix =
-          /^(THEOREM|LEMMA|AXIOM|INVARIANT|COMPLEXITY|PROOF|IDENTITY):/i.test(
-            existing.text
-          );
-        const currentHasPrefix =
-          /^(THEOREM|LEMMA|AXIOM|INVARIANT|COMPLEXITY|PROOF|IDENTITY):/i.test(
-            item.text
-          );
-
-        if (existingHasPrefix && !currentHasPrefix) {
-          // Current is cleaner, replace
-          seen.set(key, item);
-        }
-        // Otherwise keep existing (either both have prefix, neither has, or existing is cleaner)
-      }
-    }
-
-    return Array.from(seen.values());
-  }
-
-  /**
-   * Recursively extract from section and all its children
-   */
-  private extractFromSectionRecursive(
-    section: MarkdownSection,
-    sectionIndex: number,
-    totalSections: number
-  ): MathematicalKnowledge[] {
-    const knowledge: MathematicalKnowledge[] = [];
-
-    // Extract from this section
-    knowledge.push(
-      ...this.extractFromSection(section, sectionIndex, totalSections)
-    );
-
-    // Recursively extract from children
-    if (section.children && section.children.length > 0) {
-      section.children.forEach((child, childIndex) => {
-        knowledge.push(
-          ...this.extractFromSectionRecursive(
-            child,
-            childIndex,
-            section.children.length
-          )
-        );
-      });
-    }
-
-    return knowledge;
-  }
-
+export class ProofExtractor extends BaseMarkdownExtractor<MathematicalKnowledge> {
   /**
    * Supports mathematical documents
    */
@@ -180,7 +72,7 @@ export class ProofExtractor implements DocumentExtractor<MathematicalKnowledge> 
   /**
    * Extract mathematical knowledge from a single section
    */
-  private extractFromSection(
+  protected extractFromSection(
     section: MarkdownSection,
     sectionIndex: number,
     totalSections: number
@@ -190,7 +82,7 @@ export class ProofExtractor implements DocumentExtractor<MathematicalKnowledge> 
     const heading = section.heading.toLowerCase();
 
     // Position weight
-    const positionWeight = 1.0 - (sectionIndex / totalSections) * 0.4;
+    const positionWeight = this.getPositionWeight(sectionIndex, totalSections);
 
     // 1. Extract theorems (from theorem sections or inline)
     if (heading.includes('theorem')) {
@@ -237,7 +129,7 @@ export class ProofExtractor implements DocumentExtractor<MathematicalKnowledge> 
       });
     }
 
-    // 4. Extract invariants (NEW)
+    // 4. Extract invariants
     if (heading.includes('invariant')) {
       const invariants = this.extractInvariants(content);
       invariants.forEach((invariant) => {
@@ -252,7 +144,7 @@ export class ProofExtractor implements DocumentExtractor<MathematicalKnowledge> 
       });
     }
 
-    // 5. Extract complexity bounds (NEW)
+    // 5. Extract complexity bounds
     if (heading.includes('complexity') || heading.includes('bound')) {
       const complexities = this.extractComplexity(content);
       complexities.forEach((complexity) => {

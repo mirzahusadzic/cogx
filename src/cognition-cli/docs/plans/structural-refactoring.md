@@ -144,7 +144,9 @@ This plan outlines the steps to refactor key areas of the Cognition Σ repositor
 
 ---
 
-## 6. Document Extractor Hierarchy
+## 6. Document Extractor Hierarchy [COMPLETED]
+
+**Status**: COMPLETED (March 19, 2026)
 
 **Goal**: Consolidate repetitive logic for markdown processing and pattern extraction.
 
@@ -153,18 +155,26 @@ This plan outlines the steps to refactor key areas of the Cognition Σ repositor
 - `ProofExtractor` (src/core/analyzers/proof-extractor.ts)
 - `SecurityExtractor` (src/core/analyzers/security-extractor.ts)
 - `WorkflowExtractor` (src/core/analyzers/workflow-extractor.ts)
+- `ConceptExtractor` (src/core/analyzers/concept-extractor.ts)
+- `StrategyExtractor` (src/core/analyzers/strategy-extractor.ts)
 
-### Implementation Steps
+### Implementation Results
 
-1. **Extract BaseMarkdownExtractor**: Create a base class that handles file reading, markdown AST parsing (using `remark` or `unified` if applicable), and boilerplate extraction of standard metadata.
-2. **Standardize Extractors**: Refactor specific extractors to only focus on their unique regex patterns or extraction rules.
-3. **Harmonize Output Schemas**: Ensure all extractors return consistent types defined in `IBaseOverlayFindings`.
-4. **Validation**: Run `npm run test` on the analyzer suite.
+1. **Core Infrastructure**: Introduced `BaseMarkdownExtractor<T>` abstract base class in `src/core/analyzers/document-extractor.ts`. Centralized recursive section traversal, position-based weighting (1.0 - 0.6), and normalized deduplication logic.
+2. **Extractor Consolidation**:
+   - Refactored `ProofExtractor`, `SecurityExtractor`, and `WorkflowExtractor` to extend `BaseMarkdownExtractor`, reducing them to domain-specific extraction logic.
+   - Merged `StrategyExtractor` into `ConceptExtractor` to unify O₄ (Mission) extraction.
+   - Refactored `ConceptExtractor` to extend the base class and integrated strategic type inference (vision, mission, principle, goal, value).
+3. **Type Harmonization**: Updated `ExtractedKnowledge` hierarchy and `MissionConcept` interface to extend `StrategyKnowledge`, ensuring consistent data flow between extractors, managers, and PGC storage.
+4. **Integration**: Updated `MissionConceptsManager` and `EmbeddingLoader` to handle standardized metadata and the new required `type` field.
+5. **Validation**: Verified with successful `npm run build`, `npm run lint:changed`, and passing unit tests for the updated extractors.
 
-### Expected Impact
+### Impact
 
-- ~200 lines of code reduction.
-- Consistent extraction performance and reliability across different domain types.
+- **~450 lines of code reduction** (Net project-wide).
+- Unified extraction behavior across all markdown-based overlays.
+- Simplified maintenance: Improvements to the base class (like better deduplication or weighting) now benefit all extractors simultaneously.
+- Eliminated redundant traversal logic and improved performance through efficient recursive patterns.
 
 ---
 
@@ -209,6 +219,6 @@ This plan outlines the steps to refactor key areas of the Cognition Σ repositor
 
 ## 📊 Summary
 
-- **Total code reduction to date**: ~2,800 lines
-- **Remaining tasks**: 2 major refactoring candidate groups.
-- **Estimated total future reduction**: ~300-500 lines.
+- **Total code reduction to date**: ~3,250 lines
+- **Remaining tasks**: 1 major refactoring candidate group.
+- **Estimated total future reduction**: ~100-200 lines.

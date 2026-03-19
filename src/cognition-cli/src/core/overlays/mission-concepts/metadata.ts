@@ -63,5 +63,5 @@ export type MissionConceptsOverlay = IBaseOverlayFindings<
  * Metadata for mission concept overlay items
  */
 export interface MissionConceptMetadata extends IBaseOverlayMetadata {
-  type: 'vision' | 'concept' | 'principle' | 'goal'; // Concept type
+  type: 'vision' | 'mission' | 'principle' | 'goal' | 'value' | 'concept'; // Concept type
 }

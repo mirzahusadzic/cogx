@@ -141,6 +141,7 @@ export class EmbeddingLoader {
         occurrences: record.occurrences,
         sectionHash: record.section_hash,
         embedding: record.embedding,
+        type: (record.concept_type as MissionConcept['type']) || 'concept',
       }));
     } catch (error) {
       await lanceStore.close();
@@ -195,6 +196,8 @@ export class EmbeddingLoader {
         occurrences: 1,
         sectionHash: (record.structuralHash as string) || '',
         embedding: record.embedding,
+        type:
+          (record.architectural_role as MissionConcept['type']) || 'concept',
       }));
     } catch (error) {
       await lanceStore.close();

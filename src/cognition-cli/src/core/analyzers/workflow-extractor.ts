@@ -22,13 +22,10 @@
  * // Returns: [{ text: "F.L.T.B Sacred Sequence", type: "sacred_sequence", ... }, ...]
  */
 
-import {
-  MarkdownDocument,
-  MarkdownSection,
-} from '../parsers/markdown-parser.js';
+import { MarkdownSection } from '../parsers/markdown-parser.js';
 import { DocumentType } from './document-classifier.js';
 import {
-  DocumentExtractor,
+  BaseMarkdownExtractor,
   OperationalKnowledge,
 } from './document-extractor.js';
 
@@ -49,74 +46,11 @@ import {
  * @example
  * const extractor = new WorkflowExtractor();
  * const patterns = extractor.extract(workflowDoc);
- * const sequences = patterns.filter(p => p.patternType === 'sacred_sequence');
+ * const sequences = patterns.filter(p => p.type === 'sacred_sequence');
  */
-export class WorkflowExtractor implements DocumentExtractor<OperationalKnowledge> {
-  /**
-   * Extract operational patterns from document
-   *
-   * Flattens nested sections and extracts patterns from each section
-   * with position-based weighting.
-   *
-   * @param doc - Parsed markdown document
-   * @returns Array of operational knowledge patterns
-   *
-   * @example
-   * const doc = parser.parse(operationalMd);
-   * const patterns = extractor.extract(doc);
-   * console.log(patterns.find(p => p.text.includes('F.L.T.B')));
-   */
-  extract(doc: MarkdownDocument): OperationalKnowledge[] {
-    const patterns: OperationalKnowledge[] = [];
-
-    // Extract from all sections (including nested)
-    const allSections = this.flattenSections(doc.sections);
-    allSections.forEach((section, index) => {
-      patterns.push(
-        ...this.extractFromSection(section, index, allSections.length)
-      );
-    });
-
-    // Deduplicate by text content (keep highest weight version)
-    const seen = new Map<string, OperationalKnowledge>();
-    for (const pattern of patterns) {
-      const existing = seen.get(pattern.text);
-      if (!existing || (pattern.weight ?? 0) > (existing.weight ?? 0)) {
-        seen.set(pattern.text, pattern);
-      }
-    }
-
-    return Array.from(seen.values());
-  }
-
-  /**
-   * Flatten nested sections into a single array
-   *
-   * Recursively traverses section hierarchy to create a flat list
-   * for sequential processing.
-   *
-   * @private
-   * @param sections - Array of sections (possibly nested)
-   * @returns Flattened array of all sections
-   */
-  private flattenSections(sections: MarkdownSection[]): MarkdownSection[] {
-    const flattened: MarkdownSection[] = [];
-
-    for (const section of sections) {
-      flattened.push(section);
-      if (section.children && section.children.length > 0) {
-        flattened.push(...this.flattenSections(section.children));
-      }
-    }
-
-    return flattened;
-  }
-
+export class WorkflowExtractor extends BaseMarkdownExtractor<OperationalKnowledge> {
   /**
    * Supports operational documents
-   *
-   * @param docType - Document type to check
-   * @returns True if document type is OPERATIONAL
    */
   supports(docType: DocumentType): boolean {
     return docType === DocumentType.OPERATIONAL;
@@ -124,8 +58,6 @@ export class WorkflowExtractor implements DocumentExtractor<OperationalKnowledge
 
   /**
    * Targets O₅ (Operational) overlay
-   *
-   * @returns Overlay layer identifier "O5_Operational"
    */
   getOverlayLayer(): string {
     return 'O5_Operational';
@@ -133,18 +65,8 @@ export class WorkflowExtractor implements DocumentExtractor<OperationalKnowledge
 
   /**
    * Extract patterns from a single section
-   *
-   * Applies all extraction patterns (quest structures, sacred sequences,
-   * workflow patterns, depth rules, terminology, formulas, explanations)
-   * with position-based weighting.
-   *
-   * @private
-   * @param section - Section to extract from
-   * @param sectionIndex - Position in flattened array
-   * @param totalSections - Total number of sections
-   * @returns Array of extracted operational patterns
    */
-  private extractFromSection(
+  protected extractFromSection(
     section: MarkdownSection,
     sectionIndex: number,
     totalSections: number
@@ -153,7 +75,7 @@ export class WorkflowExtractor implements DocumentExtractor<OperationalKnowledge
     const content = section.content;
 
     // Position weight
-    const positionWeight = 1.0 - (sectionIndex / totalSections) * 0.4;
+    const positionWeight = this.getPositionWeight(sectionIndex, totalSections);
 
     // 1. Extract quest structure patterns (What/Why/Success)
     const questPatterns = this.extractQuestPatterns(content);
@@ -236,7 +158,7 @@ export class WorkflowExtractor implements DocumentExtractor<OperationalKnowledge
       });
     });
 
-    // 7. Extract explanatory paragraphs (NEW: for documentation/reference manuals)
+    // 7. Extract explanatory paragraphs
     const explanations = this.extractExplanatoryParagraphs(
       content,
       section.heading

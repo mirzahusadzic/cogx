@@ -89,13 +89,16 @@ export class MissionConceptsManager extends BasePatternManager<MissionConceptMet
   /**
    * Classify concept type based on section name
    */
-  private classifyConceptType(
-    sectionName: string
-  ): 'vision' | 'concept' | 'principle' | 'goal' {
+  private classifyConceptType(sectionName: string): MissionConcept['type'] {
     const normalized = sectionName.toLowerCase();
 
+    if (normalized.includes('vision')) return 'vision';
+    if (normalized.includes('mission')) return 'mission';
+    if (normalized.includes('principle')) return 'principle';
+    if (normalized.includes('goal')) return 'goal';
+    if (normalized.includes('value')) return 'value';
+
     if (
-      normalized.includes('vision') ||
       normalized.includes('why') ||
       normalized.includes('purpose') ||
       normalized.includes('opportunity')
@@ -103,23 +106,18 @@ export class MissionConceptsManager extends BasePatternManager<MissionConceptMet
       return 'vision';
     }
 
-    if (
-      normalized.includes('principle') ||
-      normalized.includes('value') ||
-      normalized.includes('philosophy')
-    ) {
+    if (normalized.includes('philosophy')) {
       return 'principle';
     }
 
     if (
-      normalized.includes('goal') ||
       normalized.includes('strategic intent') ||
       normalized.includes('path forward')
     ) {
       return 'goal';
     }
 
-    // Default: concept (for Mission, Solution, Architecture, etc.)
+    // Default: concept (for Solution, Architecture, etc.)
     return 'concept';
   }
 
@@ -381,6 +379,7 @@ export class MissionConceptsManager extends BasePatternManager<MissionConceptMet
       weight: item.metadata.weight ?? 0.5,
       occurrences: item.metadata.occurrences,
       sectionHash: item.metadata.sectionHash,
+      type: item.metadata.type,
     }));
   }
   /**
@@ -400,7 +399,7 @@ export class MissionConceptsManager extends BasePatternManager<MissionConceptMet
         existing.occurrences =
           (existing.occurrences || 0) + (item.metadata.occurrences || 1);
         existing.weight = Math.max(
-          existing.weight,
+          existing.weight ?? 0.5,
           item.metadata.weight ?? 0.5
         );
       } else {
@@ -410,12 +409,13 @@ export class MissionConceptsManager extends BasePatternManager<MissionConceptMet
           weight: item.metadata.weight ?? 0.5,
           occurrences: item.metadata.occurrences,
           sectionHash: item.metadata.sectionHash,
+          type: item.metadata.type,
         });
       }
     }
 
     const merged = Array.from(conceptMap.values());
-    merged.sort((a, b) => b.weight - a.weight);
+    merged.sort((a, b) => (b.weight ?? 0.5) - (a.weight ?? 0.5));
 
     return merged.slice(0, topN);
   }

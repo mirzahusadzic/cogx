@@ -1,7 +1,9 @@
-import { MarkdownDocument } from '../parsers/markdown-parser.js';
+import {
+  MarkdownDocument,
+  MarkdownSection,
+} from '../parsers/markdown-parser.js';
 import { DocumentType } from './document-classifier.js';
 import { BaseRegistry } from '../common/registry.js';
-
 import { IBaseOverlayFinding } from '../overlays/base-types.js';
 
 /**
@@ -18,7 +20,7 @@ export interface ExtractedKnowledge extends IBaseOverlayFinding {
  */
 export interface StrategyKnowledge extends ExtractedKnowledge {
   /** Mission concept category */
-  type: 'vision' | 'mission' | 'principle' | 'goal' | 'value';
+  type: 'vision' | 'mission' | 'principle' | 'goal' | 'value' | 'concept';
 }
 
 /**
@@ -107,6 +109,154 @@ export interface DocumentExtractor<
    * Get the overlay layer this extractor targets
    */
   getOverlayLayer(): string;
+}
+
+/**
+ * Base class for markdown-based document extractors.
+ * Handles common tasks like section traversal, position weighting,
+ * and deduplication.
+ *
+ * DESIGN RATIONALE:
+ * - Reduces boilerplate in specific domain extractors
+ * - Ensures consistent traversal logic (O(N) section visits)
+ * - Standardizes importance weighting based on document flow
+ * - Centralizes text cleaning and deduplication logic
+ */
+export abstract class BaseMarkdownExtractor<
+  T extends ExtractedKnowledge,
+> implements DocumentExtractor<T> {
+  /**
+   * Extract knowledge from a document
+   */
+  extract(doc: MarkdownDocument): T[] {
+    const knowledge: T[] = [];
+
+    // Extract from each section (recursively including children)
+    doc.sections.forEach((section, index) => {
+      knowledge.push(
+        ...this.extractFromSectionRecursive(section, index, doc.sections.length)
+      );
+    });
+
+    // Deduplicate by normalized text
+    return this.deduplicateKnowledge(knowledge);
+  }
+
+  /**
+   * Recursively extract from section and all its children
+   */
+  protected extractFromSectionRecursive(
+    section: MarkdownSection,
+    sectionIndex: number,
+    totalSections: number
+  ): T[] {
+    const knowledge: T[] = [];
+
+    // Extract from this section
+    knowledge.push(
+      ...this.extractFromSection(section, sectionIndex, totalSections)
+    );
+
+    // Recursively extract from children
+    if (section.children && section.children.length > 0) {
+      section.children.forEach((child, childIndex) => {
+        knowledge.push(
+          ...this.extractFromSectionRecursive(
+            child,
+            childIndex,
+            section.children.length
+          )
+        );
+      });
+    }
+
+    return knowledge;
+  }
+
+  /**
+   * Extract knowledge from a single section.
+   * To be implemented by specific extractors.
+   */
+  protected abstract extractFromSection(
+    section: MarkdownSection,
+    sectionIndex: number,
+    totalSections: number
+  ): T[];
+
+  /**
+   * Deduplicate knowledge items by normalized text content.
+   * Standard implementation that prefers items without type prefix.
+   */
+  protected deduplicateKnowledge(knowledge: T[]): T[] {
+    const seen = new Map<string, T>();
+
+    for (const item of knowledge) {
+      const key = this.normalizeForDedup(item.text);
+      const existing = seen.get(key);
+
+      if (!existing) {
+        seen.set(key, item);
+      } else {
+        // Accumulate occurrences
+        existing.occurrences =
+          (existing.occurrences || 0) + (item.occurrences || 1);
+
+        // Prefer the version WITHOUT a type prefix in the text (cleaner)
+        const existingHasPrefix = this.hasTypePrefix(existing.text);
+        const currentHasPrefix = this.hasTypePrefix(item.text);
+
+        if (existingHasPrefix && !currentHasPrefix) {
+          // Carry over accumulated occurrences to the new representative item
+          item.occurrences = existing.occurrences;
+          seen.set(key, item);
+        } else if (
+          (item.weight ?? 0) > (existing.weight ?? 0) &&
+          existingHasPrefix === currentHasPrefix
+        ) {
+          // Carry over accumulated occurrences to the new representative item
+          item.occurrences = existing.occurrences;
+          seen.set(key, item);
+        }
+      }
+    }
+
+    return Array.from(seen.values());
+  }
+
+  /**
+   * Check if text has a type prefix (e.g. "THEOREM: ...")
+   */
+  protected hasTypePrefix(text: string): boolean {
+    return /^[A-Z_]{3,}:\s*/i.test(text);
+  }
+
+  /**
+   * Normalize text by stripping common type prefixes for deduplication
+   */
+  protected normalizeForDedup(text: string): string {
+    return text
+      .replace(/^[A-Z_]{3,}:\s*/i, '')
+      .trim()
+      .toLowerCase();
+  }
+
+  /**
+   * Calculate position-based weight
+   */
+  protected getPositionWeight(index: number, total: number): number {
+    return 1.0 - (index / Math.max(1, total)) * 0.4;
+  }
+
+  /**
+   * Utility to strip code blocks from text
+   */
+  protected stripCodeBlocks(text: string): string {
+    return text.replace(/```[\s\S]*?```/g, '').trim();
+  }
+
+  // Abstract methods from DocumentExtractor
+  abstract supports(docType: DocumentType): boolean;
+  abstract getOverlayLayer(): string;
 }
 
 /**
