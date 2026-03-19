@@ -4,13 +4,12 @@ import { formatToolInput, extractBaseCommand } from '../utils/tool-safety.js';
 import { formatToolUse } from '../hooks/rendering/ToolFormatter.js';
 import type { ToolConfirmationState } from '../hooks/useToolConfirmation.js';
 import { TUITheme } from '../theme.js';
+import { IBaseModalProps } from '../types/props.js';
 
 /**
  * Props for ToolConfirmationModal component
  */
-export interface ToolConfirmationModalProps {
-  /** Current tool confirmation state with tool name and input */
-  state: ToolConfirmationState;
+export interface ToolConfirmationModalProps extends IBaseModalProps<ToolConfirmationState> {
   /** Current working directory for path relativization */
   cwd?: string;
 }

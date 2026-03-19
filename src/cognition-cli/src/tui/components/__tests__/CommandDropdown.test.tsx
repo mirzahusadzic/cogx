@@ -41,9 +41,12 @@ describe('CommandDropdown', () => {
     it('renders nothing when not visible', () => {
       const { lastFrame } = render(
         <CommandDropdown
-          commands={mockCommands}
-          selectedIndex={0}
-          isVisible={false}
+          focused={true}
+          state={{
+            commands: mockCommands,
+            selectedIndex: 0,
+            isVisible: false,
+          }}
         />
       );
       expect(lastFrame()).toBe('');
@@ -51,7 +54,14 @@ describe('CommandDropdown', () => {
 
     it('renders nothing when commands array is empty', () => {
       const { lastFrame } = render(
-        <CommandDropdown commands={[]} selectedIndex={0} isVisible={true} />
+        <CommandDropdown
+          focused={true}
+          state={{
+            commands: [],
+            selectedIndex: 0,
+            isVisible: true,
+          }}
+        />
       );
       expect(lastFrame()).toBe('');
     });
@@ -59,9 +69,12 @@ describe('CommandDropdown', () => {
     it('renders when visible with commands', () => {
       const { lastFrame } = render(
         <CommandDropdown
-          commands={mockCommands}
-          selectedIndex={0}
-          isVisible={true}
+          focused={true}
+          state={{
+            commands: mockCommands,
+            selectedIndex: 0,
+            isVisible: true,
+          }}
         />
       );
       expect(lastFrame()).not.toBe('');
@@ -72,9 +85,12 @@ describe('CommandDropdown', () => {
     it('displays command names with slash prefix', () => {
       const { lastFrame } = render(
         <CommandDropdown
-          commands={mockCommands}
-          selectedIndex={0}
-          isVisible={true}
+          focused={true}
+          state={{
+            commands: mockCommands,
+            selectedIndex: 0,
+            isVisible: true,
+          }}
         />
       );
       const output = lastFrame() ?? '';
@@ -86,9 +102,12 @@ describe('CommandDropdown', () => {
     it('displays command descriptions', () => {
       const { lastFrame } = render(
         <CommandDropdown
-          commands={mockCommands}
-          selectedIndex={0}
-          isVisible={true}
+          focused={true}
+          state={{
+            commands: mockCommands,
+            selectedIndex: 0,
+            isVisible: true,
+          }}
         />
       );
       const output = lastFrame() ?? '';
@@ -102,9 +121,12 @@ describe('CommandDropdown', () => {
       ];
       const { lastFrame } = render(
         <CommandDropdown
-          commands={noDescCommands}
-          selectedIndex={0}
-          isVisible={true}
+          focused={true}
+          state={{
+            commands: noDescCommands,
+            selectedIndex: 0,
+            isVisible: true,
+          }}
         />
       );
       expect(lastFrame()).toContain('/nodesc');
@@ -121,9 +143,12 @@ describe('CommandDropdown', () => {
       ];
       const { lastFrame } = render(
         <CommandDropdown
-          commands={longDescCommand}
-          selectedIndex={0}
-          isVisible={true}
+          focused={true}
+          state={{
+            commands: longDescCommand,
+            selectedIndex: 0,
+            isVisible: true,
+          }}
         />
       );
       const output = lastFrame() ?? '';
@@ -136,9 +161,12 @@ describe('CommandDropdown', () => {
     it('shows selection indicator for selected command', () => {
       const { lastFrame } = render(
         <CommandDropdown
-          commands={mockCommands}
-          selectedIndex={0}
-          isVisible={true}
+          focused={true}
+          state={{
+            commands: mockCommands,
+            selectedIndex: 0,
+            isVisible: true,
+          }}
         />
       );
       expect(lastFrame()).toContain('▸');
@@ -147,9 +175,12 @@ describe('CommandDropdown', () => {
     it('selection indicator appears next to selected command', () => {
       const { lastFrame } = render(
         <CommandDropdown
-          commands={mockCommands}
-          selectedIndex={1}
-          isVisible={true}
+          focused={true}
+          state={{
+            commands: mockCommands,
+            selectedIndex: 1,
+            isVisible: true,
+          }}
         />
       );
       const output = lastFrame() ?? '';
@@ -161,9 +192,12 @@ describe('CommandDropdown', () => {
     it('unselected commands have space instead of indicator', () => {
       const { lastFrame } = render(
         <CommandDropdown
-          commands={mockCommands}
-          selectedIndex={0}
-          isVisible={true}
+          focused={true}
+          state={{
+            commands: mockCommands,
+            selectedIndex: 0,
+            isVisible: true,
+          }}
         />
       );
       const output = lastFrame() ?? '';
@@ -176,9 +210,12 @@ describe('CommandDropdown', () => {
     it('shows keyboard shortcut hints', () => {
       const { lastFrame } = render(
         <CommandDropdown
-          commands={mockCommands}
-          selectedIndex={0}
-          isVisible={true}
+          focused={true}
+          state={{
+            commands: mockCommands,
+            selectedIndex: 0,
+            isVisible: true,
+          }}
         />
       );
       const output = lastFrame() ?? '';
@@ -193,10 +230,13 @@ describe('CommandDropdown', () => {
       // With maxHeight=2, we should see scroll indicators
       const { lastFrame } = render(
         <CommandDropdown
-          commands={mockCommands}
-          selectedIndex={0}
-          isVisible={true}
-          maxHeight={2}
+          focused={true}
+          state={{
+            commands: mockCommands,
+            selectedIndex: 0,
+            isVisible: true,
+            maxHeight: 2,
+          }}
         />
       );
       const output = lastFrame() ?? '';
@@ -207,10 +247,13 @@ describe('CommandDropdown', () => {
     it('limits displayed commands to maxHeight', () => {
       const { lastFrame } = render(
         <CommandDropdown
-          commands={mockCommands}
-          selectedIndex={0}
-          isVisible={true}
-          maxHeight={2}
+          focused={true}
+          state={{
+            commands: mockCommands,
+            selectedIndex: 0,
+            isVisible: true,
+            maxHeight: 2,
+          }}
         />
       );
       const output = lastFrame() ?? '';
@@ -225,10 +268,13 @@ describe('CommandDropdown', () => {
       // With many commands and small maxHeight, scrolling should be possible
       const { lastFrame } = render(
         <CommandDropdown
-          commands={mockCommands}
-          selectedIndex={0}
-          isVisible={true}
-          maxHeight={2}
+          focused={true}
+          state={{
+            commands: mockCommands,
+            selectedIndex: 0,
+            isVisible: true,
+            maxHeight: 2,
+          }}
         />
       );
       const output = lastFrame() ?? '';
@@ -243,18 +289,24 @@ describe('CommandDropdown', () => {
       // This tests that React.memo is working
       const { rerender, lastFrame } = render(
         <CommandDropdown
-          commands={mockCommands}
-          selectedIndex={0}
-          isVisible={true}
+          focused={true}
+          state={{
+            commands: mockCommands,
+            selectedIndex: 0,
+            isVisible: true,
+          }}
         />
       );
       const firstFrame = lastFrame();
 
       rerender(
         <CommandDropdown
-          commands={mockCommands}
-          selectedIndex={0}
-          isVisible={true}
+          focused={true}
+          state={{
+            commands: mockCommands,
+            selectedIndex: 0,
+            isVisible: true,
+          }}
         />
       );
       const secondFrame = lastFrame();
@@ -265,18 +317,24 @@ describe('CommandDropdown', () => {
     it('updates when selectedIndex changes', () => {
       const { rerender, lastFrame } = render(
         <CommandDropdown
-          commands={mockCommands}
-          selectedIndex={0}
-          isVisible={true}
+          focused={true}
+          state={{
+            commands: mockCommands,
+            selectedIndex: 0,
+            isVisible: true,
+          }}
         />
       );
       const firstFrame = lastFrame();
 
       rerender(
         <CommandDropdown
-          commands={mockCommands}
-          selectedIndex={1}
-          isVisible={true}
+          focused={true}
+          state={{
+            commands: mockCommands,
+            selectedIndex: 1,
+            isVisible: true,
+          }}
         />
       );
       const secondFrame = lastFrame();

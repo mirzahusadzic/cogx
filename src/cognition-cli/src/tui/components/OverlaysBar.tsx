@@ -5,10 +5,10 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import type {
   WorkbenchHealthStatus,
-  SigmaStats,
   BackgroundTask,
 } from '../../core/state/tui-sync/types.js';
 import { TUITheme } from '../theme.js';
+import { IBasePanelProps } from '../types/props.js';
 
 import { environmentService } from '../../core/services/environment/EnvironmentService.js';
 import { tuiSyncManager } from '../../core/state/tui-sync/TUISyncManager.js';
@@ -26,9 +26,7 @@ const BRAND_EMOJI = environmentService.isMac() ? '🐉' : '🐦‍🔥';
 /**
  * Props for OverlaysBar component
  */
-export interface OverlaysBarProps {
-  /** Sigma lattice statistics to display */
-  sigmaStats?: SigmaStats;
+export interface OverlaysBarProps extends IBasePanelProps {
   /** Active background task (if any) - when set, shows status instead of branding */
   activeTask?: BackgroundTask | null;
   /** Number of pending messages in the message queue */

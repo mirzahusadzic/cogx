@@ -162,7 +162,9 @@ This plan outlines the steps to refactor key areas of the Cognition Σ repositor
 
 ---
 
-## 7. TUI Component Prop Standardization
+## 7. TUI Component Prop Standardization [COMPLETED]
+
+**Status**: COMPLETED (March 19, 2026)
 
 **Goal**: Create a standard interface for interactive TUI components and panels.
 
@@ -181,19 +183,19 @@ This plan outlines the steps to refactor key areas of the Cognition Σ repositor
   - `InputBoxProps` (src/tui/components/InputBox.tsx)
   - `ClaudePanelAgentProps` (src/tui/components/ClaudePanelAgent.tsx)
 
-### Implementation Steps
+### Implementation Results
 
-1. **Define IBaseTUIProps**: Create `src/tui/types/props.ts` with:
-   - `IBaseComponentProps`: `{ focused: boolean; layoutVersion?: string; }`
-   - `IBasePanelProps extends IBaseComponentProps`: `{ sigmaStats?: SigmaStats; sessionTokenCount?: SessionTokenCount; width?: number; }`
-   - `IBaseModalProps<T> extends IBaseComponentProps`: `{ state: T; onClose?: () => void; }`
-2. **Standardize Event Handlers**: Use consistent naming for interaction callbacks (`onSubmit`, `onSelect`, `onAction`).
-3. **Apply Base Props**: Update all TUI components to extend these base property interfaces.
-4. **Validation**: Run `npm run build` and check for visual regressions in the TUI.
+1. **Infrastructure**: Created `src/tui/types/props.ts` with generic `IBaseComponentProps`, `IBasePanelProps`, and `IBaseModalProps<T>`.
+2. **Refactor**:
+   - Migrated all panels (`SigmaInfoPanel`, `SigmaTaskPanel`, `OverlaysBar`, `StatusBar`) to extend `IBasePanelProps`.
+   - Migrated all modals (`ToolConfirmationModal`, `WizardConfirmationModal`, `CommandDropdown`) to extend `IBaseModalProps<T>`.
+   - Standardized interaction components (`InputBox`, `ClaudePanelAgent`, `Siggy`) to use `IBaseComponentProps`.
+3. **Harmonization**: Standardized `focused` and `layoutVersion` across the entire TUI. Unified naming for event handlers and callbacks.
+4. **Validation**: Verified with `npm run build` and targeted tests. Standardized empty interfaces to type aliases for strict lint compliance.
 
-### Expected Impact
+### Impact
 
-- ~250 lines of code reduction.
+- **~280 lines of code reduction** (Net project-wide).
 - Consistent property naming and lifecycle management across all TUI components.
 - Improved type safety and easier creation of new interactive panels.
 
@@ -201,6 +203,6 @@ This plan outlines the steps to refactor key areas of the Cognition Σ repositor
 
 ## 📊 Summary
 
-- **Total code reduction to date**: ~2,340 lines
-- **Remaining tasks**: 4 major refactoring candidate groups.
-- **Estimated total future reduction**: ~800-1,000 lines.
+- **Total code reduction to date**: ~2,620 lines
+- **Remaining tasks**: 3 major refactoring candidate groups.
+- **Estimated total future reduction**: ~500-700 lines.

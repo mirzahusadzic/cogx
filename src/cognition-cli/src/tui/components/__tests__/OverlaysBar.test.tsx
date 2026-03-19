@@ -18,7 +18,9 @@ describe('OverlaysBar', () => {
 
   describe('lattice stats display', () => {
     it('displays all lattice metrics when stats provided', () => {
-      const { lastFrame } = render(<OverlaysBar sigmaStats={mockSigmaStats} />);
+      const { lastFrame } = render(
+        <OverlaysBar focused={false} sigmaStats={mockSigmaStats} />
+      );
       const output = lastFrame() ?? '';
       // Values may be split across lines due to flexbox layout
       expect(output).toContain('🌿 Nodes:');
@@ -34,20 +36,26 @@ describe('OverlaysBar', () => {
     });
 
     it('shows warming up message when no stats', () => {
-      const { lastFrame } = render(<OverlaysBar />);
+      const { lastFrame } = render(<OverlaysBar focused={false} />);
       expect(lastFrame()).toContain('Lattice: Warming up...');
     });
 
     it('shows warming up when nodes is 0', () => {
       const { lastFrame } = render(
-        <OverlaysBar sigmaStats={{ ...mockSigmaStats, nodes: 0 }} />
+        <OverlaysBar
+          focused={false}
+          sigmaStats={{ ...mockSigmaStats, nodes: 0 }}
+        />
       );
       expect(lastFrame()).toContain('Lattice: Warming up...');
     });
 
     it('formats novelty with 2 decimal places', () => {
       const { lastFrame } = render(
-        <OverlaysBar sigmaStats={{ ...mockSigmaStats, avgNovelty: 0.5 }} />
+        <OverlaysBar
+          focused={false}
+          sigmaStats={{ ...mockSigmaStats, avgNovelty: 0.5 }}
+        />
       );
       const output = lastFrame() ?? '';
       expect(output).toContain('🐇 Novelty:');
@@ -56,7 +64,10 @@ describe('OverlaysBar', () => {
 
     it('formats importance with 1 decimal place', () => {
       const { lastFrame } = render(
-        <OverlaysBar sigmaStats={{ ...mockSigmaStats, avgImportance: 7 }} />
+        <OverlaysBar
+          focused={false}
+          sigmaStats={{ ...mockSigmaStats, avgImportance: 7 }}
+        />
       );
       const output = lastFrame() ?? '';
       expect(output).toContain('🐍 Importance:');
@@ -67,12 +78,12 @@ describe('OverlaysBar', () => {
 
   describe('version and branding', () => {
     it('displays COGNITION Σ CLI branding', () => {
-      const { lastFrame } = render(<OverlaysBar />);
+      const { lastFrame } = render(<OverlaysBar focused={false} />);
       expect(lastFrame()).toContain('COGNITION Σ CLI');
     });
 
     it('displays version number', () => {
-      const { lastFrame } = render(<OverlaysBar />);
+      const { lastFrame } = render(<OverlaysBar focused={false} />);
       // Version should match pattern v#.#.#
       expect(lastFrame()).toMatch(/v\d+\.\d+\.\d+/);
     });
@@ -81,7 +92,11 @@ describe('OverlaysBar', () => {
   describe('pending message count', () => {
     it('shows message count when pending messages exist', () => {
       const { lastFrame } = render(
-        <OverlaysBar sigmaStats={mockSigmaStats} pendingMessageCount={5} />
+        <OverlaysBar
+          focused={false}
+          sigmaStats={mockSigmaStats}
+          pendingMessageCount={5}
+        />
       );
       const output = lastFrame() ?? '';
       expect(output).toContain('🐦 Messages');
@@ -90,13 +105,19 @@ describe('OverlaysBar', () => {
 
     it('does not show message count when 0', () => {
       const { lastFrame } = render(
-        <OverlaysBar sigmaStats={mockSigmaStats} pendingMessageCount={0} />
+        <OverlaysBar
+          focused={false}
+          sigmaStats={mockSigmaStats}
+          pendingMessageCount={0}
+        />
       );
       expect(lastFrame()).not.toContain('🐦 Messages');
     });
 
     it('shows pending messages during warming up', () => {
-      const { lastFrame } = render(<OverlaysBar pendingMessageCount={3} />);
+      const { lastFrame } = render(
+        <OverlaysBar focused={false} pendingMessageCount={3} />
+      );
       const output = lastFrame() ?? '';
       expect(output).toContain('Lattice: Warming up...');
       expect(output).toContain('🐦 Messages');
@@ -107,14 +128,18 @@ describe('OverlaysBar', () => {
   describe('monitor error display', () => {
     it('shows error message when monitor fails', () => {
       const { lastFrame } = render(
-        <OverlaysBar monitorError="Connection lost" />
+        <OverlaysBar focused={false} monitorError="Connection lost" />
       );
       expect(lastFrame()).toContain('⚠ Message Monitor: Connection lost');
     });
 
     it('prioritizes error over stats', () => {
       const { lastFrame } = render(
-        <OverlaysBar sigmaStats={mockSigmaStats} monitorError="Network error" />
+        <OverlaysBar
+          focused={false}
+          sigmaStats={mockSigmaStats}
+          monitorError="Network error"
+        />
       );
       expect(lastFrame()).toContain('⚠ Message Monitor: Network error');
       expect(lastFrame()).not.toContain('🌿 Nodes');
@@ -130,7 +155,9 @@ describe('OverlaysBar', () => {
         chatModelReady: false,
         hasApiKey: false,
       };
-      const { lastFrame } = render(<OverlaysBar workbenchHealth={health} />);
+      const { lastFrame } = render(
+        <OverlaysBar focused={false} workbenchHealth={health} />
+      );
       expect(lastFrame()).toContain('⚠️ Workbench: unreachable');
     });
 
@@ -142,7 +169,9 @@ describe('OverlaysBar', () => {
         chatModelReady: true,
         hasApiKey: true,
       };
-      const { lastFrame } = render(<OverlaysBar workbenchHealth={health} />);
+      const { lastFrame } = render(
+        <OverlaysBar focused={false} workbenchHealth={health} />
+      );
       expect(lastFrame()).toContain('no embeddings');
     });
 
@@ -154,7 +183,9 @@ describe('OverlaysBar', () => {
         chatModelReady: true,
         hasApiKey: true,
       };
-      const { lastFrame } = render(<OverlaysBar workbenchHealth={health} />);
+      const { lastFrame } = render(
+        <OverlaysBar focused={false} workbenchHealth={health} />
+      );
       expect(lastFrame()).toContain('no summarization');
     });
 
@@ -166,7 +197,9 @@ describe('OverlaysBar', () => {
         chatModelReady: true,
         hasApiKey: false,
       };
-      const { lastFrame } = render(<OverlaysBar workbenchHealth={health} />);
+      const { lastFrame } = render(
+        <OverlaysBar focused={false} workbenchHealth={health} />
+      );
       expect(lastFrame()).toContain('no API key');
     });
 
@@ -178,7 +211,9 @@ describe('OverlaysBar', () => {
         chatModelReady: true,
         hasApiKey: true,
       };
-      const { lastFrame } = render(<OverlaysBar workbenchHealth={health} />);
+      const { lastFrame } = render(
+        <OverlaysBar focused={false} workbenchHealth={health} />
+      );
       expect(lastFrame()).toContain('no embeddings');
       expect(lastFrame()).toContain('no summarization');
     });
@@ -192,7 +227,11 @@ describe('OverlaysBar', () => {
         hasApiKey: true,
       };
       const { lastFrame } = render(
-        <OverlaysBar sigmaStats={mockSigmaStats} workbenchHealth={health} />
+        <OverlaysBar
+          focused={false}
+          sigmaStats={mockSigmaStats}
+          workbenchHealth={health}
+        />
       );
       expect(lastFrame()).toContain('🌿 Nodes');
       expect(lastFrame()).not.toContain('⚠️ Workbench');
@@ -207,7 +246,11 @@ describe('OverlaysBar', () => {
         hasApiKey: true,
       };
       const { lastFrame } = render(
-        <OverlaysBar workbenchHealth={health} pendingMessageCount={2} />
+        <OverlaysBar
+          focused={false}
+          workbenchHealth={health}
+          pendingMessageCount={2}
+        />
       );
       expect(lastFrame()).toContain('no embeddings');
       expect(lastFrame()).toContain('🐦 Messages: 2');
@@ -224,7 +267,9 @@ describe('OverlaysBar', () => {
         overlay: undefined,
         startedAt: new Date(),
       };
-      const { lastFrame } = render(<OverlaysBar activeTask={task} />);
+      const { lastFrame } = render(
+        <OverlaysBar focused={false} activeTask={task} />
+      );
       expect(lastFrame()).toContain('🏗️');
       expect(lastFrame()).toContain('Analyzing repository...');
     });
@@ -238,7 +283,9 @@ describe('OverlaysBar', () => {
         message: 'Embedding security patterns',
         startedAt: new Date(),
       };
-      const { lastFrame } = render(<OverlaysBar activeTask={task} />);
+      const { lastFrame } = render(
+        <OverlaysBar focused={false} activeTask={task} />
+      );
       expect(lastFrame()).toContain('🛡️');
       expect(lastFrame()).toContain('Embedding security patterns');
     });
@@ -252,7 +299,9 @@ describe('OverlaysBar', () => {
         overlay: undefined,
         startedAt: new Date(),
       };
-      const { lastFrame } = render(<OverlaysBar activeTask={task} />);
+      const { lastFrame } = render(
+        <OverlaysBar focused={false} activeTask={task} />
+      );
       expect(lastFrame()).toContain('Processing documents...');
     });
 
@@ -265,12 +314,16 @@ describe('OverlaysBar', () => {
         overlay: undefined,
         startedAt: new Date(),
       };
-      const { lastFrame } = render(<OverlaysBar activeTask={task} />);
+      const { lastFrame } = render(
+        <OverlaysBar focused={false} activeTask={task} />
+      );
       expect(lastFrame()).toContain('COGNITION Σ CLI'); // Shows branding instead
     });
 
     it('shows branding when no active task', () => {
-      const { lastFrame } = render(<OverlaysBar activeTask={null} />);
+      const { lastFrame } = render(
+        <OverlaysBar focused={false} activeTask={null} />
+      );
       expect(lastFrame()).toContain('COGNITION Σ CLI');
     });
   });
@@ -285,7 +338,9 @@ describe('OverlaysBar', () => {
         message: 'Processing...',
         startedAt: new Date(),
       };
-      const { lastFrame } = render(<OverlaysBar activeTask={task} />);
+      const { lastFrame } = render(
+        <OverlaysBar focused={false} activeTask={task} />
+      );
       expect(lastFrame()).toContain(expectedIcon);
     };
 

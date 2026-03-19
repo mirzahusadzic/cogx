@@ -40,6 +40,7 @@ describe('SigmaTaskPanel', () => {
   it('renders task list header', () => {
     const { lastFrame } = render(
       <SigmaTaskPanel
+        focused={false}
         sigmaTasks={mockTasks}
         tokenCount={mockTokenCount}
         sessionTokenCount={mockTokenCount}
@@ -51,6 +52,7 @@ describe('SigmaTaskPanel', () => {
   it('renders task content', () => {
     const { lastFrame } = render(
       <SigmaTaskPanel
+        focused={false}
         sigmaTasks={mockTasks}
         tokenCount={mockTokenCount}
         sessionTokenCount={mockTokenCount}
@@ -62,6 +64,7 @@ describe('SigmaTaskPanel', () => {
   it('renders task summary', () => {
     const { lastFrame } = render(
       <SigmaTaskPanel
+        focused={false}
         sigmaTasks={mockTasks}
         tokenCount={mockTokenCount}
         sessionTokenCount={mockTokenCount}
@@ -73,6 +76,7 @@ describe('SigmaTaskPanel', () => {
   it('renders token counts', () => {
     const { lastFrame } = render(
       <SigmaTaskPanel
+        focused={false}
         sigmaTasks={mockTasks}
         tokenCount={mockTokenCount}
         sessionTokenCount={mockTokenCount}
@@ -85,6 +89,7 @@ describe('SigmaTaskPanel', () => {
   it('renders individual task token usage', () => {
     const { lastFrame } = render(
       <SigmaTaskPanel
+        focused={false}
         sigmaTasks={mockTasks}
         tokenCount={mockTokenCount}
         sessionTokenCount={mockTokenCount}
@@ -97,6 +102,7 @@ describe('SigmaTaskPanel', () => {
   it('renders in-progress task token usage', () => {
     const { lastFrame } = render(
       <SigmaTaskPanel
+        focused={false}
         sigmaTasks={mockTasks}
         tokenCount={mockTokenCount}
         sessionTokenCount={mockTokenCount}
@@ -109,6 +115,7 @@ describe('SigmaTaskPanel', () => {
   it('renders session token header', () => {
     const { lastFrame } = render(
       <SigmaTaskPanel
+        focused={false}
         sigmaTasks={mockTasks}
         tokenCount={mockTokenCount}
         sessionTokenCount={mockTokenCount}
@@ -120,6 +127,7 @@ describe('SigmaTaskPanel', () => {
   it('renders turn counts in session tokens', () => {
     const { lastFrame } = render(
       <SigmaTaskPanel
+        focused={false}
         sigmaTasks={mockTasks}
         tokenCount={mockTokenCount}
         sessionTokenCount={{ ...mockTokenCount, turns: 5 }}
@@ -138,6 +146,7 @@ describe('SigmaTaskPanel', () => {
     };
     const { lastFrame } = render(
       <SigmaTaskPanel
+        focused={false}
         sigmaTasks={manyTasks}
         tokenCount={mockTokenCount}
         sessionTokenCount={mockTokenCount}
@@ -164,6 +173,7 @@ describe('SigmaTaskPanel', () => {
     };
     const { lastFrame } = render(
       <SigmaTaskPanel
+        focused={false}
         sigmaTasks={mixedTasks}
         tokenCount={mockTokenCount}
         sessionTokenCount={mockTokenCount}
@@ -184,6 +194,7 @@ describe('SigmaTaskPanel', () => {
     };
     const { lastFrame } = render(
       <SigmaTaskPanel
+        focused={false}
         sigmaTasks={tasksWithLongSummary}
         tokenCount={mockTokenCount}
         sessionTokenCount={mockTokenCount}
@@ -207,6 +218,7 @@ describe('SigmaTaskPanel', () => {
     };
     const { lastFrame } = render(
       <SigmaTaskPanel
+        focused={false}
         sigmaTasks={manyTasks}
         tokenCount={mockTokenCount}
         sessionTokenCount={mockTokenCount}
@@ -239,6 +251,7 @@ describe('SigmaTaskPanel', () => {
     };
     const { lastFrame } = render(
       <SigmaTaskPanel
+        focused={false}
         sigmaTasks={unorderedTasks}
         tokenCount={mockTokenCount}
         sessionTokenCount={mockTokenCount}
@@ -255,6 +268,7 @@ describe('SigmaTaskPanel', () => {
   it('renders close hint', () => {
     const { lastFrame } = render(
       <SigmaTaskPanel
+        focused={false}
         sigmaTasks={mockTasks}
         tokenCount={mockTokenCount}
         sessionTokenCount={mockTokenCount}
@@ -289,6 +303,7 @@ describe('SigmaTaskPanel', () => {
 
     const { lastFrame } = render(
       <SigmaTaskPanel
+        focused={false}
         sigmaTasks={{ todos: tasks }}
         tokenCount={mockTokenCount}
         sessionTokenCount={mockTokenCount}
@@ -336,6 +351,7 @@ describe('SigmaTaskPanel', () => {
 
     const { lastFrame } = render(
       <SigmaTaskPanel
+        focused={false}
         sigmaTasks={{ todos: tasks }}
         tokenCount={mockTokenCount}
         sessionTokenCount={mockTokenCount}
@@ -375,6 +391,7 @@ describe('SigmaTaskPanel', () => {
 
     const { lastFrame } = render(
       <SigmaTaskPanel
+        focused={false}
         sigmaTasks={sparseTasks}
         tokenCount={mockTokenCount}
         sessionTokenCount={mockTokenCount}

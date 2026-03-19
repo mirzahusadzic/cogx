@@ -19,6 +19,7 @@ import type { TUIMessage } from '../hooks/useAgent.js';
 import { ThinkingState } from '../hooks/useAgent.js';
 import { Siggy } from './Siggy.js';
 import { TUITheme } from '../theme.js';
+import { IBaseComponentProps } from '../types/props.js';
 import {
   MAX_STREAM_STABILIZATION_LINES,
   TUI_LAYOUT_OVERHEAD,
@@ -45,7 +46,7 @@ function ensureLineKeys(lines: StyledLine[], prefix: string): StyledLine[] {
 /**
  * Props for ClaudePanelAgent component
  */
-export interface ClaudePanelAgentProps {
+export interface ClaudePanelAgentProps extends IBaseComponentProps {
   /** Array of conversation messages to display */
   messages: TUIMessage[];
 
@@ -58,9 +59,6 @@ export interface ClaudePanelAgentProps {
   /** Number of retries attempted (for Gemini 429 errors) */
   retryCount?: number;
 
-  /** Whether this panel is currently focused for scrolling */
-  focused: boolean;
-
   /** Whether the Sigma Info Panel (sidebar) is currently visible */
   showInfoPanel?: boolean;
 
@@ -69,12 +67,6 @@ export interface ClaudePanelAgentProps {
 
   /** Content being streamed during paste operation */
   streamingPaste?: string;
-
-  /**
-   * A string that changes whenever the layout around this component might have changed.
-   * This ensures the component re-measures its available height even if other props are stable.
-   */
-  layoutVersion?: string;
 
   /** Total number of terminal rows for absolute positioning */
   terminalRows?: number;
@@ -995,6 +987,8 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
               }
               terminalRows={terminalRows}
               terminalOffset={terminalOffset}
+              focused={focused}
+              layoutVersion={layoutVersion}
             />
           </Box>
           <Box>

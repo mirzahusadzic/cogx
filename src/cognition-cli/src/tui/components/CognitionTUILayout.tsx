@@ -235,6 +235,7 @@ const CognitionTUILayoutComponent: React.FC<CognitionTUILayoutProps> = ({
             pendingMessageCount={pendingMessageCount}
             monitorError={monitorError}
             workbenchHealth={adaptedHealth}
+            focused={false}
           />
         </ComponentErrorBoundary>
         <Text color={TUITheme.ui.border.dim}>
@@ -271,6 +272,7 @@ const CognitionTUILayoutComponent: React.FC<CognitionTUILayoutProps> = ({
                 <SigmaInfoPanel
                   sigmaStats={sigmaStats}
                   overlays={avgOverlays}
+                  focused={false}
                 />
               </ComponentErrorBoundary>
             ) : showTaskPanel ? (
@@ -279,6 +281,7 @@ const CognitionTUILayoutComponent: React.FC<CognitionTUILayoutProps> = ({
                   sigmaTasks={sigmaTasks}
                   tokenCount={tokenCount}
                   sessionTokenCount={sessionTokenCount}
+                  focused={false}
                 />
               </ComponentErrorBoundary>
             ) : null}

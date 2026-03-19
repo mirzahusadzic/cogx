@@ -14,16 +14,14 @@ import type { WizardConfirmationState } from '../hooks/useOnboardingWizard.js';
 import { WizardConfirmationModal } from './WizardConfirmationModal.js';
 import { useTUI } from '../context/TUIContext.js';
 import { TUITheme } from '../theme.js';
+import { IBaseComponentProps } from '../types/props.js';
 
 /**
  * Props for InputBox component
  */
-export interface InputBoxProps {
+export interface InputBoxProps extends IBaseComponentProps {
   /** Callback invoked when user submits input (Enter key) */
   onSubmit: (value: string) => void;
-
-  /** Whether this input box has keyboard focus */
-  focused: boolean;
 
   /** Whether input is disabled (e.g., during agent processing) */
   disabled?: boolean;
@@ -838,20 +836,30 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
     <Box flexDirection="column" width="100%" key={renderKey}>
       {/* Tool Confirmation Modal - render ABOVE input, SAME placement as dropdown */}
       {confirmationState && confirmationState.pending && (
-        <ToolConfirmationModal state={confirmationState} cwd={cwd} />
+        <ToolConfirmationModal
+          state={confirmationState}
+          cwd={cwd}
+          focused={focused}
+        />
       )}
 
       {/* Wizard Confirmation Modal - render ABOVE input, SAME placement as tool modal */}
       {wizardConfirmationState && wizardConfirmationState.pending && (
-        <WizardConfirmationModal state={wizardConfirmationState} />
+        <WizardConfirmationModal
+          state={wizardConfirmationState}
+          focused={focused}
+        />
       )}
 
       {/* Command dropdown - render ABOVE input, overlaying the chat area */}
       {showDropdown && focused && !commandsLoading && !confirmationPending && (
         <CommandDropdown
-          commands={filteredCommands}
-          selectedIndex={selectedCommandIndex}
-          isVisible={true}
+          state={{
+            commands: filteredCommands,
+            selectedIndex: selectedCommandIndex,
+            isVisible: true,
+          }}
+          focused={focused}
         />
       )}
 

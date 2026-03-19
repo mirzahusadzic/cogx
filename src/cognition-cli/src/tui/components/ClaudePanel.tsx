@@ -2,16 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Box, Text } from 'ink';
 import { IPty } from 'node-pty';
 import { terminalFormatter } from '../../core/services/terminal-formatter/TerminalFormatterService.js';
+import { IBaseComponentProps } from '../types/props.js';
 
 /**
  * Props for ClaudePanel component
  */
-export interface ClaudePanelProps {
+export interface ClaudePanelProps extends IBaseComponentProps {
   /** PTY session handle for Claude CLI process */
   ptySession: IPty | null;
-
-  /** Whether this panel has keyboard focus */
-  focused: boolean;
 }
 
 /**

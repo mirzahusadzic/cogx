@@ -5,6 +5,7 @@ import type { SigmaTasks } from '../hooks/useAgent/types.js';
 import type { TokenCount } from '../hooks/tokens/useTokenCount.js';
 import { SessionTokenCount } from '../hooks/tokens/useSessionTokenCount.js';
 import { terminalFormatter } from '../../core/services/terminal-formatter/TerminalFormatterService.js';
+import { IBasePanelProps } from '../types/props.js';
 
 const MAX_SUMMARY_LENGTH = 140;
 const MAX_TASKS_FOR_ALL_SUMMARIES = 3;
@@ -18,7 +19,7 @@ const truncate = (str: string, maxLength: number) => {
 /**
  * Props for SigmaTaskPanel component
  */
-export interface SigmaTaskPanelProps {
+export interface SigmaTaskPanelProps extends IBasePanelProps {
   /** Current sigma tasks state */
   sigmaTasks: SigmaTasks;
 
@@ -27,9 +28,6 @@ export interface SigmaTaskPanelProps {
 
   /** Overall session token usage */
   sessionTokenCount: SessionTokenCount;
-
-  /** Optional width of the panel (default: 50) */
-  width?: number;
 }
 
 /**

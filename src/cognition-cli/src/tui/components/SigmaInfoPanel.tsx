@@ -7,19 +7,17 @@ import type {
   SigmaStats,
   OverlayScores,
 } from '../../core/state/tui-sync/types.js';
+import { IBasePanelProps } from '../types/props.js';
 
 /**
  * Props for SigmaInfoPanel component
  */
-export interface SigmaInfoPanelProps {
+export interface SigmaInfoPanelProps extends IBasePanelProps {
   /** Conversation lattice statistics */
   sigmaStats: SigmaStats;
 
   /** Overlay activation scores */
   overlays: OverlayScores;
-
-  /** Optional width of the panel (default: 50) */
-  width?: number;
 }
 
 const OVERLAY_INFO = {

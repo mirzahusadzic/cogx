@@ -33,6 +33,14 @@ Built with **React** and **Ink**, utilizing a composed hook architecture for sta
 - **Async Operations**: Long-running tasks are managed via `BackgroundTaskManager`.
 - **Hot Reload**: Supports rapid development cycles.
 
+### 4. Component Standards
+
+To maintain consistency and type safety, all TUI components follow a standardized property hierarchy:
+
+- **`IBaseComponentProps`**: Core props like `focused` and `layoutVersion` (used for layout-driven re-renders).
+- **`IBasePanelProps`**: For panels requiring global context (`sigmaStats`, `sessionTokenCount`).
+- **`IBaseModalProps<T>`**: For stateful modals with `state` and `onClose` callbacks.
+
 ---
 
 ## 🏗️ Architecture

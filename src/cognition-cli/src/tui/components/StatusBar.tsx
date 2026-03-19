@@ -3,8 +3,8 @@ import { Box, Text } from 'ink';
 import { terminal } from '../services/TerminalService.js';
 import { TUITheme } from '../theme.js';
 import { terminalFormatter } from '../../core/services/terminal-formatter/TerminalFormatterService.js';
-import type { SessionTokenCount } from '../hooks/tokens/useSessionTokenCount.js';
 import { environmentService } from '../../core/services/environment/EnvironmentService.js';
+import { IBasePanelProps } from '../types/props.js';
 
 // Extra space needed after certain emojis on macOS/WSL2 (terminal width calculation differs)
 const EMOJI_SPACER = environmentService.isMac() ? ' ' : '';
@@ -12,12 +12,9 @@ const EMOJI_SPACER = environmentService.isMac() ? ' ' : '';
 /**
  * Props for StatusBar component
  */
-export interface StatusBarProps {
+export interface StatusBarProps extends IBasePanelProps {
   /** Current session ID (displayed truncated) */
   sessionId?: string;
-
-  /** Whether message panel has focus (changes keyboard help text) */
-  focused: boolean;
 
   /** Current token usage statistics */
   tokenCount?: {
@@ -26,9 +23,6 @@ export interface StatusBarProps {
     total: number;
     cached?: number;
   };
-
-  /** Cumulative session token statistics */
-  sessionTokenCount?: SessionTokenCount;
 
   /** Token threshold for compression trigger */
   compressionThreshold?: number;

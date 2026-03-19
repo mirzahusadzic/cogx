@@ -14,7 +14,9 @@ describe('ToolConfirmationModal', () => {
         riskLevel: ToolRiskLevel.SAFE,
         reason: 'Install dependencies',
       };
-      const { lastFrame } = render(<ToolConfirmationModal state={state} />);
+      const { lastFrame } = render(
+        <ToolConfirmationModal focused={true} state={state} />
+      );
       const output = lastFrame() ?? '';
       expect(output).toContain('npm install');
     });
@@ -27,7 +29,9 @@ describe('ToolConfirmationModal', () => {
         riskLevel: ToolRiskLevel.SAFE,
         reason: 'List files',
       };
-      const { lastFrame } = render(<ToolConfirmationModal state={state} />);
+      const { lastFrame } = render(
+        <ToolConfirmationModal focused={true} state={state} />
+      );
       expect(lastFrame()).toContain('[!]');
     });
 
@@ -39,7 +43,9 @@ describe('ToolConfirmationModal', () => {
         riskLevel: ToolRiskLevel.SAFE,
         reason: 'List files',
       };
-      const { lastFrame } = render(<ToolConfirmationModal state={state} />);
+      const { lastFrame } = render(
+        <ToolConfirmationModal focused={true} state={state} />
+      );
       const output = lastFrame() ?? '';
       expect(output).toContain('Y Allow');
       expect(output).toContain('N Deny');
@@ -55,7 +61,9 @@ describe('ToolConfirmationModal', () => {
         riskLevel: ToolRiskLevel.SAFE,
         reason: 'Build project',
       };
-      const { lastFrame } = render(<ToolConfirmationModal state={state} />);
+      const { lastFrame } = render(
+        <ToolConfirmationModal focused={true} state={state} />
+      );
       expect(lastFrame()).toContain('all npm');
     });
 
@@ -67,7 +75,9 @@ describe('ToolConfirmationModal', () => {
         riskLevel: ToolRiskLevel.SAFE,
         reason: 'Commit and push',
       };
-      const { lastFrame } = render(<ToolConfirmationModal state={state} />);
+      const { lastFrame } = render(
+        <ToolConfirmationModal focused={true} state={state} />
+      );
       const output = lastFrame() ?? '';
       expect(output).toContain('git commit');
       expect(output).toContain('...');
@@ -82,7 +92,9 @@ describe('ToolConfirmationModal', () => {
         riskLevel: ToolRiskLevel.SAFE,
         reason: 'Long command',
       };
-      const { lastFrame } = render(<ToolConfirmationModal state={state} />);
+      const { lastFrame } = render(
+        <ToolConfirmationModal focused={true} state={state} />
+      );
       expect(lastFrame()).toContain('...');
     });
   });
@@ -100,7 +112,9 @@ describe('ToolConfirmationModal', () => {
         riskLevel: ToolRiskLevel.MODERATE,
         reason: 'Update code',
       };
-      const { lastFrame } = render(<ToolConfirmationModal state={state} />);
+      const { lastFrame } = render(
+        <ToolConfirmationModal focused={true} state={state} />
+      );
       expect(lastFrame()).toContain('/src/index.ts');
     });
 
@@ -112,7 +126,9 @@ describe('ToolConfirmationModal', () => {
         riskLevel: ToolRiskLevel.DANGEROUS,
         reason: 'Create new file',
       };
-      const { lastFrame } = render(<ToolConfirmationModal state={state} />);
+      const { lastFrame } = render(
+        <ToolConfirmationModal focused={true} state={state} />
+      );
       expect(lastFrame()).toContain('/new-file.ts');
     });
 
@@ -124,7 +140,9 @@ describe('ToolConfirmationModal', () => {
         riskLevel: ToolRiskLevel.SAFE,
         reason: 'Read configuration',
       };
-      const { lastFrame } = render(<ToolConfirmationModal state={state} />);
+      const { lastFrame } = render(
+        <ToolConfirmationModal focused={true} state={state} />
+      );
       expect(lastFrame()).toContain('/secret.env');
     });
 
@@ -136,7 +154,9 @@ describe('ToolConfirmationModal', () => {
         riskLevel: ToolRiskLevel.MODERATE,
         reason: 'Update file',
       };
-      const { lastFrame } = render(<ToolConfirmationModal state={state} />);
+      const { lastFrame } = render(
+        <ToolConfirmationModal focused={true} state={state} />
+      );
       expect(lastFrame()).toContain('all Edit');
     });
   });
@@ -150,7 +170,9 @@ describe('ToolConfirmationModal', () => {
         riskLevel: ToolRiskLevel.SAFE,
         reason: 'Custom operation',
       };
-      const { lastFrame } = render(<ToolConfirmationModal state={state} />);
+      const { lastFrame } = render(
+        <ToolConfirmationModal focused={true} state={state} />
+      );
       const output = lastFrame() ?? '';
       expect(output).toContain('CustomTool');
     });
@@ -165,7 +187,9 @@ describe('ToolConfirmationModal', () => {
         riskLevel: ToolRiskLevel.SAFE,
         reason: 'List files',
       };
-      const { lastFrame } = render(<ToolConfirmationModal state={state} />);
+      const { lastFrame } = render(
+        <ToolConfirmationModal focused={true} state={state} />
+      );
       const output = lastFrame() ?? '';
       // Round border uses ╭ ╮ ╰ ╯ characters
       expect(output).toContain('╭');
@@ -183,11 +207,11 @@ describe('ToolConfirmationModal', () => {
         reason: 'List files',
       };
       const { rerender, lastFrame } = render(
-        <ToolConfirmationModal state={state} />
+        <ToolConfirmationModal focused={true} state={state} />
       );
       const firstFrame = lastFrame();
 
-      rerender(<ToolConfirmationModal state={state} />);
+      rerender(<ToolConfirmationModal focused={true} state={state} />);
       const secondFrame = lastFrame();
 
       expect(firstFrame).toBe(secondFrame);

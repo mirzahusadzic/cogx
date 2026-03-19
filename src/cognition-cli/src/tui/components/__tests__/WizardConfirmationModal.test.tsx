@@ -14,7 +14,9 @@ describe('WizardConfirmationModal', () => {
         confirmLabel: 'Y Yes',
         denyLabel: 'N No',
       };
-      const { lastFrame } = render(<WizardConfirmationModal state={state} />);
+      const { lastFrame } = render(
+        <WizardConfirmationModal focused={true} state={state} />
+      );
       const output = lastFrame() ?? '';
       expect(output).toContain('[?]');
       expect(output).toContain('Initialize Project?');
@@ -29,7 +31,9 @@ describe('WizardConfirmationModal', () => {
         confirmLabel: 'Y Proceed',
         denyLabel: 'N Cancel',
       };
-      const { lastFrame } = render(<WizardConfirmationModal state={state} />);
+      const { lastFrame } = render(
+        <WizardConfirmationModal focused={true} state={state} />
+      );
       expect(lastFrame()).toContain('This action cannot be undone.');
     });
 
@@ -42,7 +46,9 @@ describe('WizardConfirmationModal', () => {
         confirmLabel: 'Y Confirm',
         denyLabel: 'N Reject',
       };
-      const { lastFrame } = render(<WizardConfirmationModal state={state} />);
+      const { lastFrame } = render(
+        <WizardConfirmationModal focused={true} state={state} />
+      );
       const output = lastFrame() ?? '';
       expect(output).toContain('Y Confirm');
       expect(output).toContain('N Reject');
@@ -57,7 +63,9 @@ describe('WizardConfirmationModal', () => {
         confirmLabel: 'Y',
         denyLabel: 'N',
       };
-      const { lastFrame } = render(<WizardConfirmationModal state={state} />);
+      const { lastFrame } = render(
+        <WizardConfirmationModal focused={true} state={state} />
+      );
       expect(lastFrame()).toContain('Esc Cancel');
     });
   });
@@ -90,7 +98,9 @@ describe('WizardConfirmationModal', () => {
         items: mockItems,
         selectedIndex: 0,
       };
-      const { lastFrame } = render(<WizardConfirmationModal state={state} />);
+      const { lastFrame } = render(
+        <WizardConfirmationModal focused={true} state={state} />
+      );
       const output = lastFrame() ?? '';
       expect(output).toContain('[?]');
       expect(output).toContain('Select Options');
@@ -107,7 +117,9 @@ describe('WizardConfirmationModal', () => {
         items: mockItems,
         selectedIndex: 0,
       };
-      const { lastFrame } = render(<WizardConfirmationModal state={state} />);
+      const { lastFrame } = render(
+        <WizardConfirmationModal focused={true} state={state} />
+      );
       const output = lastFrame() ?? '';
       expect(output).toContain('Option A');
       expect(output).toContain('Option B');
@@ -125,7 +137,9 @@ describe('WizardConfirmationModal', () => {
         items: mockItems,
         selectedIndex: 0,
       };
-      const { lastFrame } = render(<WizardConfirmationModal state={state} />);
+      const { lastFrame } = render(
+        <WizardConfirmationModal focused={true} state={state} />
+      );
       const output = lastFrame() ?? '';
       // Option B is selected (checked)
       expect(output).toContain('[x]');
@@ -144,7 +158,9 @@ describe('WizardConfirmationModal', () => {
         items: mockItems,
         selectedIndex: 1,
       };
-      const { lastFrame } = render(<WizardConfirmationModal state={state} />);
+      const { lastFrame } = render(
+        <WizardConfirmationModal focused={true} state={state} />
+      );
       expect(lastFrame()).toContain('▸');
     });
 
@@ -159,7 +175,9 @@ describe('WizardConfirmationModal', () => {
         items: mockItems,
         selectedIndex: 0,
       };
-      const { lastFrame } = render(<WizardConfirmationModal state={state} />);
+      const { lastFrame } = render(
+        <WizardConfirmationModal focused={true} state={state} />
+      );
       const output = lastFrame() ?? '';
       expect(output).toContain('First option');
       expect(output).toContain('Second option');
@@ -176,7 +194,9 @@ describe('WizardConfirmationModal', () => {
         items: mockItems,
         selectedIndex: 0,
       };
-      const { lastFrame } = render(<WizardConfirmationModal state={state} />);
+      const { lastFrame } = render(
+        <WizardConfirmationModal focused={true} state={state} />
+      );
       const output = lastFrame() ?? '';
       expect(output).toContain('↑↓ Navigate');
       expect(output).toContain('Space Toggle');
@@ -195,7 +215,9 @@ describe('WizardConfirmationModal', () => {
         items: mockItems,
         selectedIndex: 0,
       };
-      const { lastFrame } = render(<WizardConfirmationModal state={state} />);
+      const { lastFrame } = render(
+        <WizardConfirmationModal focused={true} state={state} />
+      );
       const output = lastFrame() ?? '';
       expect(output).toContain('Apply');
       expect(output).toContain('Skip');
@@ -221,7 +243,9 @@ describe('WizardConfirmationModal', () => {
         items: manyItems,
         selectedIndex: 0,
       };
-      const { lastFrame } = render(<WizardConfirmationModal state={state} />);
+      const { lastFrame } = render(
+        <WizardConfirmationModal focused={true} state={state} />
+      );
       const output = lastFrame() ?? '';
       // Should show down arrow with count
       expect(output).toMatch(/↓\d+/);
@@ -238,7 +262,9 @@ describe('WizardConfirmationModal', () => {
         confirmLabel: 'Y',
         denyLabel: 'N',
       };
-      const { lastFrame } = render(<WizardConfirmationModal state={state} />);
+      const { lastFrame } = render(
+        <WizardConfirmationModal focused={true} state={state} />
+      );
       const output = lastFrame() ?? '';
       // Round border uses ╭ ╮ ╰ ╯ characters
       expect(output).toContain('╭');
@@ -257,11 +283,11 @@ describe('WizardConfirmationModal', () => {
         denyLabel: 'N',
       };
       const { rerender, lastFrame } = render(
-        <WizardConfirmationModal state={state} />
+        <WizardConfirmationModal focused={true} state={state} />
       );
       const firstFrame = lastFrame();
 
-      rerender(<WizardConfirmationModal state={state} />);
+      rerender(<WizardConfirmationModal focused={true} state={state} />);
       const secondFrame = lastFrame();
 
       expect(firstFrame).toBe(secondFrame);
@@ -283,12 +309,12 @@ describe('WizardConfirmationModal', () => {
         selectedIndex: 0,
       };
       const { rerender, lastFrame } = render(
-        <WizardConfirmationModal state={state1} />
+        <WizardConfirmationModal focused={true} state={state1} />
       );
       const firstFrame = lastFrame();
 
       const state2 = { ...state1, selectedIndex: 1 };
-      rerender(<WizardConfirmationModal state={state2} />);
+      rerender(<WizardConfirmationModal focused={true} state={state2} />);
       const secondFrame = lastFrame();
 
       // Should have re-rendered with different selection
@@ -315,12 +341,12 @@ describe('WizardConfirmationModal', () => {
         selectedIndex: 0,
       };
       const { rerender, lastFrame } = render(
-        <WizardConfirmationModal state={state1} />
+        <WizardConfirmationModal focused={true} state={state1} />
       );
       const firstFrame = lastFrame();
 
       const state2 = { ...state1, items: items2 };
-      rerender(<WizardConfirmationModal state={state2} />);
+      rerender(<WizardConfirmationModal focused={true} state={state2} />);
       const secondFrame = lastFrame();
 
       expect(firstFrame).not.toBe(secondFrame);

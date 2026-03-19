@@ -2,11 +2,12 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Box, Text, useStdout } from 'ink';
 import { Command } from '../commands/loader.js';
 import { TUITheme } from '../theme.js';
+import { IBaseModalProps } from '../types/props.js';
 
 /**
- * Props for CommandDropdown component
+ * State for CommandDropdown component
  */
-export interface CommandDropdownProps {
+export interface CommandDropdownState {
   /** Array of slash commands to display */
   commands: Command[];
 
@@ -19,6 +20,11 @@ export interface CommandDropdownProps {
   /** Maximum number of commands to show before scrolling */
   maxHeight?: number;
 }
+
+/**
+ * Props for CommandDropdown component
+ */
+export type CommandDropdownProps = IBaseModalProps<CommandDropdownState>;
 
 /**
  * Slash Command Autocomplete Dropdown Component.
@@ -45,18 +51,24 @@ export interface CommandDropdownProps {
  *
  * @example
  * <CommandDropdown
- *   commands={availableCommands}
- *   selectedIndex={2}
- *   isVisible={inputStartsWith('/') && inputLength > 1}
- *   maxHeight={5}
+ *   focused={true}
+ *   state={{
+ *     commands: availableCommands,
+ *     selectedIndex: 2,
+ *     isVisible: inputStartsWith('/') && inputLength > 1,
+ *     maxHeight: 5
+ *   }}
  * />
  */
 const CommandDropdownComponent = ({
-  commands,
-  selectedIndex,
-  isVisible,
-  maxHeight = 5, // Reduced from 10 for more compact display
+  state,
 }: CommandDropdownProps): React.ReactElement | null => {
+  const {
+    commands,
+    selectedIndex,
+    isVisible,
+    maxHeight = 5, // Reduced from 10 for more compact display
+  } = state;
   const { stdout } = useStdout();
   const [scrollOffset, setScrollOffset] = useState(0);
 

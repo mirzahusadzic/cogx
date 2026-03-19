@@ -28,7 +28,11 @@ describe('SigmaInfoPanel', () => {
   describe('header', () => {
     it('displays SIGMA STATS header', () => {
       const { lastFrame } = render(
-        <SigmaInfoPanel sigmaStats={mockSigmaStats} overlays={mockOverlays} />
+        <SigmaInfoPanel
+          focused={false}
+          sigmaStats={mockSigmaStats}
+          overlays={mockOverlays}
+        />
       );
       expect(lastFrame()).toContain('SIGMA STATS');
     });
@@ -37,14 +41,22 @@ describe('SigmaInfoPanel', () => {
   describe('lattice statistics', () => {
     it('displays Lattice section label', () => {
       const { lastFrame } = render(
-        <SigmaInfoPanel sigmaStats={mockSigmaStats} overlays={mockOverlays} />
+        <SigmaInfoPanel
+          focused={false}
+          sigmaStats={mockSigmaStats}
+          overlays={mockOverlays}
+        />
       );
       expect(lastFrame()).toContain('Lattice:');
     });
 
     it('displays nodes count', () => {
       const { lastFrame } = render(
-        <SigmaInfoPanel sigmaStats={mockSigmaStats} overlays={mockOverlays} />
+        <SigmaInfoPanel
+          focused={false}
+          sigmaStats={mockSigmaStats}
+          overlays={mockOverlays}
+        />
       );
       const output = lastFrame() ?? '';
       expect(output).toContain('🌿 Nodes:');
@@ -53,7 +65,11 @@ describe('SigmaInfoPanel', () => {
 
     it('displays edges count', () => {
       const { lastFrame } = render(
-        <SigmaInfoPanel sigmaStats={mockSigmaStats} overlays={mockOverlays} />
+        <SigmaInfoPanel
+          focused={false}
+          sigmaStats={mockSigmaStats}
+          overlays={mockOverlays}
+        />
       );
       const output = lastFrame() ?? '';
       expect(output).toContain('🐘 Edges:');
@@ -62,7 +78,11 @@ describe('SigmaInfoPanel', () => {
 
     it('displays paradigm shifts count', () => {
       const { lastFrame } = render(
-        <SigmaInfoPanel sigmaStats={mockSigmaStats} overlays={mockOverlays} />
+        <SigmaInfoPanel
+          focused={false}
+          sigmaStats={mockSigmaStats}
+          overlays={mockOverlays}
+        />
       );
       const output = lastFrame() ?? '';
       expect(output).toContain('🦋 Shifts:');
@@ -78,7 +98,11 @@ describe('SigmaInfoPanel', () => {
         avgImportance: 0,
       };
       const { lastFrame } = render(
-        <SigmaInfoPanel sigmaStats={zeroStats} overlays={mockOverlays} />
+        <SigmaInfoPanel
+          focused={false}
+          sigmaStats={zeroStats}
+          overlays={mockOverlays}
+        />
       );
       const output = lastFrame() ?? '';
       expect(output).toContain('🌿 Nodes:');
@@ -89,14 +113,22 @@ describe('SigmaInfoPanel', () => {
   describe('averages section', () => {
     it('displays Averages section label', () => {
       const { lastFrame } = render(
-        <SigmaInfoPanel sigmaStats={mockSigmaStats} overlays={mockOverlays} />
+        <SigmaInfoPanel
+          focused={false}
+          sigmaStats={mockSigmaStats}
+          overlays={mockOverlays}
+        />
       );
       expect(lastFrame()).toContain('Averages:');
     });
 
     it('displays novelty with 3 decimal places', () => {
       const { lastFrame } = render(
-        <SigmaInfoPanel sigmaStats={mockSigmaStats} overlays={mockOverlays} />
+        <SigmaInfoPanel
+          focused={false}
+          sigmaStats={mockSigmaStats}
+          overlays={mockOverlays}
+        />
       );
       const output = lastFrame() ?? '';
       expect(output).toContain('🐇 Novelty:');
@@ -105,7 +137,11 @@ describe('SigmaInfoPanel', () => {
 
     it('displays importance with 1 decimal place', () => {
       const { lastFrame } = render(
-        <SigmaInfoPanel sigmaStats={mockSigmaStats} overlays={mockOverlays} />
+        <SigmaInfoPanel
+          focused={false}
+          sigmaStats={mockSigmaStats}
+          overlays={mockOverlays}
+        />
       );
       const output = lastFrame() ?? '';
       expect(output).toContain('🐍 Importance:');
@@ -115,7 +151,11 @@ describe('SigmaInfoPanel', () => {
     it('formats novelty correctly for edge cases', () => {
       const stats = { ...mockSigmaStats, avgNovelty: 1 };
       const { lastFrame } = render(
-        <SigmaInfoPanel sigmaStats={stats} overlays={mockOverlays} />
+        <SigmaInfoPanel
+          focused={false}
+          sigmaStats={stats}
+          overlays={mockOverlays}
+        />
       );
       expect(lastFrame()).toContain('1.000');
     });
@@ -124,14 +164,22 @@ describe('SigmaInfoPanel', () => {
   describe('overlay activations', () => {
     it('displays Overlay Activations label', () => {
       const { lastFrame } = render(
-        <SigmaInfoPanel sigmaStats={mockSigmaStats} overlays={mockOverlays} />
+        <SigmaInfoPanel
+          focused={false}
+          sigmaStats={mockSigmaStats}
+          overlays={mockOverlays}
+        />
       );
       expect(lastFrame()).toContain('Overlay Activations:');
     });
 
     it('displays all 7 overlay labels', () => {
       const { lastFrame } = render(
-        <SigmaInfoPanel sigmaStats={mockSigmaStats} overlays={mockOverlays} />
+        <SigmaInfoPanel
+          focused={false}
+          sigmaStats={mockSigmaStats}
+          overlays={mockOverlays}
+        />
       );
       const output = lastFrame() ?? '';
       expect(output).toContain('Structural');
@@ -145,7 +193,11 @@ describe('SigmaInfoPanel', () => {
 
     it('displays overlay icons', () => {
       const { lastFrame } = render(
-        <SigmaInfoPanel sigmaStats={mockSigmaStats} overlays={mockOverlays} />
+        <SigmaInfoPanel
+          focused={false}
+          sigmaStats={mockSigmaStats}
+          overlays={mockOverlays}
+        />
       );
       const output = lastFrame() ?? '';
       expect(output).toContain('🏗️'); // Structural
@@ -159,14 +211,22 @@ describe('SigmaInfoPanel', () => {
 
     it('displays overlay scores with /10 suffix', () => {
       const { lastFrame } = render(
-        <SigmaInfoPanel sigmaStats={mockSigmaStats} overlays={mockOverlays} />
+        <SigmaInfoPanel
+          focused={false}
+          sigmaStats={mockSigmaStats}
+          overlays={mockOverlays}
+        />
       );
       expect(lastFrame()).toContain('/10');
     });
 
     it('displays visual bar indicators', () => {
       const { lastFrame } = render(
-        <SigmaInfoPanel sigmaStats={mockSigmaStats} overlays={mockOverlays} />
+        <SigmaInfoPanel
+          focused={false}
+          sigmaStats={mockSigmaStats}
+          overlays={mockOverlays}
+        />
       );
       const output = lastFrame() ?? '';
       // Bars consist of █ and ░ characters
@@ -179,7 +239,11 @@ describe('SigmaInfoPanel', () => {
     it('renders full bar for score of 10', () => {
       const fullOverlays = { ...mockOverlays, O1_structural: 10 };
       const { lastFrame } = render(
-        <SigmaInfoPanel sigmaStats={mockSigmaStats} overlays={fullOverlays} />
+        <SigmaInfoPanel
+          focused={false}
+          sigmaStats={mockSigmaStats}
+          overlays={fullOverlays}
+        />
       );
       const output = lastFrame() ?? '';
       // 10/10 should give 5 filled blocks
@@ -189,7 +253,11 @@ describe('SigmaInfoPanel', () => {
     it('renders empty bar for score of 0', () => {
       const emptyOverlays = { ...mockOverlays, O1_structural: 0 };
       const { lastFrame } = render(
-        <SigmaInfoPanel sigmaStats={mockSigmaStats} overlays={emptyOverlays} />
+        <SigmaInfoPanel
+          focused={false}
+          sigmaStats={mockSigmaStats}
+          overlays={emptyOverlays}
+        />
       );
       const output = lastFrame() ?? '';
       // 0/10 should give 5 empty blocks
@@ -199,7 +267,11 @@ describe('SigmaInfoPanel', () => {
     it('renders half bar for score of 5', () => {
       const halfOverlays = { ...mockOverlays, O1_structural: 5 };
       const { lastFrame } = render(
-        <SigmaInfoPanel sigmaStats={mockSigmaStats} overlays={halfOverlays} />
+        <SigmaInfoPanel
+          focused={false}
+          sigmaStats={mockSigmaStats}
+          overlays={halfOverlays}
+        />
       );
       const output = lastFrame() ?? '';
       // 5/10 should give ~2-3 filled blocks (rounding)
@@ -210,7 +282,11 @@ describe('SigmaInfoPanel', () => {
   describe('footer help text', () => {
     it('displays close instruction', () => {
       const { lastFrame } = render(
-        <SigmaInfoPanel sigmaStats={mockSigmaStats} overlays={mockOverlays} />
+        <SigmaInfoPanel
+          focused={false}
+          sigmaStats={mockSigmaStats}
+          overlays={mockOverlays}
+        />
       );
       expect(lastFrame()).toContain("Press 'i' to close");
     });

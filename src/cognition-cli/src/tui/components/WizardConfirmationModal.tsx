@@ -16,10 +16,10 @@ import type {
   WizardSelectionItem,
 } from '../hooks/useOnboardingWizard.js';
 import { TUITheme } from '../theme.js';
+import { IBaseModalProps } from '../types/props.js';
 
-export interface WizardConfirmationModalProps {
-  state: WizardConfirmationState;
-}
+export type WizardConfirmationModalProps =
+  IBaseModalProps<WizardConfirmationState>;
 
 /**
  * Wizard Confirmation Modal

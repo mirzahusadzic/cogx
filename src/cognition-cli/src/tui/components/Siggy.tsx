@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import { ThinkingState } from '../hooks/useAgent/types.js';
 import { SIGGY_ANIMATIONS } from '../constants.js';
 import { terminal } from '../services/index.js';
+import { IBaseComponentProps } from '../types/props.js';
 
 /**
  * Determine color function from color string (hex or chalk color name)
@@ -30,7 +31,7 @@ const getColorFn = (colorStr: string) => {
 /**
  * Props for Siggy mascot component
  */
-export interface SiggyProps {
+export interface SiggyProps extends IBaseComponentProps {
   /** Current thinking state for animation */
   state: ThinkingState;
   /** Color for Siggy */
