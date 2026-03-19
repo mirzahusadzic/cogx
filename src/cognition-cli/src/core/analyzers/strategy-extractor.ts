@@ -2,7 +2,7 @@
  * Strategic Knowledge Extraction
  *
  * Extracts strategic concepts from vision and mission documentation for O₄ (Mission) overlay.
- * This is a wrapper around ConceptExtractor that adds category inference
+ * This is a wrapper around ConceptExtractor that adds type inference
  * (vision/mission/principle/goal/value) to enable strategic pattern matching.
  *
  * OVERLAY TARGET: O₄ (Mission)
@@ -17,7 +17,7 @@
  * @example
  * const extractor = new StrategyExtractor();
  * const knowledge = extractor.extract(visionDoc);
- * // Returns: [{ text: "Enable human agency", category: "mission", weight: 0.95, ... }, ...]
+ * // Returns: [{ text: "Enable human agency", type: "mission", weight: 0.95, ... }, ...]
  */
 
 import { MarkdownDocument } from '../parsers/markdown-parser.js';
@@ -28,18 +28,18 @@ import { ConceptExtractor, MissionConcept } from './concept-extractor.js';
 /**
  * StrategyExtractor
  *
- * Wraps ConceptExtractor to add strategic category inference.
+ * Wraps ConceptExtractor to add strategic type inference.
  * Targets O₄ (Mission) overlay for vision, mission, and architectural documents.
  *
  * STRATEGY:
  * 1. Extract concepts using ConceptExtractor
- * 2. Infer category from section heading and concept text
+ * 2. Infer type from section heading and concept text
  * 3. Return categorized strategic knowledge
  *
  * @example
  * const extractor = new StrategyExtractor();
  * const knowledge = extractor.extract(missionDoc);
- * const principles = knowledge.filter(k => k.category === 'principle');
+ * const principles = knowledge.filter(k => k.type === 'principle');
  */
 export class StrategyExtractor implements DocumentExtractor<StrategyKnowledge> {
   private conceptExtractor: ConceptExtractor;
@@ -51,7 +51,7 @@ export class StrategyExtractor implements DocumentExtractor<StrategyKnowledge> {
   /**
    * Extract strategic concepts from document
    *
-   * Uses ConceptExtractor internally, then adds category inference.
+   * Uses ConceptExtractor internally, then adds type inference.
    *
    * @param doc - Parsed markdown document
    * @returns Array of strategic knowledge with categories
@@ -59,16 +59,16 @@ export class StrategyExtractor implements DocumentExtractor<StrategyKnowledge> {
    * @example
    * const doc = parser.parse(visionMd);
    * const knowledge = extractor.extract(doc);
-   * console.log(knowledge[0].category); // "vision"
+   * console.log(knowledge[0].type); // "vision"
    */
   extract(doc: MarkdownDocument): StrategyKnowledge[] {
     // Use existing ConceptExtractor
     const concepts: MissionConcept[] = this.conceptExtractor.extract(doc);
 
-    // Convert to StrategyKnowledge with category inference
+    // Convert to StrategyKnowledge with type inference
     return concepts.map((concept) => ({
       ...concept,
-      category: this.inferCategory(concept.section, concept.text),
+      type: this.inferType(concept.section, concept.text),
     }));
   }
 
@@ -95,7 +95,7 @@ export class StrategyExtractor implements DocumentExtractor<StrategyKnowledge> {
   }
 
   /**
-   * Infer concept category from section and text
+   * Infer concept type from section and text
    *
    * Uses keyword matching to categorize concepts as vision, mission,
    * principle, goal, or value. Defaults to "mission" if no match.
@@ -103,9 +103,9 @@ export class StrategyExtractor implements DocumentExtractor<StrategyKnowledge> {
    * @private
    * @param section - Section heading where concept was found
    * @param text - Concept text
-   * @returns Inferred category
+   * @returns Inferred type
    */
-  private inferCategory(
+  private inferType(
     section: string,
     text: string
   ): 'vision' | 'mission' | 'principle' | 'goal' | 'value' {

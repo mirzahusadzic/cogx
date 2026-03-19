@@ -16,18 +16,18 @@ export const BaseOverlayMetadataSchema = z.object({
 });
 
 /**
- * Base metadata fields shared by all overlay items.
- *
- * Extends the fundamental OverlayMetadata from overlay-algebra with
- * common provenance and importance fields used across all document-based
- * overlays (O2, O4, O5, O6).
+ * Common content fields shared by all overlay findings/concepts.
+ * These are usually extracted by the analyzer.
  */
-export interface IBaseOverlayMetadata extends OverlayMetadata {
+export interface IBaseOverlayFinding {
+  /** Classification of the finding (replaces statementType, patternType, securityType, etc.) */
+  type?: string;
+
   /** Semantic content for embedding and display */
   text: string;
 
   /** Importance score (0-1) */
-  weight: number;
+  weight?: number;
 
   /** Frequency in source document */
   occurrences: number;
@@ -38,6 +38,15 @@ export interface IBaseOverlayMetadata extends OverlayMetadata {
   /** Section hash for provenance */
   sectionHash: string;
 
+  /** Vector embedding (optional) */
+  embedding?: number[];
+}
+
+/**
+ * Full metadata for an overlay item in LanceDB, including provenance.
+ */
+export interface IBaseOverlayMetadata
+  extends IBaseOverlayFinding, OverlayMetadata {
   /** Document hash for provenance */
   documentHash: string;
 }
@@ -70,3 +79,17 @@ export interface IBaseOverlayDocument {
   /** Source commit hash for provenance */
   source_commit?: string;
 }
+
+/**
+ * Standard structure for overlay finding documents.
+ * Standardizes the collection of findings/concepts/patterns.
+ *
+ * @example
+ * interface SecurityOverlay extends IBaseOverlayFindings<SecurityMetadata, 'findings'> {}
+ */
+export type IBaseOverlayFindings<
+  T extends IBaseOverlayFinding,
+  K extends string = 'findings',
+> = IBaseOverlayDocument & {
+  [P in K]: T[];
+};

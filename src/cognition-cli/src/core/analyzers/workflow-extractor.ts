@@ -19,7 +19,7 @@
  * @example
  * const extractor = new WorkflowExtractor();
  * const patterns = extractor.extract(operationalDoc);
- * // Returns: [{ text: "F.L.T.B Sacred Sequence", patternType: "sacred_sequence", ... }, ...]
+ * // Returns: [{ text: "F.L.T.B Sacred Sequence", type: "sacred_sequence", ... }, ...]
  */
 
 import {
@@ -81,7 +81,7 @@ export class WorkflowExtractor implements DocumentExtractor<OperationalKnowledge
     const seen = new Map<string, OperationalKnowledge>();
     for (const pattern of patterns) {
       const existing = seen.get(pattern.text);
-      if (!existing || pattern.weight > existing.weight) {
+      if (!existing || (pattern.weight ?? 0) > (existing.weight ?? 0)) {
         seen.set(pattern.text, pattern);
       }
     }
@@ -164,7 +164,7 @@ export class WorkflowExtractor implements DocumentExtractor<OperationalKnowledge
         weight: positionWeight * 0.95,
         occurrences: 1,
         sectionHash: section.structuralHash,
-        patternType: 'quest_structure',
+        type: 'quest_structure',
       });
     });
 
@@ -177,7 +177,7 @@ export class WorkflowExtractor implements DocumentExtractor<OperationalKnowledge
         weight: positionWeight * 1.0, // Highest - invariants
         occurrences: 1,
         sectionHash: section.structuralHash,
-        patternType: 'sacred_sequence',
+        type: 'sacred_sequence',
         metadata: { steps },
       });
     });
@@ -191,7 +191,7 @@ export class WorkflowExtractor implements DocumentExtractor<OperationalKnowledge
         weight: positionWeight * 0.9,
         occurrences: 1,
         sectionHash: section.structuralHash,
-        patternType: 'workflow_pattern',
+        type: 'workflow_pattern',
       });
     });
 
@@ -204,7 +204,7 @@ export class WorkflowExtractor implements DocumentExtractor<OperationalKnowledge
         weight: positionWeight * 0.85,
         occurrences: 1,
         sectionHash: section.structuralHash,
-        patternType: 'depth_rule',
+        type: 'depth_rule',
       });
     });
 
@@ -217,7 +217,7 @@ export class WorkflowExtractor implements DocumentExtractor<OperationalKnowledge
         weight: positionWeight * 0.8,
         occurrences: 1,
         sectionHash: section.structuralHash,
-        patternType: 'terminology',
+        type: 'terminology',
         metadata: { example: definition },
       });
     });
@@ -231,7 +231,7 @@ export class WorkflowExtractor implements DocumentExtractor<OperationalKnowledge
         weight: positionWeight * 0.9,
         occurrences: 1,
         sectionHash: section.structuralHash,
-        patternType: 'workflow_pattern',
+        type: 'workflow_pattern',
         metadata: { formula },
       });
     });
@@ -248,7 +248,7 @@ export class WorkflowExtractor implements DocumentExtractor<OperationalKnowledge
         weight: positionWeight * 0.85,
         occurrences: 1,
         sectionHash: section.structuralHash,
-        patternType: 'explanation',
+        type: 'explanation',
       });
     });
 

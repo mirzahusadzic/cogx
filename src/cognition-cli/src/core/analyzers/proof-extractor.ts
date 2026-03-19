@@ -202,7 +202,7 @@ export class ProofExtractor implements DocumentExtractor<MathematicalKnowledge> 
           sectionHash: section.structuralHash,
           weight: positionWeight * 1.0,
           occurrences: 1,
-          statementType: 'theorem',
+          type: 'theorem',
         });
       });
     }
@@ -217,7 +217,7 @@ export class ProofExtractor implements DocumentExtractor<MathematicalKnowledge> 
           sectionHash: section.structuralHash,
           weight: positionWeight * 0.95,
           occurrences: 1,
-          statementType: 'lemma',
+          type: 'lemma',
         });
       });
     }
@@ -232,7 +232,7 @@ export class ProofExtractor implements DocumentExtractor<MathematicalKnowledge> 
           sectionHash: section.structuralHash,
           weight: positionWeight * 1.0,
           occurrences: 1,
-          statementType: 'axiom',
+          type: 'axiom',
         });
       });
     }
@@ -247,7 +247,7 @@ export class ProofExtractor implements DocumentExtractor<MathematicalKnowledge> 
           sectionHash: section.structuralHash,
           weight: positionWeight * 0.95,
           occurrences: 1,
-          statementType: 'invariant',
+          type: 'invariant',
         });
       });
     }
@@ -262,7 +262,7 @@ export class ProofExtractor implements DocumentExtractor<MathematicalKnowledge> 
           sectionHash: section.structuralHash,
           weight: positionWeight * 0.9,
           occurrences: 1,
-          statementType: 'complexity',
+          type: 'complexity',
         });
       });
     }
@@ -276,7 +276,7 @@ export class ProofExtractor implements DocumentExtractor<MathematicalKnowledge> 
         sectionHash: section.structuralHash,
         weight: positionWeight * 0.9,
         occurrences: 1,
-        statementType: 'proof',
+        type: 'proof',
       });
     });
 
@@ -289,7 +289,7 @@ export class ProofExtractor implements DocumentExtractor<MathematicalKnowledge> 
         sectionHash: section.structuralHash,
         weight: positionWeight * 0.85,
         occurrences: 1,
-        statementType: 'identity',
+        type: 'identity',
       });
     });
 
@@ -328,7 +328,7 @@ export class ProofExtractor implements DocumentExtractor<MathematicalKnowledge> 
           sectionHash: section.structuralHash,
           weight: positionWeight * 1.0,
           occurrences: 1,
-          statementType: 'theorem',
+          type: 'theorem',
         });
       }
 
@@ -341,7 +341,7 @@ export class ProofExtractor implements DocumentExtractor<MathematicalKnowledge> 
           sectionHash: section.structuralHash,
           weight: positionWeight * 0.95,
           occurrences: 1,
-          statementType: 'lemma',
+          type: 'lemma',
         });
       }
 
@@ -354,7 +354,7 @@ export class ProofExtractor implements DocumentExtractor<MathematicalKnowledge> 
           sectionHash: section.structuralHash,
           weight: positionWeight * 1.0,
           occurrences: 1,
-          statementType: 'axiom',
+          type: 'axiom',
         });
       }
 
@@ -367,7 +367,7 @@ export class ProofExtractor implements DocumentExtractor<MathematicalKnowledge> 
           sectionHash: section.structuralHash,
           weight: positionWeight * 0.95,
           occurrences: 1,
-          statementType: 'invariant',
+          type: 'invariant',
         });
       }
 
@@ -381,7 +381,7 @@ export class ProofExtractor implements DocumentExtractor<MathematicalKnowledge> 
           sectionHash: section.structuralHash,
           weight: positionWeight * 0.9,
           occurrences: 1,
-          statementType: 'complexity',
+          type: 'complexity',
           metadata: this.parseComplexityMetadata(complexityText),
         });
       }

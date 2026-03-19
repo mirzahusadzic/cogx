@@ -20,7 +20,7 @@
  * @example
  * const extractor = new SecurityExtractor();
  * const knowledge = extractor.extract(securityDoc);
- * // Returns: [{ text: "SQL Injection: Malicious SQL via user input", securityType: "threat_model", ... }, ...]
+ * // Returns: [{ text: "SQL Injection: Malicious SQL via user input", type: "threat_model", ... }, ...]
  */
 
 import {
@@ -143,7 +143,7 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
         sectionHash: section.structuralHash,
         weight: positionWeight * 1.0, // Highest - critical knowledge
         occurrences: 1,
-        securityType: 'threat_model',
+        type: 'threat_model',
       });
     });
 
@@ -156,7 +156,7 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
         sectionHash: section.structuralHash,
         weight: positionWeight * 0.95,
         occurrences: 1,
-        securityType: 'attack_vector',
+        type: 'attack_vector',
       });
     });
 
@@ -169,7 +169,7 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
         sectionHash: section.structuralHash,
         weight: positionWeight * 0.9,
         occurrences: 1,
-        securityType: 'mitigation',
+        type: 'mitigation',
       });
     });
 
@@ -182,7 +182,7 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
         sectionHash: section.structuralHash,
         weight: positionWeight * 0.85,
         occurrences: 1,
-        securityType: 'boundary',
+        type: 'boundary',
       });
     });
 
@@ -195,7 +195,7 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
         sectionHash: section.structuralHash,
         weight: positionWeight * 1.0, // Critical
         occurrences: 1,
-        securityType: 'vulnerability',
+        type: 'vulnerability',
       });
     });
 

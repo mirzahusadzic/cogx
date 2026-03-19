@@ -1,5 +1,5 @@
 import { SecurityKnowledge } from '../../analyzers/document-extractor.js';
-import { IBaseOverlayDocument, IBaseOverlayMetadata } from '../base-types.js';
+import { IBaseOverlayFindings, IBaseOverlayMetadata } from '../base-types.js';
 
 /**
  * Security Guidelines Overlay (O₂) - FOUNDATIONAL LAYER
@@ -57,15 +57,17 @@ import { IBaseOverlayDocument, IBaseOverlayMetadata } from '../base-types.js';
  * // Import into another project
  * await otherManager.importFromCogx(overlay, 'express', 'abc123');
  */
-export interface SecurityGuidelinesOverlay extends IBaseOverlayDocument {
-  extracted_knowledge: SecurityKnowledge[]; // Security patterns with embeddings
-}
+export type SecurityGuidelinesOverlay = IBaseOverlayFindings<
+  SecurityKnowledge,
+  'extracted_knowledge'
+>;
 
 /**
  * Metadata for security overlay items
  */
 export interface SecurityMetadata extends IBaseOverlayMetadata {
-  securityType:
+  /** Security finding classification */
+  type:
     | 'threat_model'
     | 'attack_vector'
     | 'mitigation'

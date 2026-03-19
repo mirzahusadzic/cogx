@@ -33,6 +33,7 @@ import { MISSION_SECTIONS } from '../config/mission-sections.js';
 export interface MissionConcept {
   text: string; // The concept text
   section: string; // Which section it came from
+  type?: string; // Standard classification (vision, mission, etc.)
   weight: number; // Importance score (0-1)
   occurrences: number; // How many times it appears
   sectionHash: string; // Structural hash of source section (provenance)

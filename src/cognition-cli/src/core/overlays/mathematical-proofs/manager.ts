@@ -90,8 +90,9 @@ export class MathematicalProofsManager extends BasePatternManager<MathematicalMe
           embedding: concept.embedding!,
           metadata: {
             text: concept.text,
-            type: originalStatement?.statementType || 'theorem',
-            statementType: originalStatement?.statementType || 'theorem',
+            type:
+              (originalStatement?.type as MathematicalMetadata['type']) ||
+              'theorem',
             weight: concept.weight,
             occurrences: concept.occurrences,
             section: concept.section || 'unknown',
@@ -197,10 +198,10 @@ export class MathematicalProofsManager extends BasePatternManager<MathematicalMe
         symbol: item.text.substring(0, 100),
         embedding: item.embedding!,
         document_hash: documentHash,
-        structural_signature: `mathematical:${item.statementType}`,
+        structural_signature: `mathematical:${item.type}`,
         semantic_signature: item.text,
         type: 'semantic',
-        architectural_role: item.statementType,
+        architectural_role: item.type,
         computed_at: new Date().toISOString(),
         lineage_hash: documentHash,
         filePath: documentPath,
@@ -296,8 +297,7 @@ export class MathematicalProofsManager extends BasePatternManager<MathematicalMe
     const items = await this.getAllItems();
     return items.map((item) => ({
       text: item.metadata.text,
-      statementType: item.metadata
-        .statementType as MathematicalMetadata['statementType'],
+      type: item.metadata.type as MathematicalMetadata['type'],
       weight: item.metadata.weight,
       occurrences: item.metadata.occurrences,
       section: item.metadata.section,
@@ -315,7 +315,7 @@ export class MathematicalProofsManager extends BasePatternManager<MathematicalMe
 
   async getStatementsByType(type: string): Promise<MathematicalKnowledge[]> {
     const all = await this.getAllStatements();
-    return all.filter((s) => s.statementType === type);
+    return all.filter((s) => s.type === type);
   }
   /**
    * Query statements by text search

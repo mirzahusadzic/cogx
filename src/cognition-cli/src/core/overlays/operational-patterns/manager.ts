@@ -91,9 +91,8 @@ export class OperationalPatternsManager extends BasePatternManager<OperationalMe
           metadata: {
             text: concept.text,
             type:
-              (originalPattern?.patternType as OperationalMetadata['type']) ||
+              (originalPattern?.type as OperationalMetadata['type']) ||
               'explanation',
-            patternType: originalPattern?.patternType || 'explanation',
             weight: concept.weight,
             occurrences: concept.occurrences,
             section: concept.section || 'unknown',
@@ -200,10 +199,10 @@ export class OperationalPatternsManager extends BasePatternManager<OperationalMe
         symbol: item.text.substring(0, 100),
         embedding: item.embedding!,
         document_hash: documentHash,
-        structural_signature: `operational:${item.patternType}`,
+        structural_signature: `operational:${item.type}`,
         semantic_signature: item.text,
         type: 'semantic',
-        architectural_role: item.patternType,
+        architectural_role: item.type,
         computed_at: new Date().toISOString(),
         lineage_hash: documentHash,
         filePath: documentPath,
@@ -303,8 +302,7 @@ export class OperationalPatternsManager extends BasePatternManager<OperationalMe
     const items = await this.getAllItems();
     return items.map((item) => ({
       text: item.metadata.text,
-      patternType: item.metadata
-        .patternType as OperationalKnowledge['patternType'],
+      type: item.metadata.type as OperationalKnowledge['type'],
       weight: item.metadata.weight,
       occurrences: item.metadata.occurrences,
       section: item.metadata.section,
@@ -324,8 +322,7 @@ export class OperationalPatternsManager extends BasePatternManager<OperationalMe
     const items = await this.getItemsByType(type);
     return items.map((item) => ({
       text: item.metadata.text,
-      patternType: item.metadata
-        .patternType as OperationalKnowledge['patternType'],
+      type: item.metadata.type as OperationalKnowledge['type'],
       weight: item.metadata.weight,
       occurrences: item.metadata.occurrences,
       section: item.metadata.section,
@@ -346,8 +343,7 @@ export class OperationalPatternsManager extends BasePatternManager<OperationalMe
     const results = await this.query(query);
     return results.map((r) => ({
       text: r.item.metadata.text,
-      patternType: r.item.metadata
-        .patternType as OperationalKnowledge['patternType'],
+      type: r.item.metadata.type as OperationalKnowledge['type'],
       weight: r.item.metadata.weight,
       occurrences: r.item.metadata.occurrences,
       section: r.item.metadata.section,

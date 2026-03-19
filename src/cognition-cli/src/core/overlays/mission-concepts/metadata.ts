@@ -1,5 +1,5 @@
 import { MissionConcept } from '../../analyzers/concept-extractor.js';
-import { IBaseOverlayDocument, IBaseOverlayMetadata } from '../base-types.js';
+import { IBaseOverlayFindings, IBaseOverlayMetadata } from '../base-types.js';
 
 /**
  * Mission Concepts Overlay (O₄) - STRATEGIC VISION
@@ -54,9 +54,10 @@ import { IBaseOverlayDocument, IBaseOverlayMetadata } from '../base-types.js';
  * // Filter by concept type
  * const principles = await manager.getItemsByType('principle');
  */
-export interface MissionConceptsOverlay extends IBaseOverlayDocument {
-  extracted_concepts: MissionConcept[]; // Ranked concepts with 768d embeddings
-}
+export type MissionConceptsOverlay = IBaseOverlayFindings<
+  MissionConcept,
+  'extracted_concepts'
+>;
 
 /**
  * Metadata for mission concept overlay items

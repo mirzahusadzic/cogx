@@ -359,7 +359,7 @@ export class PRAnalyzer {
         // Only match actual vulnerabilities and known security gaps
         if (
           result.similarity > 0.55 &&
-          (result.item.metadata.securityType === 'vulnerability' ||
+          (result.item.metadata.type === 'vulnerability' ||
             result.item.metadata.text.toLowerCase().includes('gap') ||
             result.item.metadata.text.toLowerCase().includes('issue') ||
             result.item.metadata.text.toLowerCase().includes('exposed') ||
@@ -369,7 +369,7 @@ export class PRAnalyzer {
           const severity = result.item.metadata.severity;
           if (severity === 'high' || severity === 'critical') {
             threats.push({
-              type: result.item.metadata.securityType,
+              type: result.item.metadata.type,
               severity: severity,
               description: result.item.metadata.text,
               file: file.path,

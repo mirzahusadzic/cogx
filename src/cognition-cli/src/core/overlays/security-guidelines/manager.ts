@@ -90,8 +90,9 @@ export class SecurityGuidelinesManager extends BasePatternManager<SecurityMetada
           embedding: concept.embedding!,
           metadata: {
             text: concept.text,
-            type: originalKnowledge?.securityType || 'vulnerability',
-            securityType: originalKnowledge?.securityType || 'vulnerability',
+            type:
+              (originalKnowledge?.type as SecurityMetadata['type']) ||
+              'vulnerability',
             severity: originalKnowledge?.severity || 'low',
             weight: concept.weight,
             occurrences: concept.occurrences,
@@ -152,10 +153,10 @@ export class SecurityGuidelinesManager extends BasePatternManager<SecurityMetada
         symbol: item.text.substring(0, 100),
         embedding: item.embedding!,
         document_hash: documentHash,
-        structural_signature: `security:${item.securityType}`,
+        structural_signature: `security:${item.type}`,
         semantic_signature: item.text,
         type: 'semantic',
-        architectural_role: item.securityType,
+        architectural_role: item.type,
         computed_at: new Date().toISOString(),
         lineage_hash: documentHash,
         filePath: documentPath,
@@ -302,7 +303,7 @@ export class SecurityGuidelinesManager extends BasePatternManager<SecurityMetada
     const items = await this.getAllItems();
     return items.map((item) => ({
       text: item.metadata.text,
-      securityType: item.metadata.securityType,
+      type: item.metadata.type,
       severity: item.metadata.severity,
       weight: item.metadata.weight,
       occurrences: item.metadata.occurrences,
@@ -322,7 +323,7 @@ export class SecurityGuidelinesManager extends BasePatternManager<SecurityMetada
 
   async getKnowledgeByType(type: string): Promise<SecurityKnowledge[]> {
     const all = await this.getAllKnowledge();
-    return all.filter((k) => k.securityType === type);
+    return all.filter((k) => k.type === type);
   }
   /**
    * Query knowledge by severity
@@ -338,9 +339,7 @@ export class SecurityGuidelinesManager extends BasePatternManager<SecurityMetada
 
   async getCVEs(): Promise<SecurityKnowledge[]> {
     const all = await this.getAllKnowledge();
-    return all.filter(
-      (k) => k.securityType === 'vulnerability' && k.metadata?.cveId
-    );
+    return all.filter((k) => k.type === 'vulnerability' && k.metadata?.cveId);
   }
   /**
    * Query security knowledge by text search

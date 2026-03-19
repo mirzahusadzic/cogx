@@ -1,5 +1,5 @@
 import { MathematicalKnowledge } from '../../analyzers/document-extractor.js';
-import { IBaseOverlayDocument, IBaseOverlayMetadata } from '../base-types.js';
+import { IBaseOverlayFindings, IBaseOverlayMetadata } from '../base-types.js';
 
 /**
  * Mathematical Proofs Overlay (O₆) - FORMAL REASONING
@@ -61,15 +61,17 @@ import { IBaseOverlayDocument, IBaseOverlayMetadata } from '../base-types.js';
  * // Find theorems by type
  * const theorems = await manager.getStatementsByType('theorem');
  */
-export interface MathematicalProofsOverlay extends IBaseOverlayDocument {
-  extracted_statements: MathematicalKnowledge[]; // Theorems, proofs, etc.
-}
+export type MathematicalProofsOverlay = IBaseOverlayFindings<
+  MathematicalKnowledge,
+  'extracted_statements'
+>;
 
 /**
  * Metadata for mathematical overlay items
  */
 export interface MathematicalMetadata extends IBaseOverlayMetadata {
-  statementType:
+  /** Mathematical statement classification */
+  type:
     | 'theorem'
     | 'lemma'
     | 'axiom'

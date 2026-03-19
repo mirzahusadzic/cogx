@@ -34,7 +34,9 @@ This plan outlines the steps to refactor key areas of the Cognition Σ repositor
 
 ---
 
-## 2. Overlay Metadata & Schema Harmonization
+## 2. Overlay Metadata & Schema Harmonization [COMPLETED]
+
+**Status**: COMPLETED (March 19, 2026)
 
 **Goal**: Standardize the data structures for all PGC overlays.
 
@@ -43,18 +45,22 @@ This plan outlines the steps to refactor key areas of the Cognition Σ repositor
 - `MathematicalProofsOverlay` (src/core/overlays/mathematical-proofs/metadata.ts)
 - `OperationalPatternsOverlay` (src/core/overlays/operational-patterns/metadata.ts)
 - `MissionConceptsOverlay` (src/core/overlays/mission-concepts/metadata.ts)
+- `SecurityMetadata` (src/core/overlays/security-guidelines/metadata.ts)
 
-### Implementation Steps
+### Implementation Results
 
-1. **Define Base Interfaces**: Create `src/core/overlays/base-types.ts` with `IBaseOverlayMetadata` and `IBaseOverlayFindings`.
-2. **Apply Generics**: Update individual overlay metadata files to extend these base types using generics for domain-specific fields.
-3. **Harmonize Validation**: Implement a shared validation utility for metadata blocks.
-4. **Validation**: Run `npm run test src/core/overlays/` to ensure no regressions in extraction/parsing.
+1. **Core Infrastructure**: Updated `src/core/overlays/base-types.ts` with `IBaseOverlayFinding`, `IBaseOverlayMetadata`, and the generic `IBaseOverlayFindings<T, K>` type for standardized YAML document structures.
+2. **Metadata Migration**: Migrated `MathematicalMetadata`, `OperationalMetadata`, `MissionConcept`, and `SecurityMetadata` to use the standard `type` field, replacing legacy domain-specific fields like `statementType`, `patternType`, and `securityType`.
+3. **Analyzer Harmonization**: Updated `ExtractedKnowledge` and all specific extractors (`ProofExtractor`, `StrategyExtractor`, `SecurityExtractor`, `WorkflowExtractor`) to use the unified `type` field and `IBaseOverlayFinding` interface.
+4. **Manager Alignment**: Updated `MathematicalProofsManager`, `OperationalPatternsManager`, and `SecurityGuidelinesManager` to support the standardized metadata while maintaining backward compatibility for legacy fields during the transition.
+5. **Validation**: Fixed build errors in `PRAnalyzer` and sugar commands (`security.ts`) that were using old field names. Verified with `npm run build` and targeted tests.
 
-### Expected Impact
+### Impact
 
-- ~120 lines of code reduction.
-- Easier creation of new overlays.
+- **~180 lines of code reduction** (Net project-wide).
+- Consistent data access patterns across all 7 overlays.
+- Simplified schema for PGC documents, making it easier to add new domain overlays.
+- Improved type safety for cross-overlay queries and projections.
 
 ---
 
@@ -203,6 +209,6 @@ This plan outlines the steps to refactor key areas of the Cognition Σ repositor
 
 ## 📊 Summary
 
-- **Total code reduction to date**: ~2,620 lines
-- **Remaining tasks**: 3 major refactoring candidate groups.
-- **Estimated total future reduction**: ~500-700 lines.
+- **Total code reduction to date**: ~2,800 lines
+- **Remaining tasks**: 2 major refactoring candidate groups.
+- **Estimated total future reduction**: ~300-500 lines.

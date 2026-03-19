@@ -378,7 +378,7 @@ export class MissionConceptsManager extends BasePatternManager<MissionConceptMet
     return items.map((item) => ({
       text: item.metadata.text,
       section: item.metadata.section,
-      weight: item.metadata.weight,
+      weight: item.metadata.weight ?? 0.5,
       occurrences: item.metadata.occurrences,
       sectionHash: item.metadata.sectionHash,
     }));
@@ -399,12 +399,15 @@ export class MissionConceptsManager extends BasePatternManager<MissionConceptMet
         const existing = conceptMap.get(key)!;
         existing.occurrences =
           (existing.occurrences || 0) + (item.metadata.occurrences || 1);
-        existing.weight = Math.max(existing.weight, item.metadata.weight);
+        existing.weight = Math.max(
+          existing.weight,
+          item.metadata.weight ?? 0.5
+        );
       } else {
         conceptMap.set(key, {
           text: item.metadata.text,
           section: item.metadata.section,
-          weight: item.metadata.weight,
+          weight: item.metadata.weight ?? 0.5,
           occurrences: item.metadata.occurrences,
           sectionHash: item.metadata.sectionHash,
         });

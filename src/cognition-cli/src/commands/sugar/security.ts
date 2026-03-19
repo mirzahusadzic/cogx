@@ -503,7 +503,7 @@ export async function securityQueryCommand(
               : chalk.dim;
 
         log.info(
-          `${i + 1}. ${severityColor(`[${item.severity?.toUpperCase() || 'UNKNOWN'}]`)} ${item.securityType}`
+          `${i + 1}. ${severityColor(`[${item.severity?.toUpperCase() || 'UNKNOWN'}]`)} ${item.type}`
         );
         log.info(chalk.dim(`   ${item.text}`));
         log.info('');

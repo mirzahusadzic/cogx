@@ -1,5 +1,5 @@
 import { OperationalKnowledge } from '../../analyzers/document-extractor.js';
-import { IBaseOverlayDocument, IBaseOverlayMetadata } from '../base-types.js';
+import { IBaseOverlayFindings, IBaseOverlayMetadata } from '../base-types.js';
 
 /**
  * Operational Patterns Overlay (O₅) - WORKFLOW GUIDANCE
@@ -55,9 +55,10 @@ import { IBaseOverlayDocument, IBaseOverlayMetadata } from '../base-types.js';
  * // Find depth-specific rules
  * const depthRules = await manager.getPatternsByType('depth_rule');
  */
-export interface OperationalPatternsOverlay extends IBaseOverlayDocument {
-  extracted_patterns: OperationalKnowledge[]; // Workflow patterns with embeddings
-}
+export type OperationalPatternsOverlay = IBaseOverlayFindings<
+  OperationalKnowledge,
+  'extracted_patterns'
+>;
 
 /**
  * Metadata for operational overlay items
@@ -70,7 +71,7 @@ export interface OperationalMetadata extends IBaseOverlayMetadata {
     | 'depth_rule'
     | 'terminology'
     | 'explanation';
-  patternType: string; // For backward compatibility
+  patternType?: string; // For backward compatibility
   steps?: string[];
   formula?: string;
   example?: string;
