@@ -64,25 +64,30 @@ This plan outlines the steps to refactor key areas of the Cognition Σ repositor
 
 ---
 
-## 3. LLM Provider Base Logic Consolidation
+## 3. LLM Provider Base Logic Consolidation [COMPLETED]
+
+**Status**: COMPLETED (March 19, 2026)
 
 **Goal**: Move common provider logic into the base class to reduce duplication.
 
 ### High-Similarity Group (0.80 similarity)
 
-- `ClaudeProvider`, `OpenAIAgentProvider`, `MinimaxAgentProvider`
+- `ClaudeProvider`, `OpenAIAgentProvider`, `MinimaxAgentProvider`, `GeminiAgentProvider`
 
-### Implementation Steps
+### Implementation Results
 
-1. **Enhance BaseAgentProvider**: Add common message conversion and token usage estimation methods to `BaseAgentProvider`.
-2. **Standardize Usage Extraction**: Implement a default `extractUsage` method in the base class.
-3. **Update Providers**: Refactor individual providers to call super methods for common tasks.
-4. **Validation**: Run `npm run build` and targeted provider tests.
+1. **Base Infrastructure**: Enhanced `BaseAgentProvider` with `ModelPricing` interface and centralized `estimateCost()` logic that handles token validation, tiered pricing, and cached token discounts.
+2. **Availability Standard**: Introduced `getApiKeyEnvVar()` and a default `isAvailable()` implementation in the base class, standardizing how providers check for API keys.
+3. **Memory Sanitizer (Pruning)**: Centralized "Surgical Log Eviction" logic in `BaseAgentProvider` using `identifyPruningIndices()` and `getTombstones()` helpers. Added `onTaskLogsPruned()` hook for provider-specific persistence (e.g., ADK session updates, server-side deletions).
+4. **Provider Migration**: Refactored `GeminiAgentProvider`, `OpenAIAgentProvider`, `ClaudeProvider`, and `MinimaxAgentProvider` to extend the new base logic, removing redundant code across pricing, availability, and log pruning.
+5. **Validation**: Verified with a successful `npm run build` and `npm run lint:changed`.
 
-### Expected Impact
+### Impact
 
-- ~100 lines of code reduction.
-- Simpler implementation of new agent providers.
+- **~260 lines of code reduction** (Net project-wide).
+- Unified provider lifecycle and memory management.
+- Standardized tombstone generation and task summary injection during context pruning.
+- Simplified addition of new LLM providers by reducing boilerplate.
 
 ---
 
@@ -219,6 +224,6 @@ This plan outlines the steps to refactor key areas of the Cognition Σ repositor
 
 ## 📊 Summary
 
-- **Total code reduction to date**: ~3,250 lines
-- **Remaining tasks**: 1 major refactoring candidate group.
-- **Estimated total future reduction**: ~100-200 lines.
+- **Total code reduction to date**: ~3,510 lines
+- **Remaining tasks**: 0 major refactoring candidate groups identified in the initial analysis.
+- **Estimated total future reduction**: ~0 lines.

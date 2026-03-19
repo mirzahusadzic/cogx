@@ -42,7 +42,10 @@ import type {
 import type { AgentRequest } from '../../core/interfaces/agent-provider.js';
 import type { Query, SDKMessage } from '../../../tui/hooks/sdk/types.js';
 
-import { BaseAgentProvider } from '../../core/base-agent-provider.js';
+import {
+  BaseAgentProvider,
+  ModelPricing,
+} from '../../core/base-agent-provider.js';
 import { UnifiedStreamingChunk } from '../../core/types.js';
 import { ThinkingBudget } from '../../core/utils/thinking-utils.js';
 import { systemDiagnosticsService } from '../../../core/services/diagnostics/SystemDiagnosticsService.js';
@@ -213,46 +216,50 @@ export class ClaudeProvider extends BaseAgentProvider {
    *
    * For Claude, we check if the Agent SDK is loaded AND if the API key is set.
    */
+  /**
+   * Get API key environment variable name
+   */
+  getApiKeyEnvVar(): string {
+    return 'ANTHROPIC_API_KEY';
+  }
+
+  /**
+   * Check if provider is available
+   */
   async isAvailable(): Promise<boolean> {
     // Ensure Agent SDK is loaded
     await this.ensureAgentSdkLoaded();
 
     // Check for API key
-    const hasApiKey = !!process.env.ANTHROPIC_API_KEY;
+    const hasApiKey = !!process.env[this.getApiKeyEnvVar()];
 
     // If Agent SDK is available and API key is set, Claude is available
     return !!this.claudeAgentSdk && hasApiKey;
   }
 
   /**
-   * Estimate cost for token usage
-   *
-   * Based on Anthropic pricing as of Nov 2025:
-   * - Sonnet 4.5: $3/$15 per MTok (input/output)
+   * Get pricing for a model
    */
-  estimateCost(
-    tokens: {
-      prompt: number;
-      completion: number;
-      total: number;
-      cached?: number;
-    },
-    model?: string // eslint-disable-line @typescript-eslint/no-unused-vars
-  ): number {
-    // Validation for NaN - return 0 if invalid
-    if (
-      isNaN(tokens.prompt) ||
-      isNaN(tokens.completion) ||
-      (tokens.cached !== undefined && isNaN(tokens.cached))
-    ) {
-      return 0;
+  getModelPricing(model: string): ModelPricing {
+    if (model.includes('opus')) {
+      return {
+        prompt: 15.0,
+        completion: 75.0,
+      };
     }
 
-    const inputMtokens = tokens.prompt / 1000000;
-    const outputMtokens = tokens.completion / 1000000;
-
     // Sonnet 4.5 pricing
-    return inputMtokens * 3 + outputMtokens * 15;
+    return {
+      prompt: 3.0,
+      completion: 15.0,
+    };
+  }
+
+  /**
+   * Hook for provider-specific cleanup after surgical log pruning.
+   */
+  protected async onTaskLogsPruned(): Promise<void> {
+    // Claude provider (ADK based) doesn't have custom pruning yet
   }
 
   // ========================================

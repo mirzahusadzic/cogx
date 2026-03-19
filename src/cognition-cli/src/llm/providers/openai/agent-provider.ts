@@ -200,7 +200,10 @@ interface ConversationItemResponse {
   tool_call_id?: string;
 }
 
-import { BaseAgentProvider } from '../../core/base-agent-provider.js';
+import {
+  BaseAgentProvider,
+  ModelPricing,
+} from '../../core/base-agent-provider.js';
 import { UnifiedStreamingChunk } from '../../core/types.js';
 import { ThinkingBudget } from '../../core/utils/thinking-utils.js';
 
@@ -736,6 +739,13 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
   /**
    * Prune tool logs for a completed task and archive them.
    */
+  /**
+   * Hook for provider-specific cleanup after surgical log pruning.
+   */
+  protected async onTaskLogsPruned(): Promise<void> {
+    // OpenAI server-side deletion is handled during the identification pass
+  }
+
   private async pruneTaskLogs(
     taskId: string,
     result_summary: string | null | undefined,
@@ -746,106 +756,80 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
       const items = await this.getConversationItems(conversationId);
       if (!items || items.length === 0) return;
 
-      const tag = `<!-- sigma-task: ${taskId} -->`;
-      const evictedLogs: string[] = [];
-      let evictedCount = 0;
-
-      // Pass 0: Identify task range (from 'in_progress' to 'completed')
-      let startIndex = -1;
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if (item.role === 'assistant' && Array.isArray(item.tool_calls)) {
-          const hasInProgress = item.tool_calls.some(
-            (tool: { function?: { name?: string; arguments?: string } }) => {
-              if (tool.function?.name === 'SigmaTaskUpdate') {
-                try {
-                  const input = JSON.parse(tool.function.arguments || '{}') as {
-                    todos?: Array<{ id: string; status: string }>;
-                  };
-                  return input.todos?.some(
-                    (t) => t.id === taskId && t.status === 'in_progress'
-                  );
-                } catch {
-                  return false;
-                }
-              }
-              return false;
-            }
-          );
-          if (hasInProgress) {
-            startIndex = i;
-          }
-        }
-      }
-
-      const isTurnInRange = (index: number) => {
-        if (startIndex === -1 || index <= startIndex) return false;
-        const item = items[index];
-        if (item.role === 'user') return false;
-        if (item.role === 'assistant' && Array.isArray(item.tool_calls)) {
-          const hasTaskCompleted = item.tool_calls.some(
-            (tool: { function?: { name?: string; arguments?: string } }) => {
-              if (tool.function?.name === 'SigmaTaskUpdate') {
-                try {
-                  const input = JSON.parse(tool.function.arguments || '{}') as {
-                    todos?: Array<{ id: string; status: string }>;
-                  };
-                  return input.todos?.some(
-                    (t) => t.id === taskId && t.status === 'completed'
-                  );
-                } catch {
-                  return false;
-                }
-              }
-              return false;
-            }
-          );
-          if (hasTaskCompleted) return false;
-        }
-        return true;
-      };
-
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if (item.content?.includes(tag) || isTurnInRange(i)) {
-          evictedLogs.push(JSON.stringify(item, null, 2));
-          evictedCount++;
-
-          // Delete from server-side session
-          try {
-            await this.deleteConversationItem(conversationId, item.id);
-          } catch (err) {
-            systemDiagnosticsService.systemLog(
-              'openai',
-              'Failed to delete item from server session',
-              { itemId: item.id, error: String(err) },
-              'warn'
+      const { indicesToPrune } = this.identifyPruningIndices(
+        taskId,
+        items,
+        (item) => {
+          if (item.role === 'assistant' && Array.isArray(item.tool_calls)) {
+            return (
+              item.tool_calls
+                .map((tool) => {
+                  if (tool.function?.name === 'SigmaTaskUpdate') {
+                    try {
+                      return (
+                        (
+                          JSON.parse(tool.function.arguments || '{}') as {
+                            todos?: Array<{ id: string; status: string }>;
+                          }
+                        ).todos || null
+                      );
+                    } catch {
+                      return null;
+                    }
+                  }
+                  return null;
+                })
+                .find((t) => t !== null) || null
             );
           }
+          return null;
+        },
+        (item, tag) => item.content?.includes(tag) || false,
+        (item) => item.role === 'assistant'
+      );
+
+      if (indicesToPrune.size === 0) {
+        systemDiagnosticsService.systemLog(
+          'sigma',
+          `No logs found for eviction for task ${taskId} (OpenAI). (items=${items.length})`,
+          { taskId, conversationId },
+          'warn'
+        );
+        return;
+      }
+
+      const evictedLogs: string[] = [];
+      const sortedIndices = Array.from(indicesToPrune).sort((a, b) => a - b);
+
+      for (const i of sortedIndices) {
+        const item = items[i];
+        evictedLogs.push(JSON.stringify(item, null, 2));
+
+        // Delete from server-side session
+        try {
+          await this.deleteConversationItem(conversationId, item.id);
+        } catch (err) {
+          systemDiagnosticsService.systemLog(
+            'openai',
+            'Failed to delete item from server session',
+            { itemId: item.id, error: String(err) },
+            'warn'
+          );
         }
       }
 
-      if (evictedCount > 0) {
-        await archiveTaskLogs({
-          projectRoot,
-          sessionId: conversationId,
-          taskId,
-          evictedLogs,
-          result_summary,
-        });
+      await archiveTaskLogs({
+        projectRoot,
+        sessionId: conversationId,
+        taskId,
+        evictedLogs,
+        result_summary: result_summary,
+      });
 
-        systemDiagnosticsService.systemLog(
-          'sigma',
-          `Evicted ${evictedCount} log messages (Turn-Range + Surgical) for task ${taskId} (OpenAI). ${process.env.DEBUG_ARCHIVE ? 'Archived to disk.' : ''}`
-        );
-      } else {
-        systemDiagnosticsService.systemLog(
-          'sigma',
-          `No logs found for eviction for task ${taskId} (OpenAI). (items=${items.length}, startIndex=${startIndex})`,
-          { taskId, conversationId, startIndex },
-          'warn'
-        );
-      }
+      systemDiagnosticsService.systemLog(
+        'sigma',
+        `Evicted ${indicesToPrune.size} log messages (Turn-Range + Surgical) for task ${taskId} (OpenAI). ${process.env.DEBUG_ARCHIVE ? 'Archived to disk.' : ''}`
+      );
     } catch (err) {
       systemDiagnosticsService.systemLog(
         'sigma',
@@ -1141,6 +1125,13 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
   }
 
   /**
+   * Get API key environment variable name
+   */
+  getApiKeyEnvVar(): string {
+    return 'OPENAI_API_KEY';
+  }
+
+  /**
    * Check if OpenAI API is available
    */
   async isAvailable(): Promise<boolean> {
@@ -1188,38 +1179,20 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
   }
 
   /**
-   * Estimate cost for token usage
-   *
-   * Based on OpenAI pricing as of Dec 2024:
-   * - GPT-4o: $2.50/$10 per MTok (input/output)
-   * - GPT-4o-mini: $0.15/$0.60 per MTok
+   * Get pricing for a model
    */
-  estimateCost(
-    tokens: {
-      prompt: number;
-      completion: number;
-      total: number;
-      cached?: number;
-    },
-    model: string
-  ): number {
-    // Validation for NaN - return 0 if invalid
-    if (
-      isNaN(tokens.prompt) ||
-      isNaN(tokens.completion) ||
-      (tokens.cached !== undefined && isNaN(tokens.cached))
-    ) {
-      return 0;
-    }
-
-    const inputMtokens = tokens.prompt / 1000000;
-    const outputMtokens = tokens.completion / 1000000;
-
+  getModelPricing(model: string): ModelPricing {
     if (model.includes('mini')) {
-      return inputMtokens * 0.15 + outputMtokens * 0.6;
+      return {
+        prompt: 0.15,
+        completion: 0.6,
+      };
     }
 
     // Default to GPT-4o pricing
-    return inputMtokens * 2.5 + outputMtokens * 10;
+    return {
+      prompt: 2.5,
+      completion: 10.0,
+    };
   }
 }

@@ -15,7 +15,10 @@ import {
   CompletionResponse,
 } from '../../core/interfaces/provider.js';
 import Anthropic from '@anthropic-ai/sdk';
-import { BaseAgentProvider } from '../../core/base-agent-provider.js';
+import {
+  BaseAgentProvider,
+  ModelPricing,
+} from '../../core/base-agent-provider.js';
 import { ThinkingBudget } from '../../core/utils/thinking-utils.js';
 import {
   archiveTaskLogs,
@@ -77,34 +80,27 @@ export class MinimaxAgentProvider extends BaseAgentProvider {
     return true;
   }
 
-  async isAvailable(): Promise<boolean> {
-    return !!process.env.MINIMAX_API_KEY;
+  /**
+   * Get API key environment variable name
+   */
+  getApiKeyEnvVar(): string {
+    return 'MINIMAX_API_KEY';
   }
 
-  estimateCost(
-    tokens: {
-      prompt: number;
-      completion: number;
-      total: number;
-      cached?: number;
-    },
-    model?: string
-  ): number {
-    if (
-      isNaN(tokens.prompt) ||
-      isNaN(tokens.completion) ||
-      (tokens.cached !== undefined && isNaN(tokens.cached))
-    ) {
-      return 0;
+  /**
+   * Get pricing for a model
+   */
+  getModelPricing(model: string): ModelPricing {
+    if (model.includes('highspeed')) {
+      return {
+        prompt: 0.6,
+        completion: 2.4,
+      };
     }
-
-    const inputMtokens = tokens.prompt / 1000000;
-    const outputMtokens = tokens.completion / 1000000;
-
-    if (model?.includes('highspeed')) {
-      return inputMtokens * 0.6 + outputMtokens * 2.4;
-    }
-    return inputMtokens * 0.3 + outputMtokens * 1.2;
+    return {
+      prompt: 0.3,
+      completion: 1.2,
+    };
   }
 
   async complete(req: CompletionRequest): Promise<CompletionResponse> {
@@ -487,6 +483,13 @@ export class MinimaxAgentProvider extends BaseAgentProvider {
     }
   }
 
+  /**
+   * Hook for provider-specific cleanup after surgical log pruning.
+   */
+  protected async onTaskLogsPruned(): Promise<void> {
+    // No additional server-side cleanup needed for Minimax
+  }
+
   private async pruneTaskLogs(
     taskId: string,
     result_summary: string | null | undefined,
@@ -494,80 +497,62 @@ export class MinimaxAgentProvider extends BaseAgentProvider {
     projectRoot: string
   ) {
     try {
-      const tag = `<!-- sigma-task: ${taskId} -->`;
+      const { lastEvictedIndex, indicesToPrune } = this.identifyPruningIndices(
+        taskId,
+        this.messages,
+        (msg) => {
+          if (msg.type === 'tool_use' && msg.toolName === 'SigmaTaskUpdate') {
+            return (
+              (
+                msg.toolInput as {
+                  todos?: Array<{ id: string; status: string }>;
+                }
+              )?.todos || null
+            );
+          }
+          return null;
+        },
+        (msg, tag) => {
+          const contentStr =
+            typeof msg.content === 'string'
+              ? msg.content
+              : JSON.stringify(msg.content);
+          return contentStr.includes(tag);
+        },
+        (msg) => msg.role === 'assistant'
+      );
+
+      if (indicesToPrune.size === 0) return;
+
       const evictedLogs: string[] = [];
-      let evictedCount = 0;
+      const sortedIndices = Array.from(indicesToPrune).sort((a, b) => a - b);
 
-      // Pass 0: Identify task range
-      let startIndex = -1;
-      for (let i = 0; i < this.messages.length; i++) {
+      for (const i of sortedIndices) {
         const msg = this.messages[i];
-        if (msg.type === 'tool_use' && msg.toolName === 'SigmaTaskUpdate') {
-          const input = msg.toolInput as {
-            todos?: Array<{ id: string; status: string }>;
-          };
-          if (
-            input.todos?.some(
-              (t) => t.id === taskId && t.status === 'in_progress'
-            )
-          ) {
-            startIndex = i;
-          }
-        }
+        evictedLogs.push(JSON.stringify(msg, null, 2));
+
+        const isLast = i === lastEvictedIndex;
+        const tombstones = this.getTombstones(taskId, result_summary, isLast);
+
+        this.messages[i] = {
+          ...msg,
+          content:
+            msg.role === 'assistant' ? tombstones.assistant : tombstones.tool,
+        };
       }
 
-      const isTurnInRange = (index: number) => {
-        if (startIndex === -1 || index <= startIndex) return false;
-        const msg = this.messages[index];
-        if (msg.role === 'user') return false;
-        if (msg.type === 'tool_use' && msg.toolName === 'SigmaTaskUpdate') {
-          const input = msg.toolInput as {
-            todos?: Array<{ id: string; status: string }>;
-          };
-          if (
-            input.todos?.some(
-              (t) => t.id === taskId && t.status === 'completed'
-            )
-          ) {
-            return false;
-          }
-        }
-        return true;
-      };
+      await archiveTaskLogs({
+        projectRoot,
+        sessionId,
+        taskId,
+        evictedLogs,
+        result_summary: result_summary,
+      });
 
-      for (let i = 0; i < this.messages.length; i++) {
-        const msg = this.messages[i];
-        const contentStr =
-          typeof msg.content === 'string'
-            ? msg.content
-            : JSON.stringify(msg.content);
-
-        if (contentStr.includes(tag) || isTurnInRange(i)) {
-          evictedLogs.push(JSON.stringify(msg, null, 2));
-          this.messages[i] = {
-            ...msg,
-            content: result_summary
-              ? `[Task ${taskId} completed. Raw logs evicted to archive. \nSUMMARY: ${result_summary}]`
-              : `[Task ${taskId} completed: output evicted to archive. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`,
-          };
-          evictedCount++;
-        }
-      }
-
-      if (evictedCount > 0) {
-        await archiveTaskLogs({
-          projectRoot,
-          sessionId,
-          taskId,
-          evictedLogs,
-          result_summary,
-        });
-
-        systemDiagnosticsService.systemLog(
-          'sigma',
-          `Surgically evicted ${evictedCount} log messages for task ${taskId} (Minimax).`
-        );
-      }
+      systemDiagnosticsService.systemLog(
+        'sigma',
+        `Surgically evicted ${indicesToPrune.size} log messages for task ${taskId} (Minimax).`
+      );
     } catch (err) {
       systemDiagnosticsService.systemLog(
         'sigma',

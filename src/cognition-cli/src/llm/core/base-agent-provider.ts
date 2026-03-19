@@ -6,6 +6,18 @@ import {
 } from './interfaces/agent-provider.js';
 import { UnifiedStreamingChunk } from './types.js';
 import { systemDiagnosticsService } from '../../core/services/diagnostics/SystemDiagnosticsService.js';
+
+/**
+ * Model pricing configuration (cost per 1M tokens)
+ */
+export interface ModelPricing {
+  /** Cost per 1M input tokens (USD) */
+  prompt: number;
+  /** Cost per 1M output tokens (USD) */
+  completion: number;
+  /** Cost per 1M cached input tokens (USD, optional) */
+  cached?: number;
+}
 import {
   CompletionRequest,
   CompletionResponse,
@@ -73,8 +85,154 @@ export abstract class BaseAgentProvider implements AgentProvider {
 
   // --- LLMProvider methods (to be implemented by concrete classes) ---
   abstract complete(request: CompletionRequest): Promise<CompletionResponse>;
-  abstract isAvailable(): Promise<boolean>;
   abstract stream(request: CompletionRequest): AsyncGenerator<StreamChunk>;
+  abstract getModelPricing(model: string, promptTokens?: number): ModelPricing;
+  abstract getApiKeyEnvVar(): string;
+
+  /**
+   * Hook for provider-specific cleanup after surgical log pruning.
+   * Useful for server-side conversation item deletion (OpenAI) or session updates (ADK).
+   */
+  protected abstract onTaskLogsPruned(
+    taskId: string,
+    resultSummary: string | null | undefined,
+    sessionId: string,
+    projectRoot: string,
+    evictedLogs: string[]
+  ): Promise<void>;
+
+  /**
+   * Identifies indices of messages to prune for a given task.
+   * Handles both Turn-Range (Pass 1) and Surgical Tag (Pass 2) eviction.
+   *
+   * @param taskId - Task identifier
+   * @param items - List of conversation items (events, messages, or API items)
+   * @param getTodos - Function to extract SigmaTaskUpdate todos from an item
+   * @param hasTag - Function to check if an item contains the surgical eviction tag
+   * @param isAssistant - Function to check if an item is an assistant turn
+   */
+  protected identifyPruningIndices<T>(
+    taskId: string,
+    items: T[],
+    getTodos: (item: T) => Array<{ id: string; status: string }> | null,
+    hasTag: (item: T, tag: string) => boolean,
+    isAssistant: (item: T) => boolean
+  ): {
+    startIndex: number;
+    endIndex: number;
+    lastEvictedIndex: number;
+    indicesToPrune: Set<number>;
+  } {
+    const tag = `<!-- sigma-task: ${taskId} -->`;
+    let startIndex = -1;
+    let endIndex = items.length - 1;
+
+    // Pass 1: Identify task range (from 'in_progress' to 'completed')
+    for (let i = 0; i < items.length; i++) {
+      const todos = getTodos(items[i]);
+      if (!todos) continue;
+
+      if (
+        startIndex === -1 &&
+        todos.some((t) => t.id === taskId && t.status === 'in_progress')
+      ) {
+        startIndex = i;
+      } else if (
+        startIndex !== -1 &&
+        todos.some((t) => t.id === taskId && t.status === 'completed')
+      ) {
+        endIndex = i;
+        break;
+      }
+    }
+
+    // Pass 2: Find all indices to prune (Surgical Tag + Turn-Range)
+    const indicesToPrune = new Set<number>();
+    let lastEvictedIndex = -1;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const tagged = hasTag(item, tag);
+      const assistantInRange =
+        startIndex !== -1 &&
+        i >= startIndex &&
+        i <= endIndex &&
+        isAssistant(item);
+
+      if (tagged || assistantInRange) {
+        indicesToPrune.add(i);
+        lastEvictedIndex = i;
+      }
+    }
+
+    return { startIndex, endIndex, lastEvictedIndex, indicesToPrune };
+  }
+
+  /**
+   * Generates tombstone messages for evicted logs.
+   */
+  protected getTombstones(
+    taskId: string,
+    resultSummary: string | null | undefined,
+    isLast: boolean
+  ): { tool: string; assistant: string } {
+    const shouldInjectSummary = isLast && !!resultSummary;
+
+    const tool = shouldInjectSummary
+      ? `[Task ${taskId} completed. Raw logs evicted to archive. \nSUMMARY: ${resultSummary}]`
+      : `[Task ${taskId} completed: output evicted to archive. Use 'grep' on .sigma/archives/ or previous logs if needed.]`;
+
+    const assistant = shouldInjectSummary
+      ? `[Assistant thinking/text for task ${taskId} evicted to save tokens. \nSUMMARY: ${resultSummary}]`
+      : `[Assistant thinking/text for task ${taskId} evicted to save tokens.]`;
+
+    return { tool, assistant };
+  }
+
+  /**
+   * Check if the provider is available.
+   * Default implementation checks the API key environment variable.
+   */
+  async isAvailable(): Promise<boolean> {
+    const envVar = this.getApiKeyEnvVar();
+    return !!process.env[envVar];
+  }
+
+  /**
+   * Estimate cost for token usage (USD)
+   * Centralized implementation for all providers.
+   */
+  estimateCost(
+    tokens: {
+      prompt: number;
+      completion: number;
+      total: number;
+      cached?: number;
+    },
+    model: string
+  ): number {
+    // Validation for NaN - return 0 if invalid
+    if (
+      isNaN(tokens.prompt) ||
+      isNaN(tokens.completion) ||
+      (tokens.cached !== undefined && isNaN(tokens.cached))
+    ) {
+      return 0;
+    }
+
+    const pricing = this.getModelPricing(model, tokens.prompt);
+    const cachedTokens = tokens.cached || 0;
+    const nonCachedInputMtokens = (tokens.prompt - cachedTokens) / 1000000;
+    const cachedInputMtokens = cachedTokens / 1000000;
+    const outputMtokens = tokens.completion / 1000000;
+
+    const promptCost = nonCachedInputMtokens * pricing.prompt;
+    const completionCost = outputMtokens * pricing.completion;
+    const cachedCost =
+      pricing.cached !== undefined ? cachedInputMtokens * pricing.cached : 0;
+
+    return promptCost + completionCost + cachedCost;
+  }
 
   // --- AgentProvider methods (to be implemented by concrete classes) ---
   abstract supportsAgentMode(): boolean;

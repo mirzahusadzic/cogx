@@ -86,7 +86,10 @@ interface GeminiGenerateContentConfig {
 
 // runSilently removed - logic moved to executeAgent for global scope suppression
 
-import { BaseAgentProvider } from '../../core/base-agent-provider.js';
+import {
+  BaseAgentProvider,
+  ModelPricing,
+} from '../../core/base-agent-provider.js';
 import { UnifiedStreamingChunk } from '../../core/types.js';
 import type { ThinkingBudget } from '../../core/utils/thinking-utils.js';
 
@@ -344,6 +347,23 @@ export class GeminiAgentProvider extends BaseAgentProvider {
    * @param projectRoot - Project root directory
    * @param activeSession - Optional active session object from tool context
    */
+  /**
+   * Hook for provider-specific cleanup after surgical log pruning.
+   */
+  protected async onTaskLogsPruned(): Promise<void> {
+    // Session updates are handled within pruneTaskLogs due to ADK session cloning behavior
+  }
+
+  /**
+   * Prune tool logs for a completed task and archive them.
+   * This surgical eviction keeps the context clean of "implementation noise".
+   *
+   * @param taskId - The ID of the completed task
+   * @param result_summary - The summary of the completed task
+   * @param sessionId - ADK session ID
+   * @param projectRoot - Project root directory
+   * @param activeSession - Optional active session object from tool context
+   */
   private async pruneTaskLogs(
     taskId: string,
     result_summary: string | null | undefined,
@@ -366,114 +386,75 @@ export class GeminiAgentProvider extends BaseAgentProvider {
         const events = (session as AdkSession).events;
         if (!events || events.length === 0) return;
 
-        const tag = `<!-- sigma-task: ${taskId} -->`;
+        const { lastEvictedIndex, indicesToPrune } =
+          this.identifyPruningIndices(
+            taskId,
+            events,
+            (event) => {
+              const parts = event.content?.parts || [];
+              return (
+                parts
+                  .map((p) =>
+                    p.functionCall?.name === 'SigmaTaskUpdate' &&
+                    Array.isArray(
+                      (p.functionCall.args as Record<string, unknown>)?.todos
+                    )
+                      ? ((p.functionCall.args as Record<string, unknown>)
+                          .todos as Array<{ id: string; status: string }>)
+                      : null
+                  )
+                  .find((t) => t !== null) || null
+              );
+            },
+            (event, tag) => {
+              const parts = event.content?.parts || [];
+              return parts.some((p) => {
+                if (p.text?.includes(tag)) return true;
+                if (p.functionResponse?.response) {
+                  return JSON.stringify(p.functionResponse.response).includes(
+                    tag
+                  );
+                }
+                return false;
+              });
+            },
+            (event) => event.author === 'cognition_agent'
+          );
+
+        if (indicesToPrune.size === 0) {
+          systemDiagnosticsService.systemLog(
+            'sigma',
+            `No logs found for eviction for task ${taskId}. (events=${events.length})`,
+            { taskId, sessionId },
+            'warn'
+          );
+          return;
+        }
+
         const evictedLogs: string[] = [];
-        const newEvents: NonNullable<AdkSession['events']> = [];
-        let evictedCount = 0;
-
-        // Pass 1: Identify task range (from 'in_progress' to 'completed').
-        // We find both startIndex and endIndex to bound the Turn-Range Eviction
-        // strictly within this task's window, preventing assistant turns from
-        // subsequent tasks from being swept into the eviction pass.
-        let startIndex = -1;
-        let endIndex = events.length - 1;
-        for (let i = 0; i < events.length; i++) {
-          const parts = events[i].content?.parts || [];
-          const todos = (p: (typeof parts)[number]) =>
-            p.functionCall?.name === 'SigmaTaskUpdate' &&
-            Array.isArray(
-              (p.functionCall.args as Record<string, unknown>)?.todos
-            )
-              ? ((p.functionCall.args as Record<string, unknown>)
-                  .todos as Array<{
-                  id: string;
-                  status: string;
-                }>)
-              : null;
-          for (const p of parts) {
-            const taskTodos = todos(p);
-            if (!taskTodos) continue;
-            if (
-              startIndex === -1 &&
-              taskTodos.some(
-                (t) => t.id === taskId && t.status === 'in_progress'
-              )
-            ) {
-              startIndex = i;
-            } else if (
-              startIndex !== -1 &&
-              taskTodos.some((t) => t.id === taskId && t.status === 'completed')
-            ) {
-              endIndex = i;
-              break;
-            }
-          }
-          if (startIndex !== -1 && endIndex < events.length - 1) break;
-        }
-
-        // Pass 2: Find last evicted index to inject summary
-        let lastEvictedIndex = -1;
-        for (let i = 0; i < events.length; i++) {
-          const event = events[i];
-          const parts = event.content?.parts || [];
-          const hasTag = parts.some((p) => {
-            if (p.text?.includes(tag)) return true;
-            if (p.functionResponse?.response) {
-              return JSON.stringify(p.functionResponse.response).includes(tag);
-            }
-            return false;
-          });
-          const isAssistantTurnInRange =
-            startIndex !== -1 &&
-            i >= startIndex &&
-            i <= endIndex &&
-            event.author === 'cognition_agent';
-          if (hasTag || isAssistantTurnInRange) {
-            lastEvictedIndex = i;
-          }
-        }
+        const newEvents: AdkEvent[] = [];
 
         for (let i = 0; i < events.length; i++) {
           const event = events[i];
-          const parts = event.content?.parts || [];
-          const hasTag = parts.some((p) => {
-            if (p.text?.includes(tag)) return true;
-            if (p.functionResponse?.response) {
-              return JSON.stringify(p.functionResponse.response).includes(tag);
-            }
-            return false;
-          });
 
-          // Turn-Range Eviction: Prune assistant turns (thinking/text) within the task window.
-          // Bounded by [startIndex, endIndex] to avoid evicting turns from subsequent tasks.
-          const isAssistantTurnInRange =
-            startIndex !== -1 &&
-            i >= startIndex &&
-            i <= endIndex &&
-            event.author === 'cognition_agent';
-
-          if (hasTag || isAssistantTurnInRange) {
+          if (indicesToPrune.has(i)) {
             evictedLogs.push(JSON.stringify(event, null, 2));
-            evictedCount++;
 
-            // Only inject summary into the last evicted turn to avoid token bloat
-            const shouldInjectSummary =
-              i === lastEvictedIndex && result_summary;
+            const isLast = i === lastEvictedIndex;
+            const tombstones = this.getTombstones(
+              taskId,
+              result_summary,
+              isLast
+            );
 
-            // Replace with tombstone
-            const toolTombstone = shouldInjectSummary
-              ? `[Task ${taskId} completed. Raw logs evicted to archive. \nSUMMARY: ${result_summary}]`
-              : `[Task ${taskId} completed: output evicted to archive. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`;
-
-            const assistantTombstone = shouldInjectSummary
-              ? `[Assistant thinking/text for task ${taskId} evicted to save tokens. \nSUMMARY: ${result_summary}]`
-              : `[Assistant thinking/text for task ${taskId} evicted to save tokens.]`;
-
+            const isAssistantTurn = event.author === 'cognition_agent';
             let hasAssistantTombstonePart = false;
             let collectedSignature: string | undefined = undefined;
 
+            const parts = event.content?.parts || [];
+
             // Pre-scan for thought signature in assistant turns being evicted
-            if (isAssistantTurnInRange) {
+            if (isAssistantTurn) {
               for (const p of parts) {
                 if (p.thoughtSignature) {
                   collectedSignature = p.thoughtSignature;
@@ -482,44 +463,42 @@ export class GeminiAgentProvider extends BaseAgentProvider {
               }
             }
 
+            const tag = `<!-- sigma-task: ${taskId} -->`;
             const tombstoneParts = parts
               .map((p) => {
                 if (p.functionResponse) {
-                  // Surgical Tool Eviction
                   return {
                     ...p,
                     functionResponse: {
                       name: p.functionResponse.name,
                       response: {
-                        result: toolTombstone,
+                        result: tombstones.tool,
                       },
                     },
                   };
                 }
 
-                if (isAssistantTurnInRange && (p.thought || p.text)) {
-                  // Turn-Range Assistant Eviction (Prune thinking/text)
+                if (isAssistantTurn && (p.thought || p.text)) {
                   if (!hasAssistantTombstonePart) {
                     hasAssistantTombstonePart = true;
                     return {
-                      text: assistantTombstone,
-                      thought: true, // Use thinking mode for tombstone to format correctly in TUI
-                      thoughtSignature: collectedSignature, // Preserve reasoning state for Gemini 3
+                      text: tombstones.assistant,
+                      thought: true,
+                      thoughtSignature: collectedSignature,
                     };
                   }
-                  return null; // Remove extra parts (multiple thinking/text parts)
+                  return null;
                 }
 
-                // Surgical Tag Eviction for non-assistant turns or non-range turns
-                if (hasTag && p.text?.includes(tag)) {
+                if (p.text?.includes(tag)) {
                   return {
-                    text: toolTombstone,
+                    text: tombstones.tool,
                     thoughtSignature: (p as { thoughtSignature?: string })
                       .thoughtSignature,
                   };
                 }
 
-                return p; // Keep tool calls and other parts
+                return p;
               })
               .filter((p): p is NonNullable<typeof p> => p !== null);
 
@@ -535,7 +514,7 @@ export class GeminiAgentProvider extends BaseAgentProvider {
           }
         }
 
-        if (evictedCount > 0) {
+        if (evictedLogs.length > 0) {
           await archiveTaskLogs({
             projectRoot,
             sessionId,
@@ -545,7 +524,7 @@ export class GeminiAgentProvider extends BaseAgentProvider {
           });
 
           // Update session history in memory
-          (session as unknown as AdkSession).events = newEvents;
+          (session as AdkSession).events = newEvents;
 
           // CRITICAL: InMemorySessionService.getSession() returns a deep clone!
           // We must also update the internal storage so the eviction persists across turns.
@@ -562,15 +541,7 @@ export class GeminiAgentProvider extends BaseAgentProvider {
 
           systemDiagnosticsService.systemLog(
             'sigma',
-            `Evicted ${evictedCount} log messages (Turn-Range + Surgical) for task ${taskId}. ${process.env.DEBUG_ARCHIVE ? 'Archived to disk.' : ''}`
-          );
-        } else {
-          // Fallback logging: Why did we not evict anything?
-          systemDiagnosticsService.systemLog(
-            'sigma',
-            `No logs found for eviction for task ${taskId}. (startIndex=${startIndex}, events=${events.length})`,
-            { taskId, sessionId, startIndex },
-            'warn'
+            `Evicted ${evictedLogs.length} log messages (Turn-Range + Surgical) for task ${taskId}. ${process.env.DEBUG_ARCHIVE ? 'Archived to disk.' : ''}`
           );
         }
       } catch (err) {
@@ -1005,10 +976,20 @@ export class GeminiAgentProvider extends BaseAgentProvider {
   }
 
   /**
+   * Get API key environment variable name
+   */
+  getApiKeyEnvVar(): string {
+    return 'GEMINI_API_KEY';
+  }
+
+  /**
    * Check if provider is available
+   * Overrides base implementation to support Vertex AI mode (no API key required)
    */
   async isAvailable(): Promise<boolean> {
-    return !!this.apiKey;
+    const isVertex = process.env.GOOGLE_GENAI_USE_VERTEXAI === 'true';
+    const hasApiKey = !!process.env[this.getApiKeyEnvVar()];
+    return isVertex || hasApiKey;
   }
 
   /**
@@ -1043,36 +1024,9 @@ export class GeminiAgentProvider extends BaseAgentProvider {
    * Estimate cost for token usage
 
   /**
-   * Estimate cost for token usage
-   *
-   * Based on Google Gemini pricing as of Feb 2026:
-   * - Gemini 3.0 Flash Preview: $0.50/$3.00 per MTok (input/output)
-   * - Gemini 3.0/3.1 Pro Preview: $2/$12 per MTok (<=200k context), $4/$18 per MTok (>200k context)
-   * - Context: 1M tokens, Output: 64k tokens
+   * Get pricing for a model
    */
-  estimateCost(
-    tokens: {
-      prompt: number;
-      completion: number;
-      total: number;
-      cached?: number;
-    },
-    model: string
-  ): number {
-    // Validation for NaN - return 0 if invalid
-    if (
-      isNaN(tokens.prompt) ||
-      isNaN(tokens.completion) ||
-      (tokens.cached !== undefined && isNaN(tokens.cached))
-    ) {
-      return 0;
-    }
-
-    const cachedTokens = tokens.cached || 0;
-    const nonCachedInputMtokens = (tokens.prompt - cachedTokens) / 1000000;
-    const cachedInputMtokens = cachedTokens / 1000000;
-    const outputMtokens = tokens.completion / 1000000;
-
+  getModelPricing(model: string, promptTokens: number = 0): ModelPricing {
     // Gemini 3.x Pro models (including custom tools variants) - tiered pricing
     if (
       model.includes('-pro') &&
@@ -1081,36 +1035,36 @@ export class GeminiAgentProvider extends BaseAgentProvider {
         model.includes('3-pro'))
     ) {
       // >200k tokens prompt = higher tier
-      if (tokens.prompt > 200000) {
-        return (
-          nonCachedInputMtokens * 4.0 +
-          cachedInputMtokens * 1.0 + // 75% discount for cached (standard Gemini pricing)
-          outputMtokens * 18.0
-        );
+      if (promptTokens > 200000) {
+        return {
+          prompt: 4.0,
+          completion: 18.0,
+          cached: 1.0, // 75% discount for cached
+        };
       }
       // <=200k tokens prompt = lower tier
-      return (
-        nonCachedInputMtokens * 2.0 +
-        cachedInputMtokens * 0.5 + // 75% discount for cached
-        outputMtokens * 12.0
-      );
+      return {
+        prompt: 2.0,
+        completion: 12.0,
+        cached: 0.5, // 75% discount for cached
+      };
     }
 
     // Gemini 3.1 Flash-Lite
     if (model.includes('flash-lite')) {
-      return (
-        nonCachedInputMtokens * 0.25 +
-        cachedInputMtokens * 0.0625 + // 75% discount for cached
-        outputMtokens * 1.5
-      );
+      return {
+        prompt: 0.25,
+        completion: 1.5,
+        cached: 0.0625,
+      };
     }
 
     // Gemini 3.0 Flash Preview (default)
-    return (
-      nonCachedInputMtokens * 0.5 +
-      cachedInputMtokens * 0.125 + // 75% discount for cached (standard Gemini pricing)
-      outputMtokens * 3.0
-    );
+    return {
+      prompt: 0.5,
+      completion: 3.0,
+      cached: 0.125,
+    };
   }
 
   /**
