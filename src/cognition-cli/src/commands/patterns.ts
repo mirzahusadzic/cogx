@@ -77,6 +77,7 @@ import { z } from 'zod';
 import { PatternManager } from '../core/pgc/patterns.js';
 import { displayItemList, resolvePgcRoot } from './sugar/utils.js';
 import { GraphTraversal } from '../core/graph/traversal.js';
+import { environmentService } from '../core/services/environment/EnvironmentService.js';
 
 /**
  * Adds pattern management and query commands to the CLI program
@@ -91,9 +92,9 @@ import { GraphTraversal } from '../core/graph/traversal.js';
  * @param program - Commander program instance to add commands to
  */
 export function addPatternsCommands(program: Command) {
-  const patternsCommand = program
-    .command('patterns')
-    .description('Commands for managing and querying structural patterns.');
+  const patternsCommand = new Command('patterns').description(
+    'Commands for managing and querying structural patterns.'
+  );
 
   patternsCommand
     .command('compact')
@@ -275,6 +276,7 @@ export function addPatternsCommands(program: Command) {
       "The type of patterns to list ('structural' or 'lineage')",
       'structural'
     )
+    .option('-l, --limit <number>', 'Maximum number of results to show', '50')
     .option('--json', 'Output as JSON')
     .action(async (options, command) => {
       const pgcRoot = resolvePgcRoot(options.projectRoot || '.');
@@ -791,6 +793,8 @@ export function addPatternsCommands(program: Command) {
         )
       );
     });
+
+  program.addCommand(patternsCommand);
 }
 
 /**
@@ -1022,8 +1026,10 @@ async function analyzeDuplicates(
   },
   command: Command
 ) {
+  const projectRoot =
+    environmentService.findProjectRoot(options.projectRoot || '.') || '.';
+  const pgc = new PGCManager(projectRoot);
   const pgcRoot = resolvePgcRoot(options.projectRoot || '.');
-  const pgc = new PGCManager(pgcRoot);
   const vectorDB = new LanceVectorStore(pgcRoot);
   const traversal = new GraphTraversal(pgc);
 
@@ -1123,14 +1129,31 @@ async function analyzeDuplicates(
 
   for (const res of results) {
     try {
-      const brA = await traversal.getBlastRadius(res.symbolA, {
-        direction: 'both',
-        maxDepth: 2,
-      });
-      const brB = await traversal.getBlastRadius(res.symbolB, {
-        direction: 'both',
-        maxDepth: 2,
-      });
+      // Robust resolution: try unique key (filePath#symbol) first, then raw symbol
+      const resolveBlast = async (symbol: string, filePath?: string) => {
+        if (filePath) {
+          // Normalize filePath to be relative to projectRoot if it's absolute
+          const relPath = filePath.startsWith('/')
+            ? path.relative(projectRoot, filePath)
+            : filePath;
+          const uniqueKey = `${relPath}#${symbol}`;
+          try {
+            return await traversal.getBlastRadius(uniqueKey, {
+              direction: 'both',
+              maxDepth: 2,
+            });
+          } catch {
+            // Fall back to raw symbol
+          }
+        }
+        return await traversal.getBlastRadius(symbol, {
+          direction: 'both',
+          maxDepth: 2,
+        });
+      };
+
+      const brA = await resolveBlast(res.symbolA, res.filePathA);
+      const brB = await resolveBlast(res.symbolB, res.filePathB);
 
       const impactA = brA.metrics.totalImpacted;
       const impactB = brB.metrics.totalImpacted;
