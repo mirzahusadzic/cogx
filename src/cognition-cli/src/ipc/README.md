@@ -122,7 +122,7 @@ import { MessageBus } from '../ipc';
 const bus = new MessageBus({
   agentId: 'my-agent-id',
   model: 'claude-3-5-sonnet',
-  debug: true
+  debug: true,
 });
 
 await bus.connect();
@@ -132,9 +132,7 @@ bus.register({
   type: 'interactive',
   model: 'claude-3-5-sonnet',
   status: 'idle',
-  capabilities: [
-    { name: 'code', description: 'Write code', model: 'claude' }
-  ],
+  capabilities: [{ name: 'code', description: 'Write code', model: 'claude' }],
 });
 
 // 3. Send Message

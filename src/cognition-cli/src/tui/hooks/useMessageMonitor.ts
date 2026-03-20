@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { MessageQueueMonitor } from '../../ipc/MessageQueueMonitor.js';
 import { MessageQueue } from '../../ipc/MessageQueue.js';
 import { MessagePublisher } from '../../ipc/MessagePublisher.js';
-import { BusCoordinator } from '../../ipc/BusCoordinator.js';
+import { MessageBus } from '../../ipc/MessageBus.js';
 import { environmentService } from '../../core/services/environment/EnvironmentService.js';
 import { getModelShortName } from './session/useSessionManager.js';
 import { systemDiagnosticsService } from '../../core/services/diagnostics/SystemDiagnosticsService.js';
@@ -60,10 +60,19 @@ export function useMessageMonitor({
         const agentId = anchorId;
         const sigmaDir = environmentService.resolveSigmaDir(projectRoot);
 
-        const coordinator = new BusCoordinator(projectRoot);
-        const bus = await coordinator.connectWithFallback();
+        const messageBus = new MessageBus({
+          agentId: anchorId,
+          projectRoot,
+          debug,
+          model: model || 'unknown',
+        });
+        await messageBus.connect();
+        const bus = messageBus.getUnderlyingBus();
 
-        if (!mounted) return;
+        if (!bus || !mounted) {
+          await messageBus.disconnect().catch(() => {});
+          return;
+        }
 
         const topics = ['agent.command', 'agent.notification', 'agent.message'];
         const modelName =
@@ -85,10 +94,7 @@ export function useMessageMonitor({
         }
 
         messageQueueMonitorRef.current = monitor;
-
-        const monitorAgentId = monitor.getQueue().getAgentId();
-        const publisher = new MessagePublisher(bus, monitorAgentId);
-        messagePublisherRef.current = publisher;
+        messagePublisherRef.current = messageBus.getPublisher();
 
         const messageQueue = monitor.getQueue();
         messageQueueRef.current = messageQueue;
@@ -120,6 +126,7 @@ export function useMessageMonitor({
               );
             }
           });
+          messageBus.disconnect().catch(() => {});
         };
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);

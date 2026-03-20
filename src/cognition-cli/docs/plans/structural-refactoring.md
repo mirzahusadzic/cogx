@@ -39,6 +39,7 @@ The `analyze-duplicates` command has identified a significant cluster of AST/Str
 3. **Bus Abstraction Layer**:
    - [x] Consolidate `ZMQBus` and `IPCManager` into a single `MessageBus` service in `src/ipc/MessageBus.ts`.
    - [x] Simplify `useZeroMQ` hook to use the new abstraction.
+   - [x] Refactor `useMessageMonitor` hook to use the unified `MessageBus` service.
    - [x] Reduce combined blast radius by centralizing the ZMQ lifecycle management.
 
 4. **Algebra Delegation**:

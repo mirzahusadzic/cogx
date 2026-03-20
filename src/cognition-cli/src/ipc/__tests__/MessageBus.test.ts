@@ -57,7 +57,7 @@ describe('MessageBus', () => {
 
     await bus.connect();
 
-    let receivedPayload: any = null;
+    let receivedPayload: unknown = null;
     bus.subscribe('test.topic', (msg) => {
       receivedPayload = msg.payload;
     });

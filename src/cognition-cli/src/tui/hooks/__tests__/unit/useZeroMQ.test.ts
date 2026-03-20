@@ -249,9 +249,7 @@ describe('useZeroMQ', () => {
   describe('error handling', () => {
     it('should handle connection errors', async () => {
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      mockMessageBus.connect.mockRejectedValue(
-        new Error('Connection failed')
-      );
+      mockMessageBus.connect.mockRejectedValue(new Error('Connection failed'));
 
       const { result } = renderHook(() => useZeroMQ(defaultConfig));
 
@@ -318,9 +316,7 @@ describe('useZeroMQ', () => {
     });
 
     it('should not cleanup if connection failed', async () => {
-      mockMessageBus.connect.mockRejectedValue(
-        new Error('Failed')
-      );
+      mockMessageBus.connect.mockRejectedValue(new Error('Failed'));
       vi.spyOn(console, 'warn').mockImplementation(() => {});
 
       const { result, unmount } = renderHook(() => useZeroMQ(defaultConfig));
@@ -400,7 +396,8 @@ describe('useZeroMQ', () => {
         expect(result.current.connected).toBe(true);
       });
 
-      const { MessageBus: MessageBusMock } = await import('../../../../ipc/index.js');
+      const { MessageBus: MessageBusMock } =
+        await import('../../../../ipc/index.js');
       expect(MessageBusMock).toHaveBeenCalledWith(
         expect.objectContaining({ agentId: 'custom-agent' })
       );

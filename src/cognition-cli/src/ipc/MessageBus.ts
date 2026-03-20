@@ -74,9 +74,13 @@ export class MessageBus {
       }
     } catch (error) {
       if (this.config.debug) {
-        systemDiagnosticsService.systemLog('ipc', 'MessageBus: Connection failed', {
-          error: error instanceof Error ? error.message : String(error),
-        });
+        systemDiagnosticsService.systemLog(
+          'ipc',
+          'MessageBus: Connection failed',
+          {
+            error: error instanceof Error ? error.message : String(error),
+          }
+        );
       }
       throw error;
     }
@@ -107,9 +111,13 @@ export class MessageBus {
       }
     } catch (error) {
       if (this.config.debug) {
-        systemDiagnosticsService.systemLog('ipc', 'MessageBus: Disconnect error', {
-          error: error instanceof Error ? error.message : String(error),
-        });
+        systemDiagnosticsService.systemLog(
+          'ipc',
+          'MessageBus: Disconnect error',
+          {
+            error: error instanceof Error ? error.message : String(error),
+          }
+        );
       }
       throw error;
     }
@@ -119,7 +127,12 @@ export class MessageBus {
    * Registers the current agent with the registry.
    * @param agent Initial agent data.
    */
-  register(agent: Omit<RegisteredAgent, 'id' | 'registeredAt' | 'lastSeen' | 'subscriptions'>): void {
+  register(
+    agent: Omit<
+      RegisteredAgent,
+      'id' | 'registeredAt' | 'lastSeen' | 'subscriptions'
+    >
+  ): void {
     if (!this.registry) throw new Error('MessageBus not connected');
     this.registry.register({
       ...agent,
@@ -163,7 +176,11 @@ export class MessageBus {
   /**
    * Sends a direct message to a specific agent.
    */
-  async sendToAgent(agentId: string, topic: string, payload: unknown): Promise<void> {
+  async sendToAgent(
+    agentId: string,
+    topic: string,
+    payload: unknown
+  ): Promise<void> {
     if (!this.publisher) throw new Error('MessageBus not connected');
     await this.publisher.sendTo(agentId, topic, payload);
   }
@@ -180,6 +197,13 @@ export class MessageBus {
    */
   isMaster(): boolean {
     return this.coordinator.getIsBusMaster();
+  }
+
+  /**
+   * Returns the message publisher.
+   */
+  getPublisher(): MessagePublisher | null {
+    return this.publisher;
   }
 
   /**
