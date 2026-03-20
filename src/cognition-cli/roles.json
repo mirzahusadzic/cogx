@@ -2,10 +2,43 @@
   "description": "Architectural Role Classification Configuration for Cognition Σ. This file maps the codebase into its dual-lattice architecture (Conversation O1-O7 & Project PGC) to enable high-fidelity structural reasoning and pattern analysis.",
   "roles": [
     {
+      "id": "data_persistence",
+      "priority": 120,
+      "rules": [
+        { "path": ".*/db/.*" },
+        { "path": ".*/repositories/.*" },
+        { "name": ".*(Store|Repository|DAO|Database|Persistence)$" }
+      ],
+      "description": "Persistence layers, vector databases (LanceDB), and data access objects."
+    },
+    {
       "id": "error_handling",
-      "priority": 115,
-      "rules": [{ "name": ".*Error$" }],
+      "priority": 118,
+      "rules": [{ "name": ".*Error$" }, { "path": ".*/errors/.*" }],
       "description": "Exception types, error classes, and error handling logic."
+    },
+    {
+      "id": "intelligence_mining",
+      "priority": 115,
+      "rules": [
+        { "path": ".*/core/analyzers/.*" },
+        { "path": ".*/core/parsers/.*" },
+        { "path": ".*/core/orchestrators/miners/.*" },
+        { "path": ".*/core/executors/.*" },
+        { "name": ".*(Extractor|Classifier|Miner|Analyzer|Parser)$" }
+      ],
+      "description": "Intelligence engines, structural miners, and semantic extractors responsible for knowledge derivation."
+    },
+    {
+      "id": "state_management",
+      "priority": 112,
+      "rules": [
+        { "path": ".*/core/state/.*" },
+        {
+          "name": ".*(StateMachine|Registry|SessionManager|TUISyncManager|BackgroundTaskManager)$"
+        }
+      ],
+      "description": "System state machines, session persistence, and cross-component synchronization logic."
     },
     {
       "id": "lattice_conversation",
@@ -22,7 +55,11 @@
       "rules": [
         { "path": ".*/core/pgc/.*" },
         { "path": ".*/core/overlays/.*" },
-        { "name": ".*(PGC|Manager|Manifest|Pattern).*" }
+        { "path": ".*/core/orchestrators/.*" },
+        { "path": ".*/core/quest/.*" },
+        { "path": ".*/core/query/.*" },
+        { "path": ".*/core/transforms/.*" },
+        { "name": ".*(PGC|Manifest|Pattern|Orchestrator|Oracle).*" }
       ],
       "description": "Project Lattice (PGC) components managing the Grounded Context Pool, structural patterns, and lineage overlays."
     },
@@ -55,6 +92,12 @@
       "description": "LLM abstraction layer and provider implementations (Gemini, Claude, OpenAI)."
     },
     {
+      "id": "tui_commands",
+      "priority": 86,
+      "rules": [{ "path": ".*/tui/commands/.*" }],
+      "description": "TUI-specific slash commands and loader logic."
+    },
+    {
       "id": "tui_interface",
       "priority": 85,
       "rules": [
@@ -66,22 +109,31 @@
       "description": "React/Ink-based terminal user interface and visual workspace components."
     },
     {
-      "id": "tui_commands",
-      "priority": 86,
-      "rules": [{ "path": ".*/tui/commands/.*" }],
-      "description": "TUI-specific slash commands and loader logic."
-    },
-    {
       "id": "cli_commands",
       "priority": 80,
-      "rules": [{ "path": ".*/commands/.*" }, { "name": ".*Command$" }],
+      "rules": [
+        { "path": ".*/commands/.*" },
+        { "path": ".*/cli\\.ts$" },
+        { "name": ".*Command$" }
+      ],
       "description": "CLI command definitions and entry points for the cognition-cli."
+    },
+    {
+      "id": "configuration",
+      "priority": 75,
+      "rules": [
+        { "path": ".*/config/.*" },
+        { "path": ".*/config\\.ts$" },
+        { "name": ".*(Config|Options)$" }
+      ],
+      "description": "System configuration, environment settings, and runtime options."
     },
     {
       "id": "service_core",
       "priority": 70,
       "rules": [
         { "path": ".*/services/.*" },
+        { "path": ".*/core/watcher/.*" },
         { "name": ".*(Service|Manager|Registry|Monitor).*" }
       ],
       "description": "General-purpose core services and system managers."
@@ -94,16 +146,6 @@
         { "name": ".*(Security|Integrity|Validator|Audit).*" }
       ],
       "description": "Security monitors, codebase integrity validators, and audit tools."
-    },
-    {
-      "id": "data_persistence",
-      "priority": 60,
-      "rules": [
-        { "path": ".*/db/.*" },
-        { "path": ".*/repositories/.*" },
-        { "name": ".*(Store|Repository|DAO|Database).*" }
-      ],
-      "description": "Persistence layers, vector databases (LanceDB), and data access objects."
     },
     {
       "id": "utility_support",
@@ -124,12 +166,6 @@
         { "name": ".*(Type|DTO|Interface|Enum)$" }
       ],
       "description": "TypeScript type definitions, interfaces, and domain models."
-    },
-    {
-      "id": "configuration",
-      "priority": 75,
-      "rules": [{ "path": ".*/config/.*" }, { "name": ".*(Config|Options)$" }],
-      "description": "System configuration, environment settings, and runtime options."
     },
     {
       "id": "logic_component",

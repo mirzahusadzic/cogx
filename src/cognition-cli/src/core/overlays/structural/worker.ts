@@ -1,5 +1,4 @@
 import * as workerpool from 'workerpool';
-import { PGCManager } from '../../pgc/manager.js';
 import { StructuralData } from '../../types/structural.js';
 import { RoleClassifier } from '../../services/role-classifier.js';
 
@@ -159,8 +158,6 @@ function generateStructuralSignature(
 async function processStructuralPattern(
   job: StructuralJobPacket
 ): Promise<StructuralMiningResult> {
-  const pgc = new PGCManager(job.projectRoot);
-
   try {
     const {
       symbolName,
@@ -168,23 +165,7 @@ async function processStructuralPattern(
       contentHash,
       structuralHash,
       structuralData,
-      force,
     } = job;
-
-    const overlayKey = `${filePath}#${symbolName}`;
-    const overlayExists = await pgc.overlays.exists(
-      'structural_patterns',
-      overlayKey
-    );
-
-    if (!force && overlayExists) {
-      return {
-        status: 'skipped',
-        message: `Pattern for ${symbolName} already exists.`,
-        symbolName,
-        filePath,
-      };
-    }
 
     const classifier = getClassifier(job.projectRoot);
     const signature = generateStructuralSignature(symbolName, structuralData);
