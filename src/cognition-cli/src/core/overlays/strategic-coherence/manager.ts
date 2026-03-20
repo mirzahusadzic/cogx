@@ -5,6 +5,7 @@ import crypto from 'crypto';
 import { MissionConceptsManager } from '../mission-concepts/manager.js';
 import { LanceVectorStore } from '../vector-db/lance-store.js';
 import { PGCManager } from '../../pgc/manager.js';
+import { cosineSimilarity } from '../../algebra/math.js';
 import type { MissionConcept } from '../../analyzers/concept-extractor.js';
 
 /**
@@ -957,5 +958,13 @@ export class StrategicCoherenceManager {
     const weight = index - lower;
 
     return sortedScores[lower] * (1 - weight) + sortedScores[upper] * weight;
+  }
+
+  /**
+   * Computes the cosine similarity between two vectors.
+   * Delegated to central math utility for deduplication.
+   */
+  private cosineSimilarity(vecA: number[], vecB: number[]): number {
+    return cosineSimilarity(vecA, vecB);
   }
 }
