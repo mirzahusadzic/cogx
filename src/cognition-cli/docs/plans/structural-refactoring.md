@@ -53,8 +53,11 @@ The `analyze-duplicates` command has identified a significant cluster of AST/Str
 - [x] Add `--threshold` parameter to control similarity filtering.
 - [x] Integrate impact metrics (blast-radius) into the deduplication report.
 - [x] Refactor `src/core/types/structural.ts` with `ASTNodeBase`.
+- [x] Add mandatory `type` discriminators to AST node types.
+- [x] Implement backward compatibility for legacy structural data schemas.
 - [x] Consolidate `TransformInput` and `TransformOutput` into a generic `TransformData<T>`.
 - [x] Unify `VerificationResult` schema in `src/core/types/verification.ts`.
+- [x] Implement Unified Shell Completion Provider.
 - [ ] Automated CI check for high-similarity structural patterns.
 
 ---
