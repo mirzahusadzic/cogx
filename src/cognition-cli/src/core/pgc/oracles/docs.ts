@@ -49,6 +49,7 @@
 
 import { PGCManager } from '../manager.js';
 import { VerificationResult } from '../../types/verification.js';
+import { AbstractOracle } from './base.js';
 import path from 'path';
 import fs from 'fs-extra';
 
@@ -58,13 +59,15 @@ import fs from 'fs-extra';
  * Ensures referential integrity between document index and object store,
  * and provides utilities for document management and garbage collection.
  */
-export class DocsOracle {
+export class DocsOracle extends AbstractOracle {
   /**
    * Create a new document integrity validator
    *
    * @param pgcManager - PGC manager instance for accessing index and object store
    */
-  constructor(private pgcManager: PGCManager) {}
+  constructor(pgcManager: PGCManager) {
+    super(pgcManager);
+  }
 
   /**
    * Verify document integrity in Grounded Context Pool (PGC)

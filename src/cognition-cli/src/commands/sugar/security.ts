@@ -68,12 +68,76 @@
 
 import { intro, outro, spinner as clackSpinner, log } from '@clack/prompts';
 import chalk from 'chalk';
-import path from 'path';
 import { createSugarCommand } from './factory.js';
 import { SugarCommandOptions } from './types.js';
 import { SecurityGuidelinesManager } from '../../core/overlays/security-guidelines/manager.js';
+import { getVerboseState } from '../../utils/verbose.js';
+import { resolvePgcRoot } from './utils.js';
 
 type SecurityOptions = SugarCommandOptions;
+
+/**
+ * Context provided to security action handlers
+ */
+interface SecurityContext<TOptions extends SecurityOptions = SecurityOptions> {
+  pgcRoot: string;
+  manager: SecurityGuidelinesManager;
+  useJson: boolean;
+  isVerbose: boolean;
+  options: TOptions;
+  spinner: ReturnType<typeof clackSpinner>;
+}
+
+/**
+ * Wrapper for security command actions to reduce boilerplate
+ */
+async function wrapSecurityAction<TOptions extends SecurityOptions>(
+  options: TOptions,
+  config: { name: string; description: string; pluralItemLabel: string },
+  action: (context: SecurityContext<TOptions>) => Promise<void>
+) {
+  const isVerbose = getVerboseState(options);
+  const useJson =
+    options.format === 'json' || process.env.COGNITION_FORMAT === 'json';
+
+  if (!useJson) {
+    intro(chalk.bold(config.name));
+  }
+
+  const s = clackSpinner();
+
+  try {
+    const pgcRoot = resolvePgcRoot(options.projectRoot || '.');
+
+    if (!useJson) {
+      s.start(config.description);
+    }
+
+    const manager = new SecurityGuidelinesManager(pgcRoot);
+
+    await action({
+      pgcRoot,
+      manager,
+      useJson,
+      isVerbose,
+      options,
+      spinner: s,
+    });
+
+    if (!useJson) {
+      outro(chalk.green(`✓ ${config.pluralItemLabel} complete`));
+    }
+  } catch (error) {
+    if (!useJson) {
+      s.stop(`Failed: ${(error as Error).message}`);
+    }
+    console.error(chalk.red(`\n✗ ${(error as Error).message}\n`));
+    if (isVerbose) {
+      console.error(error);
+    }
+    process.exit(1);
+  }
+}
 
 /**
  * Display attack vectors aligned with mission principles
@@ -236,96 +300,83 @@ export async function securityListCommand(
     severity?: 'critical' | 'high' | 'medium' | 'low';
   }
 ): Promise<void> {
-  const useJson =
-    options.format === 'json' || process.env.COGNITION_FORMAT === 'json';
-
-  if (!useJson) {
-    intro(chalk.bold('Security: O₂ Overlay Contents'));
-  }
-
-  const pgcRoot = path.join(options.projectRoot || '.', '.open_cognition');
-  const manager = new SecurityGuidelinesManager(pgcRoot);
-
-  const s = clackSpinner();
-  if (!useJson) {
-    s.start('Loading security knowledge from O₂ overlay');
-  }
-
-  try {
-    let items = await manager.getAllItems();
-    if (!useJson) {
-      s.stop('Analysis complete');
-    }
-
-    if (items.length === 0) {
+  await wrapSecurityAction(
+    options,
+    {
+      name: 'Security: O₂ Overlay Contents',
+      description: 'Loading security knowledge from O₂ overlay',
+      pluralItemLabel: 'security list',
+    },
+    async ({ manager, useJson, spinner, options: actionOptions }) => {
+      let items = await manager.getAllItems();
       if (!useJson) {
-        log.warn(
-          chalk.yellow('\n⚠️  No security knowledge found in O₂ overlay.')
-        );
-        outro(chalk.dim('Security list complete (empty overlay)'));
-      } else {
-        console.log(JSON.stringify([], null, 2));
+        spinner.stop('Analysis complete');
       }
-      return;
-    }
 
-    if (options.type) {
-      items = items.filter(
-        (item) => item.metadata.securityType === options.type
-      );
-    }
+      if (items.length === 0) {
+        if (!useJson) {
+          log.warn(
+            chalk.yellow('\n⚠️  No security knowledge found in O₂ overlay.')
+          );
+        } else {
+          console.log(JSON.stringify([], null, 2));
+        }
+        return;
+      }
 
-    if (options.severity) {
-      items = items.filter(
-        (item) => item.metadata.severity === options.severity
-      );
-    }
-
-    const limited = items.slice(0, options.limit || 50);
-
-    if (useJson) {
-      console.log(
-        JSON.stringify(
-          limited.map((i) => i.metadata),
-          null,
-          2
-        )
-      );
-    } else {
-      log.info(chalk.bold(`\n📋 Security Knowledge (${items.length} items)`));
-      if (options.type)
-        log.info(chalk.dim(`   Filtered to type: ${options.type}`));
-      if (options.severity)
-        log.info(chalk.dim(`   Filtered to severity: ${options.severity}`));
-      log.info(chalk.dim(`   Showing ${limited.length} of ${items.length}\n`));
-
-      limited.forEach((item, i) => {
-        const severityColor =
-          item.metadata.severity === 'critical'
-            ? chalk.red
-            : item.metadata.severity === 'high'
-              ? chalk.yellow
-              : chalk.dim;
-
-        log.info(
-          `${i + 1}. ${severityColor(`[${item.metadata.severity?.toUpperCase() || 'UNKNOWN'}]`)} ${item.metadata.securityType}`
+      if (actionOptions.type) {
+        items = items.filter(
+          (item) => item.metadata.securityType === actionOptions.type
         );
-        log.info(chalk.dim(`   ${item.metadata.text}`));
-        if (item.metadata.cveId)
-          log.info(chalk.cyan(`   CVE: ${item.metadata.cveId}`));
-        log.info('');
-      });
-    }
+      }
 
-    if (!useJson) {
-      outro(chalk.green('✓ Security list complete'));
+      if (actionOptions.severity) {
+        items = items.filter(
+          (item) => item.metadata.severity === actionOptions.severity
+        );
+      }
+
+      const limited = items.slice(0, actionOptions.limit || 50);
+
+      if (useJson) {
+        console.log(
+          JSON.stringify(
+            limited.map((i) => i.metadata),
+            null,
+            2
+          )
+        );
+      } else {
+        log.info(chalk.bold(`\n📋 Security Knowledge (${items.length} items)`));
+        if (actionOptions.type)
+          log.info(chalk.dim(`   Filtered to type: ${actionOptions.type}`));
+        if (actionOptions.severity)
+          log.info(
+            chalk.dim(`   Filtered to severity: ${actionOptions.severity}`)
+          );
+        log.info(
+          chalk.dim(`   Showing ${limited.length} of ${items.length}\n`)
+        );
+
+        limited.forEach((item, i) => {
+          const severityColor =
+            item.metadata.severity === 'critical'
+              ? chalk.red
+              : item.metadata.severity === 'high'
+                ? chalk.yellow
+                : chalk.dim;
+
+          log.info(
+            `${i + 1}. ${severityColor(`[${item.metadata.severity?.toUpperCase() || 'UNKNOWN'}]`)} ${item.metadata.securityType}`
+          );
+          log.info(chalk.dim(`   ${item.metadata.text}`));
+          if (item.metadata.cveId)
+            log.info(chalk.cyan(`   CVE: ${item.metadata.cveId}`));
+          log.info('');
+        });
+      }
     }
-  } catch (error) {
-    if (!useJson) {
-      s.stop(`Analysis failed: ${(error as Error).message}`);
-    }
-    process.exit(1);
-  }
+  );
 }
 
 /**
@@ -358,65 +409,48 @@ export async function securityListCommand(
 export async function securityCVEsCommand(
   options: SecurityOptions
 ): Promise<void> {
-  const useJson =
-    options.format === 'json' || process.env.COGNITION_FORMAT === 'json';
-
-  if (!useJson) {
-    intro(chalk.bold.red('Security: CVE Tracking'));
-  }
-
-  const pgcRoot = path.join(options.projectRoot || '.', '.open_cognition');
-  const manager = new SecurityGuidelinesManager(pgcRoot);
-
-  const s = clackSpinner();
-  if (!useJson) {
-    s.start('Loading CVEs from O₂ overlay');
-  }
-
-  try {
-    const cves = await manager.getCVEs();
-    if (!useJson) {
-      s.stop('Analysis complete');
-    }
-
-    if (cves.length === 0) {
+  await wrapSecurityAction(
+    options,
+    {
+      name: 'Security: CVE Tracking',
+      description: 'Loading CVEs from O₂ overlay',
+      pluralItemLabel: 'CVE tracking',
+    },
+    async ({ manager, useJson, spinner, options: actionOptions }) => {
+      const cves = await manager.getCVEs();
       if (!useJson) {
-        log.warn(chalk.yellow('⚠️  No CVEs tracked in O₂ overlay.'));
-        outro(chalk.dim('CVE tracking complete (no CVEs found)'));
-      } else {
-        console.log(JSON.stringify([], null, 2));
+        spinner.stop('Analysis complete');
       }
-      return;
-    }
 
-    if (useJson) {
-      console.log(JSON.stringify(cves, null, 2));
-    } else {
-      log.info(chalk.bold.red(`\n🚨 CVEs Tracked: ${cves.length}\n`));
-      cves.slice(0, options.limit || 50).forEach((cve, i) => {
-        log.info(
-          `${i + 1}. ${chalk.cyan(cve.metadata?.cveId || 'Unknown CVE')}`
-        );
-        log.info(chalk.dim(`   ${cve.text}`));
-        if (cve.metadata?.affectedVersions)
+      if (cves.length === 0) {
+        if (!useJson) {
+          log.warn(chalk.yellow('⚠️  No CVEs tracked in O₂ overlay.'));
+        } else {
+          console.log(JSON.stringify([], null, 2));
+        }
+        return;
+      }
+
+      if (useJson) {
+        console.log(JSON.stringify(cves, null, 2));
+      } else {
+        log.info(chalk.bold.red(`\n🚨 CVEs Tracked: ${cves.length}\n`));
+        cves.slice(0, actionOptions.limit || 50).forEach((cve, i) => {
           log.info(
-            chalk.yellow(`   Affected: ${cve.metadata.affectedVersions}`)
+            `${i + 1}. ${chalk.cyan(cve.metadata?.cveId || 'Unknown CVE')}`
           );
-        if (cve.metadata?.mitigation)
-          log.info(chalk.green(`   Mitigation: ${cve.metadata.mitigation}`));
-        log.info('');
-      });
+          log.info(chalk.dim(`   ${cve.text}`));
+          if (cve.metadata?.affectedVersions)
+            log.info(
+              chalk.yellow(`   Affected: ${cve.metadata.affectedVersions}`)
+            );
+          if (cve.metadata?.mitigation)
+            log.info(chalk.green(`   Mitigation: ${cve.metadata.mitigation}`));
+          log.info('');
+        });
+      }
     }
-
-    if (!useJson) {
-      outro(chalk.green('✓ CVE tracking complete'));
-    }
-  } catch (error) {
-    if (!useJson) {
-      s.stop(`Analysis failed: ${(error as Error).message}`);
-    }
-    process.exit(1);
-  }
+  );
 }
 
 /**
@@ -453,70 +487,53 @@ export async function securityQueryCommand(
   searchTerm: string,
   options: SecurityOptions
 ): Promise<void> {
-  const useJson =
-    options.format === 'json' || process.env.COGNITION_FORMAT === 'json';
-
-  if (!useJson) {
-    intro(chalk.bold(`Security: Query "${searchTerm}"`));
-  }
-
-  const pgcRoot = path.join(options.projectRoot || '.', '.open_cognition');
-  const manager = new SecurityGuidelinesManager(pgcRoot);
-
-  const s = clackSpinner();
-  if (!useJson) {
-    s.start('Searching security knowledge');
-  }
-
-  try {
-    const results = await manager.queryKnowledge(searchTerm);
-    if (!useJson) {
-      s.stop('Analysis complete');
-    }
-
-    if (results.length === 0) {
+  await wrapSecurityAction(
+    options,
+    {
+      name: `Security: Query "${searchTerm}"`,
+      description: 'Searching security knowledge',
+      pluralItemLabel: 'query',
+    },
+    async ({ manager, useJson, spinner, options: actionOptions }) => {
+      const results = await manager.queryKnowledge(searchTerm);
       if (!useJson) {
-        log.warn(
-          chalk.yellow(`⚠️  No security knowledge matching "${searchTerm}"`)
-        );
-        outro(chalk.dim('Query complete (no matches)'));
-      } else {
-        console.log(JSON.stringify([], null, 2));
+        spinner.stop('Analysis complete');
       }
-      return;
-    }
 
-    if (useJson) {
-      console.log(JSON.stringify(results, null, 2));
-    } else {
-      log.info(
-        chalk.bold(
-          `\n🔍 Security Knowledge Matching "${searchTerm}": ${results.length} items\n`
-        )
-      );
-      results.slice(0, options.limit || 10).forEach((item, i) => {
-        const severityColor =
-          item.severity === 'critical'
-            ? chalk.red
-            : item.severity === 'high'
-              ? chalk.yellow
-              : chalk.dim;
+      if (results.length === 0) {
+        if (!useJson) {
+          log.warn(
+            chalk.yellow(`⚠️  No security knowledge matching "${searchTerm}"`)
+          );
+        } else {
+          console.log(JSON.stringify([], null, 2));
+        }
+        return;
+      }
 
+      if (useJson) {
+        console.log(JSON.stringify(results, null, 2));
+      } else {
         log.info(
-          `${i + 1}. ${severityColor(`[${item.severity?.toUpperCase() || 'UNKNOWN'}]`)} ${item.type}`
+          chalk.bold(
+            `\n🔍 Security Knowledge Matching "${searchTerm}": ${results.length} items\n`
+          )
         );
-        log.info(chalk.dim(`   ${item.text}`));
-        log.info('');
-      });
-    }
+        results.slice(0, actionOptions.limit || 10).forEach((item, i) => {
+          const severityColor =
+            item.severity === 'critical'
+              ? chalk.red
+              : item.severity === 'high'
+                ? chalk.yellow
+                : chalk.dim;
 
-    if (!useJson) {
-      outro(chalk.green('✓ Query complete'));
+          log.info(
+            `${i + 1}. ${severityColor(`[${item.severity?.toUpperCase() || 'UNKNOWN'}]`)} ${item.type}`
+          );
+          log.info(chalk.dim(`   ${item.text}`));
+          log.info('');
+        });
+      }
     }
-  } catch (error) {
-    if (!useJson) {
-      s.stop(`Query failed: ${(error as Error).message}`);
-    }
-    process.exit(1);
-  }
+  );
 }

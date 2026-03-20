@@ -43,6 +43,7 @@
 
 import { PGCManager } from '../manager.js';
 import { VerificationResult } from '../../types/verification.js';
+import { AbstractOracle } from './base.js';
 import {
   StructuralPatternMetadataSchema,
   StructuralPatternMetadata,
@@ -56,13 +57,29 @@ import path from 'path';
  * The OverlayOracle ensures that the overlay layer remains consistent with
  * the underlying object store and vector database.
  */
-export class OverlayOracle {
+export class OverlayOracle extends AbstractOracle {
   /**
    * Create a new overlay integrity validator
    *
    * @param pgcManager - PGC manager instance for accessing overlays and object store
    */
-  constructor(private pgcManager: PGCManager) {}
+  constructor(pgcManager: PGCManager) {
+    super(pgcManager);
+  }
+
+  /**
+   * Perform a complete integrity verification of the overlay layer.
+   *
+   * @returns Verification result with success status and diagnostic messages
+   */
+  async verify(): Promise<VerificationResult> {
+    const structural = await this.verifyStructuralPatternsOverlay();
+    const completeness = await this.verifyManifestCompleteness();
+    return {
+      success: structural.success && completeness.success,
+      messages: [...structural.messages, ...completeness.messages],
+    };
+  }
 
   /**
    * Verify structural patterns overlay integrity

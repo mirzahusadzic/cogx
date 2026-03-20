@@ -65,6 +65,17 @@ import {
   InterfaceData,
 } from '../types/structural.js';
 
+import { queryFormatterRegistry, IQueryFormatter } from './formatters/index.js';
+
+export {
+  queryFormatterRegistry,
+  IQueryFormatter,
+  StructuralData,
+  ClassData,
+  FunctionData,
+  InterfaceData,
+};
+
 /**
  * Represents a dependency discovered during query traversal.
  *
@@ -388,144 +399,43 @@ function extractEntities(question: string): string[] {
 /**
  * Format a query result as human-readable text
  *
- * Produces indented, hierarchical output showing:
- * - Query question
- * - Initial context (direct matches)
- * - Dependencies (indented by depth)
- *
  * @param queryResult - Query result to format
  * @returns Formatted string for console output
- *
- * @example
- * const result = await queryCommand('How does UserService work?', options);
- * console.log(formatAsHumanReadable(result));
- * // Output:
- * // Query: "How does UserService work?"
- * // --- Relevant Context ---
- * // Result 1:
- * // { class: "UserService", ... }
- * // --- Dependencies ---
- * //   Lineage: UserService -> Database
- * //   { class: "Database", ... }
+ * @deprecated Use queryFormatterRegistry.get('human').format(result)
  */
 export function formatAsHumanReadable(queryResult: QueryResult): string {
-  let output = '';
-  output += `Query: "${queryResult.question}"`;
-
-  if (queryResult.initialContext.length === 0) {
-    output += '\nNo relevant information found.';
-    return output;
-  }
-
-  output += '\n--- Relevant Context ---';
-  queryResult.initialContext.forEach((item, index) => {
-    output += `\n\nResult ${index + 1}:`;
-    output += `\n${JSON.stringify(item, null, 2)}`;
-  });
-
-  if (queryResult.dependencies.length > 0) {
-    output += '\n\n--- Dependencies ---';
-    queryResult.dependencies.forEach((dep) => {
-      const indent = '  '.repeat(dep.depth);
-      output += `\n${indent}Lineage: ${dep.path}`;
-      output += `\n${indent}${JSON.stringify(dep.structuralData, null, 2)}`;
-    });
-  }
-
-  return output;
+  return queryFormatterRegistry.get('human').format(queryResult);
 }
 
 /**
  * Format a query result as lineage JSON structure
  *
- * Produces a structured JSON representation showing:
- * - Root symbol
- * - Lineage array with type, relationship, and depth
- *
- * RELATIONSHIP TYPES:
- * - extends: Class inheritance
- * - implements: Interface implementation
- * - returns: Function return type
- * - uses: Parameter type or general usage
- *
  * @param queryResult - Query result to format
  * @returns JSON string with lineage structure
- *
- * @example
- * const result = await queryCommand('How does UserService work?', options);
- * console.log(formatAsLineageJSON(result));
- * // Output:
- * // {
- * //   "symbol": "How does UserService work?",
- * //   "lineage": [
- * //     { "type": "Database", "relationship": "uses", "depth": 1 },
- * //     { "type": "UserRepository", "relationship": "uses", "depth": 1 }
- * //   ]
- * // }
+ * @deprecated Use queryFormatterRegistry.get('lineage').format(result)
  */
 export function formatAsLineageJSON(queryResult: QueryResult): string {
-  const { question, dependencies } = queryResult;
-
-  const rootData = queryResult.initialContext[0];
-  if (!rootData) {
-    return JSON.stringify({ symbol: question, lineage: [] }, null, 2);
-  }
-
-  const lineageItems = dependencies.map((dep) => {
-    const parts = dep.path.split(' -> ');
-    const type = parts[parts.length - 1];
-    const parentType = parts.length > 1 ? parts[parts.length - 2] : question;
-
-    // Find parent data by searching through the whole result
-    const parentData = [
-      ...queryResult.initialContext,
-      ...dependencies.map((d) => d.structuralData),
-    ].find(
-      (d) =>
-        d.classes?.[0]?.name === parentType ||
-        d.functions?.[0]?.name === parentType ||
-        d.interfaces?.[0]?.name === parentType
-    );
-
-    const relationship = parentData
-      ? inferRelationship(parentData, type)
-      : 'uses';
-
-    return { type, relationship, depth: dep.depth };
-  });
-
-  const uniqueLineage = Array.from(
-    new Map(lineageItems.map((item) => [JSON.stringify(item), item])).values()
-  );
-
-  return JSON.stringify({ symbol: question, lineage: uniqueLineage }, null, 2);
+  return queryFormatterRegistry.get('lineage').format(queryResult);
 }
 
 /**
- * Infer the relationship type between parent and child symbol
+ * Format a query result as raw JSON
  *
- * ALGORITHM:
- * - Check if child is a base class → 'extends'
- * - Check if child is an interface → 'implements'
- * - Check if child appears in return type → 'returns'
- * - Check if child appears in parameters → 'uses'
- * - Default → 'uses'
- *
- * @param parent - Parent symbol's structural data
- * @param childSymbol - Child symbol name
- * @returns Relationship type ('extends' | 'implements' | 'returns' | 'uses')
+ * @param queryResult - Query result to format
+ * @returns JSON string
+ * @deprecated Use queryFormatterRegistry.get('json').format(result)
  */
-function inferRelationship(
-  parent: StructuralData,
-  childSymbol: string
-): string {
-  for (const c of parent.classes || []) {
-    if (c.base_classes?.includes(childSymbol)) return 'extends';
-    if (c.implements_interfaces?.includes(childSymbol)) return 'implements';
-    for (const m of c.methods || []) {
-      if (m.returns?.includes(childSymbol)) return 'returns';
-      if (m.params?.some((p) => p.type.includes(childSymbol))) return 'uses';
-    }
-  }
-  return 'uses'; // Default
+export function formatAsJson(queryResult: QueryResult): string {
+  return queryFormatterRegistry.get('json').format(queryResult);
+}
+
+/**
+ * Format a query result as Markdown
+ *
+ * @param queryResult - Query result to format
+ * @returns Markdown string
+ * @deprecated Use queryFormatterRegistry.get('markdown').format(result)
+ */
+export function formatAsMarkdown(queryResult: QueryResult): string {
+  return queryFormatterRegistry.get('markdown').format(queryResult);
 }

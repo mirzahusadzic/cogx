@@ -325,6 +325,8 @@ interface QueryCommandOptions {
   depth: string;
   /** Output dependency lineage in JSON format instead of human-readable */
   lineage: boolean;
+  /** Output format (human, json, lineage, markdown) */
+  format?: string;
   /** Output results as JSON for scripting */
   json?: boolean;
   /** Test property to trigger Monument 4.7 overlay invalidation */
@@ -362,7 +364,7 @@ async function queryAction(
   options: QueryCommandOptions,
   command: Command
 ) {
-  const { queryCommand, formatAsHumanReadable, formatAsLineageJSON } =
+  const { queryCommand, queryFormatterRegistry } =
     await import('./core/query/query.js');
 
   const allOpts = command.optsWithGlobals();
@@ -370,17 +372,18 @@ async function queryAction(
 
   const queryResult = await queryCommand(question, options);
 
-  if (useJson || options.lineage) {
-    // If specifically asking for lineage, use that format, otherwise standard JSON
-    if (options.lineage) {
-      console.log(formatAsLineageJSON(queryResult));
-    } else {
-      console.log(JSON.stringify(queryResult, null, 2));
-    }
-  } else {
-    const humanReadableOutput = formatAsHumanReadable(queryResult);
-    console.log(humanReadableOutput);
+  let format: 'human' | 'json' | 'lineage' | 'markdown' = 'human';
+
+  if (options.format) {
+    format = options.format as 'human' | 'json' | 'lineage' | 'markdown';
+  } else if (options.lineage) {
+    format = 'lineage';
+  } else if (useJson) {
+    format = 'json';
   }
+
+  const formatter = queryFormatterRegistry.getFormatterWithFallback(format);
+  console.log(formatter.format(queryResult));
 }
 
 program
@@ -393,6 +396,10 @@ program
     process.cwd()
   )
   .option('-d, --depth <level>', 'Depth of dependency traversal', '0')
+  .option(
+    '-f, --format <format>',
+    'Output format: human, json, lineage, markdown'
+  )
   .option('--lineage', 'Output the dependency lineage in JSON format')
   .option('--json', 'Output results as JSON for scripting')
   .addHelpText(

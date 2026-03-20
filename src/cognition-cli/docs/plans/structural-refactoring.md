@@ -222,8 +222,37 @@ This plan outlines the steps to refactor key areas of the Cognition Σ repositor
 
 ---
 
+## 8. Command Logic & Oracle Consolidation [COMPLETED]
+
+**Status**: COMPLETED (March 20, 2026)
+
+**Goal**: Further reduce boilerplate in command action handlers, security sugar expansions, and PGC oracles.
+
+### High-Similarity Groups
+
+- **Coherence Command Handlers** (0.94 similarity): `coherenceAlignedCommand`, `coherenceDriftedCommand`, `coherenceListCommand`, `coherenceReportCommand` in `src/commands/coherence.ts`.
+- **Security Sugar Commands** (0.95 similarity): `securityListCommand`, `securityCVEsCommand`, `securityQueryCommand` in `src/commands/sugar/security.ts`.
+- **PGC Oracles** (0.90 similarity): `DocsOracle`, `GenesisOracle`, `OverlayOracle` in `src/core/pgc/oracles/`.
+- **Query Formatters** (0.95 similarity): `formatAsHumanReadable`, `formatAsJson`, `formatAsMarkdown` in `src/core/query/`.
+
+### Implementation Results
+
+1. **Coherence Wrapper**: Implemented `wrapCoherenceAction` in `src/commands/coherence.ts`. Centralized project root resolution, registry retrieval, and UI management using `@clack/prompts`.
+2. **Security Factory Expansion**: Implemented `wrapSecurityAction` in `src/commands/sugar/security.ts`. Standardized the output and error handling for security-specific query commands.
+3. **Oracle Base Class**: Created `AbstractOracle` in `src/core/pgc/oracles/base.ts`. Centralized `PGCManager` dependency and `verify()` signature. Refactored `DocsOracle`, `GenesisOracle`, and `OverlayOracle` to extend it.
+4. **Formatter Strategy**: Transitioned from standalone functions to a `FormatterStrategy` pattern in `src/core/query/formatters/`. Created `IQueryFormatter` interface and implemented `HumanReadableFormatter`, `JsonFormatter`, and `MarkdownFormatter`. Centralized these in a `QueryFormatterRegistry`.
+
+### Impact
+
+- **~450 lines of code reduction** (Net project-wide).
+- Consistent CLI experience across all coherence and security commands using standardized `@clack/prompts` UI.
+- Improved extensibility for query output formats and PGC integrity checks.
+- Simplified error handling and project root resolution logic.
+
+---
+
 ## 📊 Summary
 
-- **Total code reduction to date**: ~3,510 lines
-- **Remaining tasks**: 0 major refactoring candidate groups identified in the initial analysis.
-- **Estimated total future reduction**: ~0 lines.
+- **Total code reduction**: ~3,960 lines
+- **Status**: ALL identified structural harmonization tasks in this plan are COMPLETED.
+- **Next Steps**: Continue monitoring for structural drift using the `coherence` and `audit` tools.

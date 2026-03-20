@@ -40,6 +40,7 @@
 
 import { PGCManager } from '../manager.js';
 import { VerificationResult } from '../../types/verification.js';
+import { AbstractOracle } from './base.js';
 import path from 'path';
 import fs from 'fs-extra';
 
@@ -52,13 +53,15 @@ import yaml from 'js-yaml';
  * The GenesisOracle ensures that the foundational layer of the PGC remains
  * internally consistent and all references resolve to existing objects.
  */
-export class GenesisOracle {
+export class GenesisOracle extends AbstractOracle {
   /**
    * Create a new Genesis layer validator
    *
    * @param pgcManager - PGC manager instance for accessing index and object store
    */
-  constructor(private pgcManager: PGCManager) {}
+  constructor(pgcManager: PGCManager) {
+    super(pgcManager);
+  }
 
   /**
    * Verify complete Genesis layer integrity

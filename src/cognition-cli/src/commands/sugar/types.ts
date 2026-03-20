@@ -6,6 +6,7 @@ export interface SugarCommandOptions {
   type?: string;
   threshold?: number;
   scoreField?: string;
+  [key: string]: unknown;
 }
 
 export interface SugarCommandConfig {

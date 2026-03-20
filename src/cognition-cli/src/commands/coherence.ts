@@ -41,13 +41,15 @@
 import { Command } from 'commander';
 import { getVerboseState } from '../utils/verbose.js';
 import chalk from 'chalk';
-import path from 'path';
+import { intro, outro, spinner as clackSpinner } from '@clack/prompts';
 import { OverlayRegistry } from '../core/algebra/overlay-registry.js';
 import type { CoherenceAlgebraAdapter } from '../core/overlays/strategic-coherence/algebra-adapter.js';
-import { environmentService } from '../core/services/environment/EnvironmentService.js';
-import { displayItemList } from './sugar/utils.js';
+import { displayItemList, resolvePgcRoot } from './sugar/utils.js';
 import { SugarCommandOptions } from './sugar/types.js';
-import { StrategicCoherenceManager } from '../core/overlays/strategic-coherence/manager.js';
+import {
+  StrategicCoherenceManager,
+  type StrategicCoherenceOverlay,
+} from '../core/overlays/strategic-coherence/manager.js';
 
 /**
  * Common options for coherence commands
@@ -64,6 +66,93 @@ interface CoherenceOptions {
 }
 
 /**
+ * Context provided to coherence action handlers
+ */
+interface CoherenceContext {
+  pgcRoot: string;
+  coherenceAdapter: CoherenceAlgebraAdapter;
+  manager: StrategicCoherenceManager;
+  overlay: StrategicCoherenceOverlay;
+  useJson: boolean;
+  isVerbose: boolean;
+  options: CoherenceOptions;
+}
+
+/**
+ * Wrapper for coherence command actions to reduce boilerplate
+ */
+async function wrapCoherenceAction(
+  options: CoherenceOptions,
+  command: Command,
+  config: { name: string; description: string; pluralItemLabel: string },
+  action: (context: CoherenceContext) => Promise<void>
+) {
+  const isVerbose = getVerboseState(options);
+  const allOpts =
+    (command?.optsWithGlobals ? command.optsWithGlobals() : {}) || {};
+  const useJson = allOpts.json || options?.json || options?.format === 'json';
+
+  if (!useJson) {
+    intro(chalk.bold(config.name));
+  }
+
+  const s = clackSpinner();
+
+  try {
+    const pgcRoot = resolvePgcRoot(options?.projectRoot || '.');
+
+    if (!useJson) {
+      s.start(config.description);
+    }
+
+    const workbenchUrl = process.env.WORKBENCH_URL || 'http://localhost:8000';
+    const registry = new OverlayRegistry(pgcRoot, workbenchUrl);
+    const coherenceAdapter = (await registry.get(
+      'O7'
+    )) as unknown as CoherenceAlgebraAdapter;
+
+    const manager = new StrategicCoherenceManager(pgcRoot);
+    const overlay = await manager.retrieve();
+
+    if (!overlay) {
+      if (!useJson) {
+        s.stop('Overlay not found');
+        console.error(
+          chalk.red(
+            '\n✗ No strategic coherence overlay found. Run "cognition-cli overlay generate strategic_coherence" first.\n'
+          )
+        );
+      }
+      process.exit(1);
+    }
+
+    await action({
+      pgcRoot,
+      coherenceAdapter,
+      manager,
+      overlay,
+      useJson,
+      isVerbose,
+      options,
+    });
+
+    if (!useJson) {
+      s.stop(`Analysis of ${config.pluralItemLabel} complete.`);
+      outro(chalk.green(`✓ ${config.pluralItemLabel} analysis complete`));
+    }
+  } catch (error) {
+    if (!useJson) {
+      s.stop(`Failed: ${(error as Error).message}`);
+    }
+    console.error(chalk.red(`\n✗ ${(error as Error).message}\n`));
+    if (isVerbose) {
+      console.error(error);
+    }
+    process.exit(1);
+  }
+}
+
+/**
  * Adds strategic coherence query commands to the CLI program.
  *
  * Registers four subcommands:
@@ -75,8 +164,6 @@ interface CoherenceOptions {
  * Each uses OverlayRegistry to access O7 (Strategic Coherence overlay) via algebra interface.
  *
  * @param program - Commander program instance to add commands to
- * @example
- * addCoherenceCommands(program);
  */
 export function addCoherenceCommands(program: Command) {
   const coherenceCommand = program
@@ -164,485 +251,334 @@ export function addCoherenceCommands(program: Command) {
 
 /**
  * Action handler for "coherence report"
- * Display overall strategic coherence metrics dashboard, including average,
- * weighted, and lattice coherence scores, and distribution analysis.
- *
- * @param options - Command options including projectRoot and json
- * @param command - Commander command instance
  */
 export async function coherenceReportCommand(
   options: CoherenceOptions,
   command: Command
 ) {
-  const isVerbose = getVerboseState(options);
-  const projectRoot = environmentService.findProjectRoot(options?.projectRoot);
+  await wrapCoherenceAction(
+    options,
+    command,
+    {
+      name: 'Coherence Report',
+      description: 'Generating strategic coherence report...',
+      pluralItemLabel: 'coherence metrics',
+    },
+    async ({ coherenceAdapter, overlay, useJson }) => {
+      const items = await coherenceAdapter.getAllItems();
 
-  const allOpts =
-    (command?.optsWithGlobals ? command.optsWithGlobals() : {}) || {};
-  const useJson = allOpts.json || options?.json || options?.format === 'json';
+      // Calculate basic metrics
+      const scores = items.map((item) => item.metadata.overallCoherence);
+      const avgCoherence = scores.reduce((a, b) => a + b, 0) / scores.length;
+      const sortedScores = [...scores].sort((a, b) => a - b);
+      const medianCoherence = sortedScores[Math.floor(sortedScores.length / 2)];
 
-  if (!projectRoot) {
-    if (!useJson) {
-      console.error(
-        chalk.red(
-          '\n✗ No .open_cognition workspace found. Run "cognition-cli init" to create one.\n'
-        )
-      );
-    }
-    process.exit(1);
-  }
+      // Get thresholds from overlay metrics
+      const alignmentThreshold =
+        overlay.overall_metrics.high_alignment_threshold;
+      const driftThreshold = overlay.overall_metrics.bottom_quartile_coherence;
 
-  const pgcRoot = path.join(projectRoot, '.open_cognition');
+      const highAlignmentCount = scores.filter(
+        (s) => s >= alignmentThreshold
+      ).length;
+      const driftedCount = scores.filter((s) => s <= driftThreshold).length;
 
-  try {
-    const workbenchUrl = process.env.WORKBENCH_URL || 'http://localhost:8000';
-    const registry = new OverlayRegistry(pgcRoot, workbenchUrl);
-    const coherenceAdapter = (await registry.get(
-      'O7'
-    )) as unknown as CoherenceAlgebraAdapter;
+      // Get rich metrics from overlay
+      const metrics = overlay.overall_metrics;
 
-    // Get raw overlay data for detailed metrics
-    const manager = new StrategicCoherenceManager(pgcRoot);
-    const overlay = await manager.retrieve();
-
-    const items = await coherenceAdapter.getAllItems();
-
-    if (items.length === 0 || !overlay) {
-      if (!(allOpts.json || options.json)) {
-        console.error(
-          chalk.red(
-            '\n✗ No strategic coherence overlay found. Run "cognition-cli overlay generate strategic_coherence" first.\n'
+      if (useJson) {
+        console.log(
+          JSON.stringify(
+            {
+              symbol_count: items.length,
+              average_coherence: avgCoherence,
+              median_coherence: medianCoherence,
+              high_alignment_count: highAlignmentCount,
+              drifted_count: driftedCount,
+              metrics: overlay.overall_metrics,
+            },
+            null,
+            2
           )
         );
+        return;
       }
-      process.exit(1);
-    }
 
-    // Calculate basic metrics
-    const scores = items.map((item) => item.metadata.overallCoherence);
-    const avgCoherence = scores.reduce((a, b) => a + b, 0) / scores.length;
-    const sortedScores = [...scores].sort((a, b) => a - b);
-    const medianCoherence = sortedScores[Math.floor(sortedScores.length / 2)];
-
-    // Get thresholds from overlay metrics
-    const alignmentThreshold = overlay.overall_metrics.high_alignment_threshold;
-    const driftThreshold = overlay.overall_metrics.bottom_quartile_coherence;
-
-    const highAlignmentCount = scores.filter(
-      (s) => s >= alignmentThreshold
-    ).length;
-    const driftedCount = scores.filter((s) => s <= driftThreshold).length;
-
-    // Get rich metrics from overlay
-    const metrics = overlay.overall_metrics;
-
-    if (useJson) {
+      // Display formatted report
+      console.log('');
+      console.log(chalk.bold.cyan('📊 Strategic Coherence Report'));
+      console.log(chalk.gray('━'.repeat(60)));
       console.log(
-        JSON.stringify(
-          {
-            symbol_count: items.length,
-            average_coherence: avgCoherence,
-            median_coherence: medianCoherence,
-            high_alignment_count: highAlignmentCount,
-            drifted_count: driftedCount,
-          },
-          null,
-          2
+        chalk.white(
+          `  Generated: ${chalk.dim(new Date(overlay.generated_at).toLocaleString())}`
         )
       );
-      return;
+      console.log(
+        chalk.white(
+          `  Mission documents: ${chalk.dim(overlay.mission_document_hashes.length)} (${overlay.mission_document_hashes.map((h: string) => h.slice(0, 8)).join(', ')}...)`
+        )
+      );
+      console.log('');
+
+      console.log(chalk.bold.white('  Analysis Scope:'));
+      console.log(
+        chalk.white(`    Code symbols analyzed:   ${chalk.cyan(items.length)}`)
+      );
+      console.log(
+        chalk.white(
+          `    Mission concepts:        ${chalk.cyan(overlay.mission_concepts_count)}`
+        )
+      );
+      console.log('');
+
+      // Convert to percentages for human readability
+      const avgPct = (metrics.average_coherence * 100).toFixed(1);
+      const weightedPct = (metrics.weighted_coherence * 100).toFixed(1);
+      const latticePct = (metrics.lattice_coherence * 100).toFixed(1);
+      const medianPct = (metrics.median_coherence * 100).toFixed(1);
+      const topPct = (metrics.top_quartile_coherence * 100).toFixed(1);
+      const bottomPct = (metrics.bottom_quartile_coherence * 100).toFixed(1);
+      const stdDevPct = (metrics.std_deviation * 100).toFixed(1);
+      const thresholdPct = (metrics.high_alignment_threshold * 100).toFixed(0);
+
+      // Calculate deltas
+      const weightedDelta = (
+        (metrics.weighted_coherence - metrics.average_coherence) *
+        100
+      ).toFixed(1);
+      const latticeDelta = (
+        (metrics.lattice_coherence - metrics.average_coherence) *
+        100
+      ).toFixed(1);
+      const weightedDeltaSign = parseFloat(weightedDelta) > 0 ? '+' : '';
+      const latticeDeltaSign = parseFloat(latticeDelta) > 0 ? '+' : '';
+      const weightedDeltaColor =
+        parseFloat(weightedDelta) > 0 ? chalk.green : chalk.red;
+      const latticeDeltaColor =
+        parseFloat(latticeDelta) > 0 ? chalk.green : chalk.red;
+
+      console.log(chalk.bold.white('  Coherence Metrics:'));
+      console.log(
+        chalk.white(
+          `    Average coherence:       ${chalk.cyan(avgPct + '%')} ${chalk.dim('(all symbols equally weighted)')}`
+        )
+      );
+      console.log(
+        chalk.white(
+          `    Weighted coherence:      ${chalk.cyan(weightedPct + '%')} ${weightedDeltaColor(`(${weightedDeltaSign}${weightedDelta}%)`)} ${chalk.dim('← centrality-based')}`
+        )
+      );
+      console.log(
+        chalk.white(
+          `    Lattice coherence:       ${chalk.bold.cyan(latticePct + '%')} ${latticeDeltaColor(`(${latticeDeltaSign}${latticeDelta}%)`)} ${chalk.dim('← Gaussian + lattice synthesis')}`
+        )
+      );
+      console.log('');
+
+      console.log(chalk.bold.white('  Distribution:'));
+      console.log(
+        chalk.white(`    Top 25% (best):          ${chalk.green(topPct + '%')}`)
+      );
+      console.log(
+        chalk.white(
+          `    Median (typical):        ${chalk.cyan(medianPct + '%')}`
+        )
+      );
+      console.log(
+        chalk.white(
+          `    Bottom 25% (concern):    ${chalk.yellow(bottomPct + '%')}`
+        )
+      );
+      console.log(
+        chalk.white(
+          `    Std deviation (σ):       ${chalk.dim(stdDevPct + '%')} ${chalk.dim('(statistical spread)')}`
+        )
+      );
+      console.log(
+        chalk.white(
+          `    Alignment threshold:     ${chalk.dim('≥ ' + thresholdPct + '%')} ${chalk.dim('(60th percentile)')}`
+        )
+      );
+      console.log(
+        chalk.white(
+          `    Drift threshold:         ${chalk.dim('≤ ' + bottomPct + '%')} ${chalk.dim('(bottom 25%)')}`
+        )
+      );
+      console.log('');
+
+      console.log(chalk.bold.white('  Symbol Distribution:'));
+      console.log(
+        chalk.white(
+          `    ✓ Aligned:               ${chalk.green(highAlignmentCount)} ${chalk.dim(`(${((highAlignmentCount / items.length) * 100).toFixed(1)}%)`)}`
+        )
+      );
+      console.log(
+        chalk.white(
+          `    ⚠ Drifted:               ${chalk.yellow(driftedCount)} ${chalk.dim(`(${((driftedCount / items.length) * 100).toFixed(1)}%)`)}`
+        )
+      );
+      console.log('');
+
+      console.log(chalk.dim('  View details with:'));
+      console.log(
+        chalk.dim(
+          '    cognition-cli coherence aligned     # High-aligned symbols'
+        )
+      );
+      console.log(
+        chalk.dim(
+          '    cognition-cli coherence drifted     # Low-aligned symbols'
+        )
+      );
+      console.log(
+        chalk.dim('    cognition-cli coherence list        # All symbols')
+      );
+      console.log('');
     }
-
-    // Display formatted report
-    console.log('');
-    console.log(chalk.bold.cyan('📊 Strategic Coherence Report'));
-    console.log(chalk.gray('━'.repeat(60)));
-    console.log(
-      chalk.white(
-        `  Generated: ${chalk.dim(new Date(overlay.generated_at).toLocaleString())}`
-      )
-    );
-    console.log(
-      chalk.white(
-        `  Mission documents: ${chalk.dim(overlay.mission_document_hashes.length)} (${overlay.mission_document_hashes.map((h: string) => h.slice(0, 8)).join(', ')}...)`
-      )
-    );
-    console.log('');
-
-    console.log(chalk.bold.white('  Analysis Scope:'));
-    console.log(
-      chalk.white(`    Code symbols analyzed:   ${chalk.cyan(items.length)}`)
-    );
-    console.log(
-      chalk.white(
-        `    Mission concepts:        ${chalk.cyan(overlay.mission_concepts_count)}`
-      )
-    );
-    console.log('');
-
-    // Convert to percentages for human readability
-    const avgPct = (metrics.average_coherence * 100).toFixed(1);
-    const weightedPct = (metrics.weighted_coherence * 100).toFixed(1);
-    const latticePct = (metrics.lattice_coherence * 100).toFixed(1);
-    const medianPct = (metrics.median_coherence * 100).toFixed(1);
-    const topPct = (metrics.top_quartile_coherence * 100).toFixed(1);
-    const bottomPct = (metrics.bottom_quartile_coherence * 100).toFixed(1);
-    const stdDevPct = (metrics.std_deviation * 100).toFixed(1);
-    const thresholdPct = (metrics.high_alignment_threshold * 100).toFixed(0);
-
-    // Calculate deltas
-    const weightedDelta = (
-      (metrics.weighted_coherence - metrics.average_coherence) *
-      100
-    ).toFixed(1);
-    const latticeDelta = (
-      (metrics.lattice_coherence - metrics.average_coherence) *
-      100
-    ).toFixed(1);
-    const weightedDeltaSign = parseFloat(weightedDelta) > 0 ? '+' : '';
-    const latticeDeltaSign = parseFloat(latticeDelta) > 0 ? '+' : '';
-    const weightedDeltaColor =
-      parseFloat(weightedDelta) > 0 ? chalk.green : chalk.red;
-    const latticeDeltaColor =
-      parseFloat(latticeDelta) > 0 ? chalk.green : chalk.red;
-
-    console.log(chalk.bold.white('  Coherence Metrics:'));
-    console.log(
-      chalk.white(
-        `    Average coherence:       ${chalk.cyan(avgPct + '%')} ${chalk.dim('(all symbols equally weighted)')}`
-      )
-    );
-    console.log(
-      chalk.white(
-        `    Weighted coherence:      ${chalk.cyan(weightedPct + '%')} ${weightedDeltaColor(`(${weightedDeltaSign}${weightedDelta}%)`)} ${chalk.dim('← centrality-based')}`
-      )
-    );
-    console.log(
-      chalk.white(
-        `    Lattice coherence:       ${chalk.bold.cyan(latticePct + '%')} ${latticeDeltaColor(`(${latticeDeltaSign}${latticeDelta}%)`)} ${chalk.dim('← Gaussian + lattice synthesis')}`
-      )
-    );
-    console.log('');
-
-    console.log(chalk.bold.white('  Distribution:'));
-    console.log(
-      chalk.white(`    Top 25% (best):          ${chalk.green(topPct + '%')}`)
-    );
-    console.log(
-      chalk.white(`    Median (typical):        ${chalk.cyan(medianPct + '%')}`)
-    );
-    console.log(
-      chalk.white(
-        `    Bottom 25% (concern):    ${chalk.yellow(bottomPct + '%')}`
-      )
-    );
-    console.log(
-      chalk.white(
-        `    Std deviation (σ):       ${chalk.dim(stdDevPct + '%')} ${chalk.dim('(statistical spread)')}`
-      )
-    );
-    console.log(
-      chalk.white(
-        `    Alignment threshold:     ${chalk.dim('≥ ' + thresholdPct + '%')} ${chalk.dim('(60th percentile)')}`
-      )
-    );
-    console.log(
-      chalk.white(
-        `    Drift threshold:         ${chalk.dim('≤ ' + bottomPct + '%')} ${chalk.dim('(bottom 25%)')}`
-      )
-    );
-    console.log('');
-
-    console.log(chalk.bold.white('  Symbol Distribution:'));
-    console.log(
-      chalk.white(
-        `    ✓ Aligned:               ${chalk.green(highAlignmentCount)} ${chalk.dim(`(${((highAlignmentCount / items.length) * 100).toFixed(1)}%)`)}`
-      )
-    );
-    console.log(
-      chalk.white(
-        `    ⚠ Drifted:               ${chalk.yellow(driftedCount)} ${chalk.dim(`(${((driftedCount / items.length) * 100).toFixed(1)}%)`)}`
-      )
-    );
-    console.log('');
-
-    console.log(chalk.dim('  View details with:'));
-    console.log(
-      chalk.dim(
-        '    cognition-cli coherence aligned     # High-aligned symbols'
-      )
-    );
-    console.log(
-      chalk.dim('    cognition-cli coherence drifted     # Low-aligned symbols')
-    );
-    console.log(
-      chalk.dim('    cognition-cli coherence list        # All symbols')
-    );
-    console.log('');
-  } catch (error) {
-    console.error(chalk.red(`\n✗ ${(error as Error).message}\n`));
-    if (isVerbose) {
-      console.error(error);
-    }
-    process.exit(1);
-  }
+  );
 }
 
 /**
  * Action handler for "coherence aligned"
- * Show symbols aligned with mission (score >= threshold).
- * Supports custom minimum score and various output formats.
- *
- * @param options - Command options including projectRoot, minScore, and format
- * @param command - Commander command instance
  */
 export async function coherenceAlignedCommand(
   options: CoherenceOptions,
   command: Command
 ) {
-  const isVerbose = getVerboseState(options);
-  const projectRoot = environmentService.findProjectRoot(options?.projectRoot);
+  await wrapCoherenceAction(
+    options,
+    command,
+    {
+      name: 'Coherence Alignment',
+      description: 'Finding mission-aligned symbols...',
+      pluralItemLabel: 'aligned symbols',
+    },
+    async ({ coherenceAdapter, overlay, useJson, options: actionOptions }) => {
+      // Sort by coherence score (descending)
+      const sortedItems = await coherenceAdapter.getItemsByCoherence(true);
 
-  const allOpts =
-    (command?.optsWithGlobals ? command.optsWithGlobals() : {}) || {};
-  const useJson = allOpts.json || options?.json || options?.format === 'json';
-
-  if (!projectRoot) {
-    if (!useJson) {
-      console.error(
-        chalk.red(
-          '\n✗ No .open_cognition workspace found. Run "cognition-cli init" to create one.\n'
-        )
+      // Use overlay's alignment threshold as default
+      const minScore = actionOptions.minScore
+        ? parseFloat(actionOptions.minScore as string)
+        : overlay.overall_metrics.high_alignment_threshold;
+      const filtered = sortedItems.filter(
+        (item) => item.metadata.overallCoherence >= minScore
       );
-    }
-    process.exit(1);
-  }
 
-  const pgcRoot = path.join(projectRoot, '.open_cognition');
-
-  try {
-    const workbenchUrl = process.env.WORKBENCH_URL || 'http://localhost:8000';
-    const registry = new OverlayRegistry(pgcRoot, workbenchUrl);
-    const coherenceAdapter = (await registry.get(
-      'O7'
-    )) as unknown as CoherenceAlgebraAdapter;
-
-    // Get overlay to access alignment threshold
-    const manager = new StrategicCoherenceManager(pgcRoot);
-    const overlay = await manager.retrieve();
-
-    if (!overlay) {
-      if (!useJson) {
-        console.error(
-          chalk.red(
-            '\n✗ No strategic coherence overlay found. Run "cognition-cli overlay generate strategic_coherence" first.\n'
-          )
-        );
+      if (filtered.length === 0) {
+        if (!useJson) {
+          console.log(
+            chalk.yellow(
+              `\nNo symbols found with coherence score ≥ ${minScore.toFixed(2)}\n`
+            )
+          );
+        } else {
+          console.log(JSON.stringify([], null, 2));
+        }
+        return;
       }
-      process.exit(1);
+
+      displayItemList(filtered, 'aligned symbols', {
+        ...actionOptions,
+        format: (useJson
+          ? 'json'
+          : actionOptions.format) as SugarCommandOptions['format'],
+        limit: parseInt(actionOptions.limit || '50'),
+        scoreField: 'overallCoherence',
+      });
     }
-
-    // Sort by coherence score (descending)
-    const sortedItems = await coherenceAdapter.getItemsByCoherence(true);
-
-    // Use overlay's alignment threshold as default
-    const minScore = options.minScore
-      ? parseFloat(options.minScore as string)
-      : overlay.overall_metrics.high_alignment_threshold;
-    const filtered = sortedItems.filter(
-      (item) => item.metadata.overallCoherence >= minScore
-    );
-
-    if (filtered.length === 0) {
-      if (!useJson) {
-        console.log(
-          chalk.yellow(
-            `\nNo symbols found with coherence score ≥ ${minScore.toFixed(2)}\n`
-          )
-        );
-      } else {
-        console.log(JSON.stringify([], null, 2));
-      }
-      return;
-    }
-
-    displayItemList(filtered, 'aligned symbols', {
-      ...options,
-      format: (useJson
-        ? 'json'
-        : options.format) as SugarCommandOptions['format'],
-      limit: parseInt(options.limit || '50'),
-      scoreField: 'overallCoherence',
-    });
-  } catch (error) {
-    console.error(chalk.red(`\n✗ ${(error as Error).message}\n`));
-    if (isVerbose) {
-      console.error(error);
-    }
-    process.exit(1);
-  }
+  );
 }
 
 /**
  * Action handler for "coherence drifted"
- * Show symbols that drifted from mission (score < threshold).
- * Supports custom maximum score and various output formats.
- *
- * @param options - Command options including projectRoot, maxScore, and format
- * @param command - Commander command instance
  */
 export async function coherenceDriftedCommand(
   options: CoherenceOptions,
   command: Command
 ) {
-  const isVerbose = getVerboseState(options);
-  const projectRoot = environmentService.findProjectRoot(options?.projectRoot);
+  await wrapCoherenceAction(
+    options,
+    command,
+    {
+      name: 'Coherence Drift',
+      description: 'Identifying drifted symbols...',
+      pluralItemLabel: 'drifted symbols',
+    },
+    async ({ coherenceAdapter, overlay, useJson, options: actionOptions }) => {
+      // Sort by coherence score (ascending - worst first)
+      const sortedItems = await coherenceAdapter.getItemsByCoherence(false);
 
-  const allOpts =
-    (command?.optsWithGlobals ? command.optsWithGlobals() : {}) || {};
-  const useJson = allOpts.json || options?.json || options?.format === 'json';
+      // Use bottom quartile as default threshold, or custom value if provided
+      const maxScore = actionOptions.maxScore
+        ? parseFloat(actionOptions.maxScore as string)
+        : overlay.overall_metrics.bottom_quartile_coherence;
 
-  if (!projectRoot) {
-    if (!useJson) {
-      console.error(
-        chalk.red(
-          '\n✗ No .open_cognition workspace found. Run "cognition-cli init" to create one.\n'
-        )
+      const filtered = sortedItems.filter(
+        (item) => item.metadata.overallCoherence <= maxScore
       );
-    }
-    process.exit(1);
-  }
 
-  const pgcRoot = path.join(projectRoot, '.open_cognition');
-
-  try {
-    const workbenchUrl = process.env.WORKBENCH_URL || 'http://localhost:8000';
-    const registry = new OverlayRegistry(pgcRoot, workbenchUrl);
-    const coherenceAdapter = (await registry.get(
-      'O7'
-    )) as unknown as CoherenceAlgebraAdapter;
-
-    // Get raw overlay data for bottom quartile threshold
-    const manager = new StrategicCoherenceManager(pgcRoot);
-    const overlay = await manager.retrieve();
-
-    if (!overlay) {
-      if (!useJson) {
-        console.error(
-          chalk.red(
-            '\n✗ No strategic coherence overlay found. Run "cognition-cli overlay generate strategic_coherence" first.\n'
-          )
-        );
+      if (filtered.length === 0) {
+        if (!useJson) {
+          console.log(
+            chalk.yellow(
+              `\nNo symbols found with coherence score ≤ ${maxScore.toFixed(2)}\n`
+            )
+          );
+        } else {
+          console.log(JSON.stringify([], null, 2));
+        }
+        return;
       }
-      process.exit(1);
+
+      displayItemList(filtered, 'drifted symbols', {
+        ...actionOptions,
+        format: (useJson
+          ? 'json'
+          : actionOptions.format) as SugarCommandOptions['format'],
+        limit: parseInt(actionOptions.limit || '50'),
+        scoreField: 'overallCoherence',
+      });
     }
-
-    // Sort by coherence score (ascending - worst first)
-    const sortedItems = await coherenceAdapter.getItemsByCoherence(false);
-
-    // Use bottom quartile as default threshold, or custom value if provided
-    const maxScore = options.maxScore
-      ? parseFloat(options.maxScore as string)
-      : overlay.overall_metrics.bottom_quartile_coherence;
-
-    const filtered = sortedItems.filter(
-      (item) => item.metadata.overallCoherence <= maxScore
-    );
-
-    if (filtered.length === 0) {
-      if (!useJson) {
-        console.log(
-          chalk.yellow(
-            `\nNo symbols found with coherence score ≤ ${maxScore.toFixed(2)}\n`
-          )
-        );
-      } else {
-        console.log(JSON.stringify([], null, 2));
-      }
-      return;
-    }
-
-    displayItemList(filtered, 'drifted symbols', {
-      ...options,
-      format: (useJson
-        ? 'json'
-        : options.format) as SugarCommandOptions['format'],
-      limit: parseInt(options.limit || '50'),
-      scoreField: 'overallCoherence',
-    });
-  } catch (error) {
-    console.error(chalk.red(`\n✗ ${(error as Error).message}\n`));
-    if (isVerbose) {
-      console.error(error);
-    }
-    process.exit(1);
-  }
+  );
 }
 
 /**
  * Action handler for "coherence list"
- * List all symbols with their strategic coherence scores.
- * Supports limiting results and various output formats.
- *
- * @param options - Command options including projectRoot, limit, and format
- * @param command - Commander command instance
  */
 export async function coherenceListCommand(
   options: CoherenceOptions,
   command: Command
 ) {
-  const isVerbose = getVerboseState(options);
-  const projectRoot = environmentService.findProjectRoot(options?.projectRoot);
+  await wrapCoherenceAction(
+    options,
+    command,
+    {
+      name: 'Coherence List',
+      description: 'Listing all symbols by coherence...',
+      pluralItemLabel: 'symbols',
+    },
+    async ({ coherenceAdapter, useJson, options: actionOptions }) => {
+      // Get all items sorted by coherence
+      const items = await coherenceAdapter.getItemsByCoherence(true);
 
-  const allOpts =
-    (command?.optsWithGlobals ? command.optsWithGlobals() : {}) || {};
-  const useJson = allOpts.json || options?.json || options?.format === 'json';
-
-  if (!projectRoot) {
-    if (!useJson) {
-      console.error(
-        chalk.red(
-          '\n✗ No .open_cognition workspace found. Run "cognition-cli init" to create one.\n'
-        )
-      );
-    }
-    process.exit(1);
-  }
-
-  const pgcRoot = path.join(projectRoot, '.open_cognition');
-
-  try {
-    const workbenchUrl = process.env.WORKBENCH_URL || 'http://localhost:8000';
-    const registry = new OverlayRegistry(pgcRoot, workbenchUrl);
-    const coherenceAdapter = (await registry.get(
-      'O7'
-    )) as unknown as CoherenceAlgebraAdapter;
-
-    // Get all items sorted by coherence
-    const items = await coherenceAdapter.getItemsByCoherence(true);
-
-    if (items.length === 0) {
-      if (!useJson) {
-        console.log(chalk.yellow('\nNo coherence data found\n'));
-      } else {
-        console.log(JSON.stringify([], null, 2));
+      if (items.length === 0) {
+        if (!useJson) {
+          console.log(chalk.yellow('\nNo coherence data found\n'));
+        } else {
+          console.log(JSON.stringify([], null, 2));
+        }
+        return;
       }
-      return;
-    }
 
-    displayItemList(items, 'symbols', {
-      ...options,
-      format: (useJson
-        ? 'json'
-        : options.format) as SugarCommandOptions['format'],
-      limit: parseInt(options.limit || '50'),
-      scoreField: 'overallCoherence',
-    });
-  } catch (error) {
-    console.error(chalk.red(`\n✗ ${(error as Error).message}\n`));
-    if (isVerbose) {
-      console.error(error);
+      displayItemList(items, 'symbols', {
+        ...actionOptions,
+        format: (useJson
+          ? 'json'
+          : actionOptions.format) as SugarCommandOptions['format'],
+        limit: parseInt(actionOptions.limit || '50'),
+        scoreField: 'overallCoherence',
+      });
     }
-    process.exit(1);
-  }
+  );
 }
