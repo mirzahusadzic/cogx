@@ -396,8 +396,26 @@ _cognition_cli_completions() {
       fi
       ;;
     patterns)
-      COMPREPLY=( $(compgen -W "find-similar compare analyze inspect list graph compact" -- \${cur}) )
+      COMPREPLY=( $(compgen -W "find-similar compare analyze analyze-duplicates inspect list graph compact" -- \${cur}) )
       return 0
+      ;;
+    analyze)
+      if [[ "\${COMP_WORDS[1]}" == "patterns" ]]; then
+        COMPREPLY=( $(compgen -W "roles role duplicates" -- \${cur}) )
+        return 0
+      fi
+      ;;
+    analyze-duplicates)
+      if [[ "\${COMP_WORDS[1]}" == "patterns" ]]; then
+        COMPREPLY=( $(compgen -W "--threshold --top-k --json -h --help" -- \${cur}) )
+        return 0
+      fi
+      ;;
+    duplicates)
+      if [[ "\${COMP_WORDS[1]}" == "patterns" ]] && [[ "\${COMP_WORDS[2]}" == "analyze" ]]; then
+        COMPREPLY=( $(compgen -W "--threshold --top-k --json -h --help" -- \${cur}) )
+        return 0
+      fi
       ;;
     compact)
       if [[ "\${COMP_WORDS[1]}" == "patterns" ]]; then
@@ -784,14 +802,20 @@ _cognition_cli() {
         patterns)
           _arguments -C \
             '--json[Output as JSON]' \
-            '1:subcommand:(find-similar compare analyze inspect list graph compact)' \
+            '1:subcommand:(find-similar compare analyze analyze-duplicates inspect list graph compact)' \
             '*:: :->patterns_args'
 
           case $state in
             patterns_args)
               case $words[1] in
                 analyze)
-                  _arguments '1:subcommand:(roles role)'
+                  _arguments '1:subcommand:(roles role duplicates)'
+                  ;;
+                analyze-duplicates)
+                  _arguments \
+                    '--threshold[Similarity threshold (0-1)]:threshold:' \
+                    '--top-k[Number of top similar symbols]:number:' \
+                    '--json[Output as JSON]'
                   ;;
                 find-similar)
                   _arguments \
@@ -1010,8 +1034,12 @@ complete -c cognition-cli -n "__fish_seen_subcommand_from workflow" -l aligned -
 complete -c cognition-cli -n "__fish_seen_subcommand_from workflow" -l json -d "Output as JSON"
 
 # Patterns subcommands
-complete -c cognition-cli -f -n "__fish_seen_subcommand_from patterns" -a "find-similar compare analyze inspect list graph compact"
-complete -c cognition-cli -f -n "__fish_seen_subcommand_from patterns; and __fish_seen_subcommand_from analyze" -a "roles role"
+complete -c cognition-cli -f -n "__fish_seen_subcommand_from patterns" -a "find-similar compare analyze analyze-duplicates inspect list graph compact"
+complete -c cognition-cli -f -n "__fish_seen_subcommand_from patterns; and __fish_seen_subcommand_from analyze" -a "roles role duplicates"
+complete -c cognition-cli -n "__fish_seen_subcommand_from patterns; and __fish_seen_subcommand_from analyze-duplicates" -l threshold -d "Similarity threshold (0-1)"
+complete -c cognition-cli -n "__fish_seen_subcommand_from patterns; and __fish_seen_subcommand_from analyze-duplicates" -l top-k -d "Number of top similar symbols"
+complete -c cognition-cli -n "__fish_seen_subcommand_from patterns; and __fish_seen_subcommand_from analyze; and __fish_seen_subcommand_from duplicates" -l threshold -d "Similarity threshold (0-1)"
+complete -c cognition-cli -n "__fish_seen_subcommand_from patterns; and __fish_seen_subcommand_from analyze; and __fish_seen_subcommand_from duplicates" -l top-k -d "Number of top similar symbols"
 complete -c cognition-cli -n "__fish_seen_subcommand_from patterns; and __fish_seen_subcommand_from compact" -l type -d "The type of patterns to compact" -xa "structural lineage all"
 complete -c cognition-cli -n "__fish_seen_subcommand_from patterns; and __fish_seen_subcommand_from find-similar" -l top-k -d "Number of similar patterns"
 complete -c cognition-cli -n "__fish_seen_subcommand_from patterns; and __fish_seen_subcommand_from find-similar" -l type -d "The type of patterns to find" -xa "structural lineage"

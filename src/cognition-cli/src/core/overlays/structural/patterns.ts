@@ -1016,7 +1016,7 @@ export class StructuralPatternsManager implements PatternManager {
       .filter((result) => result.id !== targetMetadata.vectorId)
       .map((result) => ({
         symbol: result.metadata.symbol as string,
-        filePath: result.metadata.anchor as string,
+        filePath: result.metadata.filePath as string,
         similarity: result.similarity,
         architecturalRole: result.metadata.architectural_role as string,
         explanation: this.generateSimilarityExplanation(

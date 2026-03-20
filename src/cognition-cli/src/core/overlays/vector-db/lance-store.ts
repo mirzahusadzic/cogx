@@ -298,6 +298,7 @@ export class LanceVectorStore extends BaseLanceStore<VectorRecord> {
           architectural_role: result.architectural_role,
           computed_at: result.computed_at,
           lineage_hash: result.lineage_hash,
+          filePath: result.filePath,
         },
       }))
       .slice(0, topK);

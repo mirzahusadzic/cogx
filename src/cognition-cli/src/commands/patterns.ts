@@ -21,6 +21,7 @@
  * - `patterns compact`: Compact pattern tables to reclaim storage space.
  * - `patterns find-similar <symbol>`: Find architecturally similar symbols.
  * - `patterns analyze`: Show architectural role distribution
+ * - `patterns analyze-duplicates`: Find architectural duplicates across the codebase
  * - `patterns list`: List all patterns with optional filtering
  * - `patterns inspect <symbol>`: Detailed symbol information
  * - `patterns graph <symbol>`: Visualize dependency graph
@@ -48,6 +49,11 @@
  * // → Shows role counts and sample symbols for each role
  *
  * @example
+ * // Find architectural duplicates
+ * cognition-cli patterns analyze-duplicates --threshold 0.9
+ * // → Shows pairs with >90% structural similarity and their blast radius
+ *
+ * @example
  * // Compare two symbols
  * cognition-cli patterns compare UserManager AuthService
  * // → Shows similarity score and structural differences
@@ -70,6 +76,7 @@ import { z } from 'zod';
 
 import { PatternManager } from '../core/pgc/patterns.js';
 import { displayItemList, resolvePgcRoot } from './sugar/utils.js';
+import { GraphTraversal } from '../core/graph/traversal.js';
 
 /**
  * Adds pattern management and query commands to the CLI program
@@ -229,6 +236,34 @@ export function addPatternsCommands(program: Command) {
     .option('--json', 'Output as JSON')
     .action(async (roleId, options, command) => {
       await analyzePatterns({ ...options, role: roleId }, command);
+    });
+
+  analyzeCommand
+    .command('duplicates')
+    .description('Analyze architectural duplicates across the codebase')
+    .option('--threshold <threshold>', 'Similarity threshold (0-1)', '0.85')
+    .option(
+      '--top-k <k>',
+      'Number of top similar symbols to check for each symbol',
+      '5'
+    )
+    .option('--json', 'Output as JSON')
+    .action(async (options, command) => {
+      await analyzeDuplicates(options, command);
+    });
+
+  patternsCommand
+    .command('analyze-duplicates')
+    .description('Analyze architectural duplicates across the codebase')
+    .option('--threshold <threshold>', 'Similarity threshold (0-1)', '0.85')
+    .option(
+      '--top-k <k>',
+      'Number of top similar symbols to check for each symbol',
+      '5'
+    )
+    .option('--json', 'Output as JSON')
+    .action(async (options, command) => {
+      await analyzeDuplicates(options, command);
     });
 
   patternsCommand
@@ -959,5 +994,221 @@ async function analyzePatterns(
         chalk.dim('💡 Use `patterns analyze role <role>` for full symbol list')
       );
     }
+  }
+}
+
+interface DuplicatePair {
+  symbolA: string;
+  symbolB: string;
+  similarity: number;
+  role?: string;
+  filePathA?: string;
+  filePathB?: string;
+}
+
+/**
+ * Analyzes architectural duplicates across the codebase
+ *
+ * Performs a cross-symbol similarity search to identify redundant implementations
+ * and structural overlaps. For each identified pair, fetches blast-radius metrics
+ * to highlight high-impact refactoring targets.
+ */
+async function analyzeDuplicates(
+  options: {
+    threshold: string;
+    topK: string;
+    json?: boolean;
+    projectRoot?: string;
+  },
+  command: Command
+) {
+  const pgcRoot = resolvePgcRoot(options.projectRoot || '.');
+  const pgc = new PGCManager(pgcRoot);
+  const vectorDB = new LanceVectorStore(pgcRoot);
+  const traversal = new GraphTraversal(pgc);
+
+  const allOpts = command.optsWithGlobals();
+  const useJson = allOpts.json || options.json;
+  const threshold = parseFloat(options.threshold);
+  const topK = parseInt(options.topK);
+
+  if (!useJson) {
+    console.log(chalk.bold.blue('\n🔍 Architectural Similarity Analysis\n'));
+    console.log(chalk.dim('Fetching all structural patterns...'));
+  }
+
+  const tableName = 'structural_patterns';
+  await vectorDB.initialize(tableName);
+  const allVectors = await vectorDB.getAllVectors();
+
+  // Filter out semantic shadow vectors
+  const structuralVectors = allVectors.filter((v) => v.type !== 'semantic');
+
+  if (structuralVectors.length === 0) {
+    if (!useJson) {
+      console.error(chalk.red('❌ No structural patterns found.'));
+    } else {
+      console.log(JSON.stringify([], null, 2));
+    }
+    return;
+  }
+
+  const pairs = new Map<string, DuplicatePair>();
+  const total = structuralVectors.length;
+
+  if (!useJson) {
+    console.log(
+      chalk.cyan(
+        `Analyzing ${total} symbols for similarity > ${threshold}...\n`
+      )
+    );
+  }
+
+  for (let i = 0; i < total; i++) {
+    const v = structuralVectors[i];
+    const name = (v.symbol as string) || v.id.toString();
+
+    if (!useJson) {
+      process.stdout.write(
+        `\r[${i + 1}/${total}] Inspecting ${chalk.yellow(name.padEnd(30))} `
+      );
+    }
+
+    const vector = v.embedding as number[];
+    if (!vector) continue;
+
+    const similar = await vectorDB.similaritySearch(vector, topK + 1);
+
+    if (similar && Array.isArray(similar)) {
+      for (const sim of similar) {
+        const simName = (sim.metadata?.symbol as string) || sim.id.toString();
+        const score = sim.similarity;
+
+        if (score > threshold && simName !== name) {
+          const pairKey = [name, simName].sort().join(' <-> ');
+
+          if (!pairs.has(pairKey)) {
+            pairs.set(pairKey, {
+              symbolA: name,
+              symbolB: simName,
+              similarity: score,
+              role: sim.metadata?.architectural_role as string,
+              filePathA: v.filePath as string,
+              filePathB: sim.metadata?.filePath as string,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  if (!useJson) {
+    console.log('\n\n' + chalk.bold.green('✨ High Similarity Results:'));
+  }
+
+  const results = Array.from(pairs.values()).sort(
+    (a, b) => b.similarity - a.similarity
+  );
+
+  if (results.length === 0) {
+    if (!useJson) {
+      console.log(chalk.dim('No high-similarity pairs found.'));
+    } else {
+      console.log(JSON.stringify([], null, 2));
+    }
+    return;
+  }
+
+  const finalResults = [];
+
+  for (const res of results) {
+    try {
+      const brA = await traversal.getBlastRadius(res.symbolA, {
+        direction: 'both',
+        maxDepth: 2,
+      });
+      const brB = await traversal.getBlastRadius(res.symbolB, {
+        direction: 'both',
+        maxDepth: 2,
+      });
+
+      const impactA = brA.metrics.totalImpacted;
+      const impactB = brB.metrics.totalImpacted;
+
+      const resultEntry = {
+        ...res,
+        impactA,
+        impactB,
+        isCritical: impactA > 20 && impactB > 20 && res.similarity > 0.95,
+      };
+
+      finalResults.push(resultEntry);
+
+      if (!useJson) {
+        console.log(
+          `\n🤝 ${chalk.bold.cyan(res.symbolA)} <-> ${chalk.bold.green(
+            res.symbolB
+          )}`
+        );
+        console.log(
+          `   ${chalk.yellow('Similarity:')} ${(res.similarity * 100).toFixed(
+            1
+          )}%`
+        );
+        console.log(`   ${chalk.yellow('Role:')}       ${res.role}`);
+        console.log(
+          `   ${chalk.yellow('Files:')}      ${chalk.dim(res.filePathA)}`
+        );
+        console.log(`                ${chalk.dim(res.filePathB)}`);
+        console.log(
+          `   ${chalk.yellow('Impact:')}     ${res.symbolA} (${impactA}) vs ${
+            res.symbolB
+          } (${impactB})`
+        );
+
+        if (resultEntry.isCritical) {
+          console.log(
+            chalk.red.bold(
+              '   ⚠️  CRITICAL DUPLICATION RISK: Both have high impact and high similarity!'
+            )
+          );
+        }
+      }
+    } catch {
+      // If graph traversal fails for a symbol, still report the similarity
+      finalResults.push({
+        ...res,
+        impactA: 0,
+        impactB: 0,
+        isCritical: false,
+      });
+
+      if (!useJson) {
+        console.log(
+          `\n🤝 ${chalk.bold.cyan(res.symbolA)} <-> ${chalk.bold.green(
+            res.symbolB
+          )}`
+        );
+        console.log(
+          `   ${chalk.yellow('Similarity:')} ${(res.similarity * 100).toFixed(
+            1
+          )}%`
+        );
+        console.log(`   ${chalk.yellow('Role:')}       ${res.role}`);
+        console.log(
+          `   ${chalk.yellow('Files:')}      ${chalk.dim(res.filePathA)}`
+        );
+        console.log(`                ${chalk.dim(res.filePathB)}`);
+        console.log(
+          chalk.dim(`   (Blast radius analysis unavailable for these symbols)`)
+        );
+      }
+    }
+  }
+
+  if (useJson) {
+    console.log(JSON.stringify(finalResults, null, 2));
+  } else {
+    console.log('\n' + chalk.blue('Done.') + '\n');
   }
 }
