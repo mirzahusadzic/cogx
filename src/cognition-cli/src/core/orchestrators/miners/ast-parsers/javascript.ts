@@ -73,8 +73,9 @@ export class JavaScriptParser implements ASTParser {
     ): FunctionData => {
       const name = node.name?.getText(sourceFile) || '[Anonymous]';
       const params: ParameterData[] = node.parameters.map((p) => ({
+        type: 'parameter',
         name: p.name.getText(sourceFile),
-        type: p.type?.getText(sourceFile) || 'any',
+        dataType: p.type?.getText(sourceFile) || 'any',
         optional: !!p.questionToken,
         default: p.initializer?.getText(sourceFile),
       }));
@@ -90,6 +91,7 @@ export class JavaScriptParser implements ASTParser {
           [];
       }
       return {
+        type: 'function',
         name,
         docstring: getDocstring(node),
         params,
@@ -124,12 +126,14 @@ export class JavaScriptParser implements ASTParser {
         const properties: PropertyData[] = node.members
           .filter(ts.isPropertySignature)
           .map((p) => ({
+            type: 'property',
             name: p.name.getText(sourceFile),
-            type: p.type?.getText(sourceFile) || 'any',
+            dataType: p.type?.getText(sourceFile) || 'any',
             optional: !!p.questionToken,
           }));
 
         interfaces.push({
+          type: 'interface',
           name: interfaceName,
           docstring: getDocstring(node),
           properties,
@@ -206,11 +210,12 @@ export class JavaScriptParser implements ASTParser {
             (m): m is MethodDeclaration | ConstructorDeclaration =>
               isMethodDeclaration(m) || ts.isConstructorDeclaration(m)
           )
-          .map((m) => {
+          .map((m): FunctionData => {
             if (ts.isConstructorDeclaration(m)) {
               const params: ParameterData[] = m.parameters.map((p) => ({
+                type: 'parameter',
                 name: p.name.getText(sourceFile),
-                type: p.type?.getText(sourceFile) || 'any',
+                dataType: p.type?.getText(sourceFile) || 'any',
                 optional: !!p.questionToken,
                 default: p.initializer?.getText(sourceFile),
               }));
@@ -227,6 +232,7 @@ export class JavaScriptParser implements ASTParser {
                     ) || [];
               }
               return {
+                type: 'function',
                 name: 'constructor',
                 docstring: getDocstring(m),
                 params,
@@ -253,6 +259,7 @@ export class JavaScriptParser implements ASTParser {
         }
 
         classes.push({
+          type: 'class',
           name: className,
           docstring: classDocstring,
           base_classes,
@@ -293,6 +300,7 @@ export class JavaScriptParser implements ASTParser {
         : '';
 
     return {
+      type: 'structural',
       language: 'javascript',
       docstring: fileDocstring,
       imports,

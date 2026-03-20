@@ -72,7 +72,13 @@ describe('TypeScriptParser', () => {
     expect(constructorMethod.name).toBe('constructor');
     expect(constructorMethod.docstring).toBe(''); // JSDoc for constructor is on the class
     expect(constructorMethod.params).toEqual([
-      { name: 'name', type: 'string', optional: false, default: undefined },
+      {
+        type: 'parameter',
+        name: 'name',
+        dataType: 'string',
+        optional: false,
+        default: undefined,
+      },
     ]);
     expect(constructorMethod.returns).toBe('void');
     expect(constructorMethod.is_async).toBe(false);
@@ -82,7 +88,13 @@ describe('TypeScriptParser', () => {
     expect(myMethod.name).toBe('myMethod');
     expect(myMethod.docstring).toContain('A method that returns a greeting.');
     expect(myMethod.params).toEqual([
-      { name: 'greeting', type: 'string', optional: false, default: undefined },
+      {
+        type: 'parameter',
+        name: 'greeting',
+        dataType: 'string',
+        optional: false,
+        default: undefined,
+      },
     ]);
     expect(myMethod.returns).toBe('string');
     expect(myMethod.is_async).toBe(false);
@@ -102,8 +114,20 @@ describe('TypeScriptParser', () => {
     expect(myFunction.name).toBe('myFunction');
     expect(myFunction.docstring).toContain('A standalone function.');
     expect(myFunction.params).toEqual([
-      { name: 'param1', type: 'number', optional: false, default: undefined },
-      { name: 'param2', type: 'number', optional: false, default: undefined },
+      {
+        type: 'parameter',
+        name: 'param1',
+        dataType: 'number',
+        optional: false,
+        default: undefined,
+      },
+      {
+        type: 'parameter',
+        name: 'param2',
+        dataType: 'number',
+        optional: false,
+        default: undefined,
+      },
     ]);
     expect(myFunction.returns).toBe('Promise<number>');
     expect(myFunction.is_async).toBe(true);

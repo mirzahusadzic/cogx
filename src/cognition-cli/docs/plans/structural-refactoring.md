@@ -11,28 +11,49 @@ The current architecture shows several high-similarity pairs (> 0.85) that repre
 | Symbol A                 | Symbol B                | Similarity | Primary Role       | Impact (Blast Radius) |
 | :----------------------- | :---------------------- | :--------- | :----------------- | :-------------------- |
 | `generateBashCompletion` | `generateZshCompletion` | 90.6%      | `cli_commands`     | 12 / 12               |
+| `PropertyData`           | `InterfaceData`         | 95.7%      | `structural_data`  | 42 / 45               |
+| `TransformInput`         | `TransformOutput`       | 94.0%      | `data_transform`   | 18 / 18               |
+| `ClassData`              | `InterfaceData`         | 93.1%      | `structural_data`  | 38 / 45               |
 | `ZMQBus`                 | `IPCManager`            | 88.2%      | `bus_coordination` | 24 / 28               |
 | `OverlayAlgebra`         | `ContextManager`        | 86.5%      | `logic_algebra`    | 23 / 41               |
 
+### Type Definition Explosion (0.85 - 0.95 Similarity)
+
+The `analyze-duplicates` command has identified a significant cluster of AST/Structural types in `src/core/types/` that share >90% similarity. This indicates high cognitive debt where changes to any core structural metadata must be manually synced across multiple interfaces.
+
+- `PropertyData`, `InterfaceData`, `ClassData`, `FunctionData`, and `StructuralData` are structurally nearly identical.
+- They all share common metadata: `name`, `filePath`, `startLine`, `endLine`, `modifiers`, and `docstring`.
+
 ## Refactoring Recommendations
 
-1. **Unified Shell Completion Provider**:
+1. **AST Structural Consolidation**:
+   - Introduce an `IStructuralNode` or `ASTNodeBase` interface in `src/core/types/structural.ts`.
+   - Refactor `ClassData`, `InterfaceData`, etc., to extend this base interface.
+   - Example: `interface ClassData extends ASTNodeBase { type: 'class'; methods: FunctionData[]; }`
+
+2. **Unified Shell Completion Provider**:
    - Extract common boilerplate for command registration into a `BaseCompletionGenerator`.
    - Parameterize provider-specific syntax (e.g., bash vs zsh aliases).
 
-2. **Bus Abstraction Layer**:
+3. **Bus Abstraction Layer**:
    - Consolidate `ZMQBus` and `IPCManager` into a single `MessageBus` service.
    - Reduce the combined blast radius from 52 to ~30 by centralizing the ZMQ lifecycle management.
 
-3. **Algebra Delegation**:
+4. **Algebra Delegation**:
    - Refactor `ContextManager` to delegate its logic operations directly to `OverlayAlgebra`.
    - Remove duplicated state management within the context layer.
 
+5. **Generic Transform Utilities**:
+   - Consolidate `TransformInput` and `TransformOutput` into a generic `TransformData<T>`.
+   - Centralize data transformation schemas to ensure bi-directional consistency.
+
 ## Implementation Roadmap
 
-- [ ] Implement `cognition-cli patterns analyze duplicates` command.
-- [ ] Add `--threshold` parameter to control similarity filtering.
-- [ ] Integrate impact metrics (blast-radius) into the deduplication report.
+- [x] Implement `cognition-cli patterns analyze duplicates` command.
+- [x] Add `--threshold` parameter to control similarity filtering.
+- [x] Integrate impact metrics (blast-radius) into the deduplication report.
+- [x] Refactor `src/core/types/structural.ts` with `ASTNodeBase`.
+- [ ] Consolidate `TransformInput` and `TransformOutput` into a generic `TransformData<T>`.
 - [ ] Automated CI check for high-similarity structural patterns.
 
 ---

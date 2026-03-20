@@ -104,11 +104,34 @@ export const SourceFileSchema = z.object({
 export interface SourceFile extends z.infer<typeof SourceFileSchema> {}
 
 /**
+ * Zod schema for common metadata shared across all AST nodes.
+ *
+ * This base schema ensures consistent tracking of location, documentation,
+ * and modifiers for all extracted structures.
+ */
+export const ASTNodeBaseSchema = z.object({
+  name: z.string().optional(),
+  type: z.string().optional(),
+  docstring: z.string().optional(),
+  filePath: z.string().optional(),
+  startLine: z.number().optional(),
+  endLine: z.number().optional(),
+  modifiers: z.array(z.string()).optional(),
+});
+
+/**
+ * Common metadata shared across all AST nodes.
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface ASTNodeBase extends z.infer<typeof ASTNodeBaseSchema> {}
+
+/**
  * Zod schema for validating function/method parameters.
  */
-export const ParameterDataSchema = z.object({
+export const ParameterDataSchema = ASTNodeBaseSchema.extend({
+  type: z.literal('parameter'),
   name: z.string(),
-  type: z.string(),
+  dataType: z.string(),
   optional: z.boolean().optional(),
   default: z.string().optional(),
 });
@@ -121,15 +144,17 @@ export const ParameterDataSchema = z.object({
  *
  * @example
  * const param: ParameterData = {
+ *   type: 'parameter',
  *   name: 'token',
- *   type: 'string',
+ *   dataType: 'string',
  *   optional: false
  * };
  *
  * @example
  * const optionalParam: ParameterData = {
+ *   type: 'parameter',
  *   name: 'options',
- *   type: 'AuthOptions',
+ *   dataType: 'AuthOptions',
  *   optional: true,
  *   default: '{}'
  * };
@@ -140,7 +165,8 @@ export interface ParameterData extends z.infer<typeof ParameterDataSchema> {}
 /**
  * Zod schema for validating function/method declarations.
  */
-export const FunctionDataSchema = z.object({
+export const FunctionDataSchema = ASTNodeBaseSchema.extend({
+  type: z.literal('function'),
   name: z.string(),
   docstring: z.string(),
   params: z.array(ParameterDataSchema),
@@ -163,10 +189,11 @@ export const FunctionDataSchema = z.object({
  *
  * @example
  * const functionData: FunctionData = {
+ *   type: 'function',
  *   name: 'validateToken',
  *   docstring: 'Validates JWT tokens ensuring secure authentication',
  *   params: [
- *     { name: 'token', type: 'string', optional: false }
+ *     { type: 'parameter', name: 'token', dataType: 'string', optional: false }
  *   ],
  *   returns: 'Promise<boolean>',
  *   is_async: true,
@@ -179,7 +206,8 @@ export interface FunctionData extends z.infer<typeof FunctionDataSchema> {}
 /**
  * Zod schema for validating class declarations.
  */
-export const ClassDataSchema = z.object({
+export const ClassDataSchema = ASTNodeBaseSchema.extend({
+  type: z.literal('class'),
   name: z.string(),
   docstring: z.string(),
   base_classes: z.array(z.string()),
@@ -196,6 +224,7 @@ export const ClassDataSchema = z.object({
  *
  * @example
  * const classData: ClassData = {
+ *   type: 'class',
  *   name: 'AuthHandler',
  *   docstring: 'Handles authentication and authorization',
  *   base_classes: ['BaseHandler'],
@@ -213,9 +242,10 @@ export interface ClassData extends z.infer<typeof ClassDataSchema> {}
 /**
  * Zod schema for validating class properties and interface fields.
  */
-export const PropertyDataSchema = z.object({
+export const PropertyDataSchema = ASTNodeBaseSchema.extend({
+  type: z.literal('property'),
   name: z.string(),
-  type: z.string(),
+  dataType: z.string(),
   optional: z.boolean().optional(),
 });
 
@@ -226,8 +256,9 @@ export const PropertyDataSchema = z.object({
  *
  * @example
  * const property: PropertyData = {
+ *   type: 'property',
  *   name: 'userId',
- *   type: 'string',
+ *   dataType: 'string',
  *   optional: false
  * };
  */
@@ -237,7 +268,8 @@ export interface PropertyData extends z.infer<typeof PropertyDataSchema> {}
 /**
  * Zod schema for validating interface/type alias declarations.
  */
-export const InterfaceDataSchema = z.object({
+export const InterfaceDataSchema = ASTNodeBaseSchema.extend({
+  type: z.literal('interface'),
   name: z.string(),
   docstring: z.string(),
   properties: z.array(PropertyDataSchema),
@@ -250,11 +282,12 @@ export const InterfaceDataSchema = z.object({
  *
  * @example
  * const interfaceData: InterfaceData = {
+ *   type: 'interface',
  *   name: 'AuthConfig',
  *   docstring: 'Configuration for authentication system',
  *   properties: [
- *     { name: 'jwtSecret', type: 'string', optional: false },
- *     { name: 'tokenExpiry', type: 'number', optional: true }
+ *     { type: 'property', name: 'jwtSecret', dataType: 'string', optional: false },
+ *     { type: 'property', name: 'tokenExpiry', dataType: 'number', optional: true }
  *   ]
  * };
  */
@@ -264,7 +297,7 @@ export interface InterfaceData extends z.infer<typeof InterfaceDataSchema> {}
 /**
  * Zod schema for validating complete structural analysis output.
  */
-export const StructuralDataSchema = z.object({
+export const StructuralDataSchema = ASTNodeBaseSchema.extend({
   language: z.string(),
   docstring: z.string(),
   imports: z.array(z.string()),
@@ -274,7 +307,6 @@ export const StructuralDataSchema = z.object({
   exports: z.array(z.string()).optional(),
   dependencies: z.array(z.string()).optional(),
   depth: z.number().optional(),
-  type: z.string().optional(),
   relationship: z.string().optional(),
   extraction_method: z.enum([
     'ast_native',

@@ -263,7 +263,7 @@ export class GraphTraversal {
 
           for (const method of cls.methods || []) {
             for (const param of method.params || []) {
-              const cleanType = this.cleanTypeName(param.type);
+              const cleanType = this.cleanTypeName(param.dataType);
               const targetKey = cleanType ? resolveToKey(cleanType) : null;
               if (targetKey) {
                 if (
@@ -361,7 +361,7 @@ export class GraphTraversal {
       if (structuralData.functions) {
         for (const func of structuralData.functions) {
           for (const param of func.params || []) {
-            const cleanType = this.cleanTypeName(param.type);
+            const cleanType = this.cleanTypeName(param.dataType);
             const targetKey = cleanType ? resolveToKey(cleanType) : null;
             if (targetKey) {
               if (
