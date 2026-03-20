@@ -168,7 +168,7 @@ export class PGCQueryService {
 
         // 3. THE RECEIPT: Get the manifest from that moment.
         const transformData =
-          await this.context.transformLog.getTransformData(transformId);
+          await this.context.transformLog.getTransformation(transformId);
         // We need the input that created the full file structure, which is the source for this symbol.
         if (!transformData || transformData.inputs.length === 0) continue;
         const sourceStructuralHash = transformData.inputs[0].hash;

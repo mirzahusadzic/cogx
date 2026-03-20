@@ -220,7 +220,7 @@ export class StructuralProcessingStep extends BaseStep {
       await context.pgc.reverseDeps.getTransformIds(oldStructuralHash);
     for (const transformId of transformIds) {
       const transform =
-        await context.pgc.transformLog.getTransformData(transformId);
+        await context.pgc.transformLog.getTransformation(transformId);
       if (transform) {
         for (const output of transform.outputs) {
           if (output.path) {

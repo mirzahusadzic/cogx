@@ -1013,7 +1013,7 @@ export class OverlayOrchestrator extends BaseOrchestrator {
 
     for (const transformId of allTransformIds) {
       const transformData =
-        await this.pgc.transformLog.getTransformData(transformId);
+        await this.pgc.transformLog.getTransformation(transformId);
       if (!transformData) {
         await this.pgc.transformLog.delete(transformId);
         cleanedTransformLogEntries++;

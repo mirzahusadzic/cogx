@@ -199,7 +199,7 @@ export class WorkerLogic {
 
           // 3. THE RECEIPT: Get the manifest from that moment.
           const transformData =
-            await this.pgc.transformLog.getTransformData(transformId);
+            await this.pgc.transformLog.getTransformation(transformId);
           // We need the input that created the full file structure, which is the source for this symbol.
           if (transformData && transformData.outputs.length > 0) {
             sourceStructuralHash = transformData.outputs[0].hash;

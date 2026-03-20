@@ -5,7 +5,7 @@ import { vol } from 'memfs';
 import { auditCommand } from '../audit';
 import { PGCManager } from '../../core/pgc/manager';
 import { IndexData } from '../../core/types';
-import { TransformData } from '../../core/types/transform';
+import { Transformation } from '../../core/types/transform';
 
 // Mock workerpool to prevent Vite worker parsing errors
 vi.mock('workerpool', () => ({
@@ -99,7 +99,7 @@ describe('auditCommand', () => {
       history: [transformHash1, transformHash2],
     };
 
-    const transformData1: TransformData = {
+    const transformData1: Transformation = {
       goal: { objective: 'Initial implementation', criteria: [], phimin: 0.8 },
       phi: 0.9,
       verification_result: { status: 'Success' },
@@ -107,7 +107,7 @@ describe('auditCommand', () => {
       outputs: [{ path: 'src/app.ts', hash: 'output-hash-1' }],
     };
 
-    const transformData2: TransformData = {
+    const transformData2: Transformation = {
       goal: { objective: 'Refactor feature', criteria: [], phimin: 0.8 },
       phi: 0.95,
       verification_result: { status: 'Success' },

@@ -47,7 +47,7 @@
  *
  * @example
  * // Retrieve transform data
- * const data = await log.getTransformData('abc123...');
+ * const data = await log.getTransformation('abc123...');
  * console.log(`Method: ${data.method}`);
  * console.log(`Fidelity: ${data.phi}`);
  *
@@ -61,7 +61,7 @@ import fs from 'fs-extra';
 import path from 'path';
 import yaml from 'js-yaml';
 import crypto from 'node:crypto';
-import { TransformData } from '../types/transform.js';
+import { Transformation } from '../types/transform.js';
 
 export class TransformLog {
   private transformsPath: string;
@@ -101,19 +101,19 @@ export class TransformLog {
    * @returns Transform data or null if not found
    *
    * @example
-   * const data = await log.getTransformData('abc123...');
+   * const data = await log.getTransformation('abc123...');
    * if (data) {
    *   console.log(`Transform: ${data.type}`);
    *   console.log(`Fidelity: ${data.phi}`);
    * }
    */
-  async getTransformData(hash: string): Promise<TransformData | null> {
+  async getTransformation(hash: string): Promise<Transformation | null> {
     const transformPath = this.getTransformPath(hash);
     const manifestPath = path.join(transformPath, 'manifest.yaml');
 
     if (await fs.pathExists(manifestPath)) {
       const content = await fs.readFile(manifestPath, 'utf-8');
-      return yaml.load(content) as TransformData;
+      return yaml.load(content) as Transformation;
     }
     return null;
   }
@@ -139,7 +139,7 @@ export class TransformLog {
    *   verification_result: { status: 'Success' }
    * });
    */
-  async set(hash: string, data: TransformData): Promise<void> {
+  async set(hash: string, data: Transformation): Promise<void> {
     const transformPath = this.getTransformPath(hash);
     await fs.ensureDir(transformPath);
     const manifestPath = path.join(transformPath, 'manifest.yaml');
@@ -169,11 +169,11 @@ export class TransformLog {
    * console.log(`Transform recorded: ${transformId}`);
    */
   async record(
-    data: Omit<TransformData, 'phi' | 'verification_result'>
+    data: Omit<Transformation, 'phi' | 'verification_result'>
   ): Promise<string> {
     // This is a simplified record method. In a real scenario, you'd have Oracles
     // to determine phi and verification_result.
-    const transformData: TransformData = {
+    const transformData: Transformation = {
       ...data,
       phi: 1.0, // Placeholder
       verification_result: { status: 'Success' }, // Placeholder
@@ -237,7 +237,7 @@ export class TransformLog {
    * const ids = await log.getAllTransformIds();
    * console.log(`${ids.length} transforms in PGC`);
    * for (const id of ids) {
-   *   const data = await log.getTransformData(id);
+   *   const data = await log.getTransformation(id);
    *   console.log(`${id.slice(0, 8)}: ${data.type}`);
    * }
    */

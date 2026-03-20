@@ -44,7 +44,7 @@ import { AbstractOracle } from './base.js';
 import path from 'path';
 import fs from 'fs-extra';
 
-import { TransformData } from '../../types/transform.js';
+import { Transformation } from '../../types/transform.js';
 import yaml from 'js-yaml';
 
 /**
@@ -161,7 +161,7 @@ export class GenesisOracle extends AbstractOracle {
 
             if (await fs.pathExists(manifestPath)) {
               const content = await fs.readFile(manifestPath, 'utf-8');
-              const transformData = yaml.load(content) as TransformData;
+              const transformData = yaml.load(content) as Transformation;
               for (const input of transformData.inputs) {
                 if (!(await this.pgcManager.objectStore.exists(input.hash))) {
                   messages.push(

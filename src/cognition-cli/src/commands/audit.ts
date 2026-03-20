@@ -48,7 +48,7 @@
 
 import { PGCManager } from '../core/pgc/manager.js';
 import { TransformLog } from '../core/pgc/transform-log.js';
-import { TransformData } from '../core/types/transform.js';
+import { Transformation } from '../core/types/transform.js';
 import { DocsOracle } from '../core/pgc/oracles/docs.js';
 import chalk from 'chalk';
 
@@ -105,12 +105,12 @@ export async function auditCommand(filePath: string, options: AuditOptions) {
 
   for (let i = 0; i < recentHistory.length; i++) {
     const transformHash = recentHistory[i];
-    const transformData = await transformLog.getTransformData(transformHash);
+    const transformData = await transformLog.getTransformation(transformHash);
 
     if (transformData) {
       console.log(`
 --- Iteration ${i + 1} (Transform: ${transformHash}) ---`);
-      displayTransformData(transformData);
+      displayTransformation(transformData);
     } else {
       console.log(`
 --- Iteration ${i + 1} (Transform: ${transformHash}) ---`);
@@ -127,7 +127,7 @@ export async function auditCommand(filePath: string, options: AuditOptions) {
  *
  * @param data - Transformation data to display
  */
-function displayTransformData(data: TransformData) {
+function displayTransformation(data: Transformation) {
   console.log(`  Goal: ${data.goal}`);
   console.log(`  Fidelity (Phi): ${data.phi}`);
   console.log(`  Verification Result: ${data.verification_result.status}`);

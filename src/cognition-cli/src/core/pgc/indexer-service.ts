@@ -1,7 +1,7 @@
 import { PGCStoreContext } from './store-context.js';
 import { EmbedResponse } from '../types/workbench.js';
 import { IndexData } from '../types/index.js';
-import { TransformData } from '../types/transform.js';
+import { Transformation } from '../types/transform.js';
 
 /**
  * PGCIndexerService handles write-heavy updates to the PGC data.
@@ -39,7 +39,7 @@ export class PGCIndexerService {
    * @returns The generated transform ID
    */
   public async recordTransform(
-    transformData: Omit<TransformData, 'phi' | 'verification_result'>
+    transformData: Omit<Transformation, 'phi' | 'verification_result'>
   ): Promise<string> {
     return this.context.transformLog.record(transformData);
   }

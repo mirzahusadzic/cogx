@@ -156,7 +156,7 @@ export class MaintenanceStep extends BaseStep {
 
     for (const transformId of allTransformIds) {
       const transformData =
-        await context.pgc.transformLog.getTransformData(transformId);
+        await context.pgc.transformLog.getTransformation(transformId);
       if (!transformData) {
         await context.pgc.transformLog.delete(transformId);
         cleanedTransformLogEntries++;

@@ -9,7 +9,7 @@ import { PGCStoreContext } from './store-context.js';
 import { PGCQueryService } from './query-service.js';
 import { PGCIndexerService } from './indexer-service.js';
 import { IndexData } from '../types/index.js';
-import { TransformData } from '../types/transform.js';
+import { Transformation } from '../types/transform.js';
 
 /**
  * PGCManager (Grounded Context Pool Manager)
@@ -119,7 +119,7 @@ export class PGCManager {
    * @returns The generated transform ID
    */
   public async recordTransform(
-    transformData: Omit<TransformData, 'phi' | 'verification_result'>
+    transformData: Omit<Transformation, 'phi' | 'verification_result'>
   ): Promise<string> {
     return this.indexerService.recordTransform(transformData);
   }

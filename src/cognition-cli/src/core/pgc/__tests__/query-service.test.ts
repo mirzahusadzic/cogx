@@ -15,7 +15,7 @@ describe('PGCQueryService', () => {
       getTransformIds: vi.fn(),
     },
     transformLog: {
-      getTransformData: vi.fn(),
+      getTransformation: vi.fn(),
     },
   } as unknown as PGCStoreContext;
 
@@ -128,7 +128,7 @@ describe('PGCQueryService', () => {
     );
 
     // 4. Transform data to find source input
-    vi.mocked(mockContext.transformLog.getTransformData).mockImplementation(
+    vi.mocked(mockContext.transformLog.getTransformation).mockImplementation(
       async (id) => {
         if (id === 't1') return { inputs: [{ hash: 'src_h' }] };
         return null;

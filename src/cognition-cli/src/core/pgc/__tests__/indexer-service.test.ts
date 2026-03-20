@@ -22,11 +22,11 @@ describe('PGCIndexerService', () => {
   });
 
   it('recordTransform() delegates to transformLog.record()', async () => {
-    const mockTransformData = { inputs: [], outputs: [] };
+    const mockTransformation = { inputs: [], outputs: [] };
     vi.mocked(mockContext.transformLog.record).mockResolvedValue('tid1');
-    const result = await indexerService.recordTransform(mockTransformData);
+    const result = await indexerService.recordTransform(mockTransformation);
     expect(mockContext.transformLog.record).toHaveBeenCalledWith(
-      mockTransformData
+      mockTransformation
     );
     expect(result).toBe('tid1');
   });
