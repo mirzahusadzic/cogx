@@ -126,15 +126,50 @@ export const ASTNodeBaseSchema = z.object({
 export interface ASTNodeBase extends z.infer<typeof ASTNodeBaseSchema> {}
 
 /**
+ * Helper to handle legacy structural data during schema migration.
+ * Injects the expected discriminator if missing and handles field renames.
+ *
+ * @param discriminator The expected literal value for the 'type' field
+ */
+const withLegacySupport = (discriminator: string) => (val: unknown) => {
+  if (val && typeof val === 'object' && !Array.isArray(val)) {
+    const obj = val as Record<string, unknown>;
+    const newObj = { ...obj };
+
+    // Inject discriminator if missing or incorrect (e.g. was a data type string)
+    if (obj.type !== discriminator) {
+      // For parameters and properties, the old 'type' field held the data type string
+      if (discriminator === 'parameter' || discriminator === 'property') {
+        if (typeof obj.type === 'string' && obj.type !== discriminator) {
+          newObj.dataType = obj.dataType || obj.type;
+        }
+      }
+      newObj.type = discriminator;
+    }
+    return newObj;
+  }
+  return val;
+};
+
+/**
  * Zod schema for validating function/method parameters.
  */
-export const ParameterDataSchema = ASTNodeBaseSchema.extend({
+const ParameterDataSchemaBase = ASTNodeBaseSchema.extend({
   type: z.literal('parameter'),
   name: z.string(),
   dataType: z.string(),
   optional: z.boolean().optional(),
   default: z.string().optional(),
 });
+
+/**
+ * Zod schema for validating function/method parameters.
+ * Includes legacy support for schemas where 'type' was used for data types.
+ */
+export const ParameterDataSchema = z.preprocess(
+  withLegacySupport('parameter'),
+  ParameterDataSchemaBase
+);
 
 /**
  * Function or method parameter with type information.
@@ -165,7 +200,7 @@ export interface ParameterData extends z.infer<typeof ParameterDataSchema> {}
 /**
  * Zod schema for validating function/method declarations.
  */
-export const FunctionDataSchema = ASTNodeBaseSchema.extend({
+const FunctionDataSchemaBase = ASTNodeBaseSchema.extend({
   type: z.literal('function'),
   name: z.string(),
   docstring: z.string(),
@@ -180,6 +215,15 @@ export const FunctionDataSchema = ASTNodeBaseSchema.extend({
     })
     .optional(), // Python functions have this, TypeScript does not
 });
+
+/**
+ * Zod schema for validating function/method declarations.
+ * Includes legacy support for missing 'type' discriminators.
+ */
+export const FunctionDataSchema = z.preprocess(
+  withLegacySupport('function'),
+  FunctionDataSchemaBase
+);
 
 /**
  * Function or method declaration extracted from source code.
@@ -206,7 +250,7 @@ export interface FunctionData extends z.infer<typeof FunctionDataSchema> {}
 /**
  * Zod schema for validating class declarations.
  */
-export const ClassDataSchema = ASTNodeBaseSchema.extend({
+const ClassDataSchemaBase = ASTNodeBaseSchema.extend({
   type: z.literal('class'),
   name: z.string(),
   docstring: z.string(),
@@ -215,6 +259,15 @@ export const ClassDataSchema = ASTNodeBaseSchema.extend({
   methods: z.array(FunctionDataSchema),
   decorators: z.array(z.string()),
 });
+
+/**
+ * Zod schema for validating class declarations.
+ * Includes legacy support for missing 'type' discriminators.
+ */
+export const ClassDataSchema = z.preprocess(
+  withLegacySupport('class'),
+  ClassDataSchemaBase
+);
 
 /**
  * Class declaration extracted from source code.
@@ -242,12 +295,21 @@ export interface ClassData extends z.infer<typeof ClassDataSchema> {}
 /**
  * Zod schema for validating class properties and interface fields.
  */
-export const PropertyDataSchema = ASTNodeBaseSchema.extend({
+const PropertyDataSchemaBase = ASTNodeBaseSchema.extend({
   type: z.literal('property'),
   name: z.string(),
   dataType: z.string(),
   optional: z.boolean().optional(),
 });
+
+/**
+ * Zod schema for validating class properties and interface fields.
+ * Includes legacy support for schemas where 'type' was used for data types.
+ */
+export const PropertyDataSchema = z.preprocess(
+  withLegacySupport('property'),
+  PropertyDataSchemaBase
+);
 
 /**
  * Class property or interface field.
@@ -268,12 +330,21 @@ export interface PropertyData extends z.infer<typeof PropertyDataSchema> {}
 /**
  * Zod schema for validating interface/type alias declarations.
  */
-export const InterfaceDataSchema = ASTNodeBaseSchema.extend({
+const InterfaceDataSchemaBase = ASTNodeBaseSchema.extend({
   type: z.literal('interface'),
   name: z.string(),
   docstring: z.string(),
   properties: z.array(PropertyDataSchema),
 });
+
+/**
+ * Zod schema for validating interface/type alias declarations.
+ * Includes legacy support for missing 'type' discriminators.
+ */
+export const InterfaceDataSchema = z.preprocess(
+  withLegacySupport('interface'),
+  InterfaceDataSchemaBase
+);
 
 /**
  * Interface or type alias declaration extracted from source code.
@@ -297,7 +368,8 @@ export interface InterfaceData extends z.infer<typeof InterfaceDataSchema> {}
 /**
  * Zod schema for validating complete structural analysis output.
  */
-export const StructuralDataSchema = ASTNodeBaseSchema.extend({
+const StructuralDataSchemaBase = ASTNodeBaseSchema.extend({
+  type: z.literal('source_file'),
   language: z.string(),
   docstring: z.string(),
   imports: z.array(z.string()),
@@ -317,6 +389,15 @@ export const StructuralDataSchema = ASTNodeBaseSchema.extend({
   fidelity: z.number(),
   summary: z.string().optional(),
 });
+
+/**
+ * Zod schema for validating complete structural analysis output.
+ * Includes legacy support for missing 'type' discriminators.
+ */
+export const StructuralDataSchema = z.preprocess(
+  withLegacySupport('source_file'),
+  StructuralDataSchemaBase
+);
 
 /**
  * Complete structural analysis of a source file.

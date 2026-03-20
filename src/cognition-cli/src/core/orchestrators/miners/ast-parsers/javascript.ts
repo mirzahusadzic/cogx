@@ -300,7 +300,7 @@ export class JavaScriptParser implements ASTParser {
         : '';
 
     return {
-      type: 'structural',
+      type: 'source_file',
       language: 'javascript',
       docstring: fileDocstring,
       imports,

@@ -333,7 +333,7 @@ export class TypeScriptParser implements ASTParser {
         : '';
 
     return {
-      type: 'structural',
+      type: 'source_file',
       language: 'typescript',
       docstring: fileDocstring,
       imports,

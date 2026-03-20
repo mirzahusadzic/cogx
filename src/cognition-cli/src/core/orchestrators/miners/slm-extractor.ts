@@ -112,6 +112,7 @@ export class SLMExtractor {
   ): StructuralData {
     // Define default values for StructuralData fields
     const defaults: StructuralData = {
+      type: 'source_file',
       language: language,
       docstring: '',
       imports: [],
