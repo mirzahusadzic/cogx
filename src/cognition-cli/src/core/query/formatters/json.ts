@@ -69,7 +69,11 @@ export class JsonFormatter implements IQueryFormatter {
       new Map(lineageItems.map((item) => [JSON.stringify(item), item])).values()
     );
 
-    return JSON.stringify({ symbol: question, lineage: uniqueLineage }, null, 2);
+    return JSON.stringify(
+      { symbol: question, lineage: uniqueLineage },
+      null,
+      2
+    );
   }
 
   /**
@@ -88,7 +92,9 @@ export class JsonFormatter implements IQueryFormatter {
       if (c.implements_interfaces?.includes(childSymbol)) return 'implements';
       for (const m of c.methods || []) {
         if (m.returns?.includes(childSymbol)) return 'returns';
-        if (m.params?.some((p: { type: string }) => p.type.includes(childSymbol)))
+        if (
+          m.params?.some((p: { type: string }) => p.type.includes(childSymbol))
+        )
           return 'uses';
       }
     }

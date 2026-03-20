@@ -163,7 +163,7 @@ export async function initializeProviders(
         const claude = new ClaudeProvider(apiKey);
 
         // Always register the provider (basic completions work without Agent SDK)
-        registry.register(claude);
+        registry.registerProvider(claude);
         registered.push('claude');
 
         // Check if agent mode is available (requires optional Claude Agent SDK)
@@ -204,7 +204,7 @@ export async function initializeProviders(
   if ((geminiKey || useVertex) && !registry.has('gemini')) {
     try {
       const gemini = new GeminiAgentProvider(geminiKey);
-      registry.register(gemini);
+      registry.registerProvider(gemini);
       registered.push('gemini');
     } catch (error) {
       if (skipMissingProviders) {
@@ -232,7 +232,7 @@ export async function initializeProviders(
         apiKey: openaiKey,
         baseUrl: openaiBase,
       });
-      registry.register(openai);
+      registry.registerProvider(openai);
       registered.push('openai');
     } catch (error) {
       if (skipMissingProviders) {
@@ -257,7 +257,7 @@ export async function initializeProviders(
       const minimax = new MinimaxAgentProvider({
         apiKey: minimaxKey,
       });
-      registry.register(minimax);
+      registry.registerProvider(minimax);
       registered.push('minimax');
     } catch (error) {
       if (skipMissingProviders) {

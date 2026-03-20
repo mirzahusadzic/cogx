@@ -1,7 +1,6 @@
 import { WorkbenchClient } from '../../executors/workbench-client.js';
 import { ASTParserRegistry } from './ast-parsers/index.js';
 import { SLMExtractor } from './slm-extractor.js';
-import { LLMSupervisor } from './llm-supervisor.js';
 import type { SourceFile, StructuralData } from '../../types/structural.js';
 import { StructuralDataSchema } from '../../types/structural.js';
 
@@ -32,12 +31,6 @@ import { StructuralDataSchema } from '../../types/structural.js';
  * - Handles edge cases and unusual syntax
  * - Fidelity: 0.85 (good for most code, may miss edge cases)
  *
- * Layer 3: Large Language Model (LLM) Supervised
- * - Last-resort fallback for unsupported languages
- * - Generates custom tree-sitter queries via LLM
- * - Experimental and slower
- * - Fidelity: 0.7 (covers basics, may miss nuances)
- *
  * DESIGN PATTERNS:
  * - Graceful degradation: Tries best method first, falls back automatically
  * - Fidelity tracking: Records extraction method & fidelity score with output
@@ -63,12 +56,10 @@ import { StructuralDataSchema } from '../../types/structural.js';
 export class StructuralMiner {
   private astParsers: ASTParserRegistry;
   private slmExtractor: SLMExtractor;
-  private llmSupervisor: LLMSupervisor;
 
   constructor(private workbench: WorkbenchClient) {
     this.astParsers = new ASTParserRegistry();
     this.slmExtractor = new SLMExtractor(workbench);
-    this.llmSupervisor = new LLMSupervisor(workbench);
   }
 
   /**
@@ -81,7 +72,6 @@ export class StructuralMiner {
    * 1. Try native parser (tree-sitter for TS/JS) - fidelity 1.0
    * 2. Try remote parser (eGemma workbench for Python etc) - fidelity 1.0
    * 3. Fall back to SLM (ast_analyst persona) - fidelity 0.85
-   * 4. Last resort: LLM supervisor (generates custom parser) - fidelity 0.7
    *
    * Each layer catches its own errors and logs a warning, then tries next layer.
    * If all layers fail, throws with a detailed error message.
@@ -89,7 +79,6 @@ export class StructuralMiner {
    * FIDELITY SCORES:
    * - 1.0: Deterministic AST parsing (native or remote)
    * - 0.85: SLM extraction (usually accurate, may miss edge cases)
-   * - 0.7: LLM supervised (covers basics, experimental)
    *
    * @param file - SourceFile object with content and language
    * @returns Promise<StructuralData> - Extracted structure with extraction_method and fidelity
@@ -172,13 +161,19 @@ export class StructuralMiner {
       }
     }
 
-    // Layer 3: LLM supervisor generates parser and executes
-    console.log(`Escalating ${file.path} to LLM supervisor`);
-    const result = await this.llmSupervisor.generateAndExecuteParser(file);
+    // All layers failed, return empty structure or throw
+    console.warn(`All extraction layers failed for ${file.path}`);
     return StructuralDataSchema.parse({
-      ...result,
-      extraction_method: 'llm_supervised',
-      fidelity: 0.7,
+      language: file.language || 'unknown',
+      docstring: '',
+      imports: [],
+      classes: [],
+      functions: [],
+      interfaces: [],
+      exports: [],
+      dependencies: [],
+      extraction_method: 'failed',
+      fidelity: 0.0,
     });
   }
 }

@@ -33,23 +33,6 @@ export class ProviderRegistry extends BaseRegistry<LLMProvider> {
   }
 
   /**
-   * @deprecated Use registerProvider instead for better type safety,
-   * or follow the BaseRegistry signature.
-   */
-  override register(name: string, provider: LLMProvider): void;
-  override register(provider: LLMProvider): void;
-  override register(
-    nameOrProvider: string | LLMProvider,
-    provider?: LLMProvider
-  ): void {
-    if (typeof nameOrProvider === 'string') {
-      super.register(nameOrProvider, provider!);
-    } else {
-      this.registerProvider(nameOrProvider);
-    }
-  }
-
-  /**
    * Get provider as AgentProvider (throws if not supported)
    *
    * @param name - Provider name

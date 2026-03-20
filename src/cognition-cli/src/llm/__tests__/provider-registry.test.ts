@@ -54,7 +54,7 @@ describe('ProviderRegistry', () => {
   describe('register()', () => {
     it('should register a provider', () => {
       const provider = new MockProvider('test');
-      registry.register(provider);
+      registry.registerProvider(provider);
 
       expect(registry.has('test')).toBe(true);
       expect(registry.get('test')).toBe(provider);
@@ -62,7 +62,7 @@ describe('ProviderRegistry', () => {
 
     it('should set first registered provider as default', () => {
       const provider = new MockProvider('test');
-      registry.register(provider);
+      registry.registerProvider(provider);
 
       expect(registry.getDefaultName()).toBe('test');
     });
@@ -71,17 +71,19 @@ describe('ProviderRegistry', () => {
       const provider1 = new MockProvider('test');
       const provider2 = new MockProvider('test');
 
-      registry.register(provider1);
+      registry.registerProvider(provider1);
 
-      expect(() => registry.register(provider2)).toThrow(/already registered/);
+      expect(() => registry.registerProvider(provider2)).toThrow(
+        /already registered/
+      );
     });
 
     it('should not change default when registering second provider', () => {
       const provider1 = new MockProvider('first');
       const provider2 = new MockProvider('second');
 
-      registry.register(provider1);
-      registry.register(provider2);
+      registry.registerProvider(provider1);
+      registry.registerProvider(provider2);
 
       expect(registry.getDefaultName()).toBe('first');
     });
@@ -90,7 +92,7 @@ describe('ProviderRegistry', () => {
   describe('unregister()', () => {
     it('should unregister a provider', () => {
       const provider = new MockProvider('test');
-      registry.register(provider);
+      registry.registerProvider(provider);
 
       const result = registry.unregister('test');
 
@@ -108,8 +110,8 @@ describe('ProviderRegistry', () => {
       const provider1 = new MockProvider('first');
       const provider2 = new MockProvider('second');
 
-      registry.register(provider1);
-      registry.register(provider2);
+      registry.registerProvider(provider1);
+      registry.registerProvider(provider2);
 
       registry.unregister('first');
 
@@ -120,7 +122,7 @@ describe('ProviderRegistry', () => {
   describe('get()', () => {
     it('should retrieve registered provider', () => {
       const provider = new MockProvider('test');
-      registry.register(provider);
+      registry.registerProvider(provider);
 
       const retrieved = registry.get('test');
 
@@ -135,7 +137,7 @@ describe('ProviderRegistry', () => {
 
     it('should include available providers in error message', () => {
       const provider = new MockProvider('test');
-      registry.register(provider);
+      registry.registerProvider(provider);
 
       expect(() => registry.get('wrong')).toThrow(/Available: test/);
     });
@@ -144,7 +146,7 @@ describe('ProviderRegistry', () => {
   describe('getDefault()', () => {
     it('should return default provider', () => {
       const provider = new MockProvider('test');
-      registry.register(provider);
+      registry.registerProvider(provider);
 
       const defaultProvider = registry.getDefault();
 
@@ -161,8 +163,8 @@ describe('ProviderRegistry', () => {
       const provider1 = new MockProvider('first');
       const provider2 = new MockProvider('second');
 
-      registry.register(provider1);
-      registry.register(provider2);
+      registry.registerProvider(provider1);
+      registry.registerProvider(provider2);
 
       registry.setDefault('second');
 
@@ -185,8 +187,8 @@ describe('ProviderRegistry', () => {
     });
 
     it('should return all registered provider names', () => {
-      registry.register(new MockProvider('provider1'));
-      registry.register(new MockProvider('provider2'));
+      registry.registerProvider(new MockProvider('provider1'));
+      registry.registerProvider(new MockProvider('provider2'));
 
       const providers = registry.list();
 
@@ -199,7 +201,7 @@ describe('ProviderRegistry', () => {
   describe('has()', () => {
     it('should return true for registered provider', () => {
       const provider = new MockProvider('test');
-      registry.register(provider);
+      registry.registerProvider(provider);
 
       expect(registry.has('test')).toBe(true);
     });
@@ -215,8 +217,8 @@ describe('ProviderRegistry', () => {
     });
 
     it('should return correct count', () => {
-      registry.register(new MockProvider('provider1'));
-      registry.register(new MockProvider('provider2'));
+      registry.registerProvider(new MockProvider('provider1'));
+      registry.registerProvider(new MockProvider('provider2'));
 
       expect(registry.count()).toBe(2);
     });
@@ -225,7 +227,7 @@ describe('ProviderRegistry', () => {
   describe('healthCheck()', () => {
     it('should return true for available provider', async () => {
       const provider = new MockProvider('test');
-      registry.register(provider);
+      registry.registerProvider(provider);
 
       const result = await registry.healthCheck('test');
 
@@ -234,7 +236,7 @@ describe('ProviderRegistry', () => {
 
     it('should return false for unavailable provider', async () => {
       const provider = new UnavailableProvider('test');
-      registry.register(provider);
+      registry.registerProvider(provider);
 
       const result = await registry.healthCheck('test');
 
@@ -254,8 +256,8 @@ describe('ProviderRegistry', () => {
     });
 
     it('should check all providers', async () => {
-      registry.register(new MockProvider('available'));
-      registry.register(new UnavailableProvider('unavailable'));
+      registry.registerProvider(new MockProvider('available'));
+      registry.registerProvider(new UnavailableProvider('unavailable'));
 
       const result = await registry.healthCheckAll();
 
@@ -266,8 +268,8 @@ describe('ProviderRegistry', () => {
 
   describe('clear()', () => {
     it('should remove all providers', () => {
-      registry.register(new MockProvider('provider1'));
-      registry.register(new MockProvider('provider2'));
+      registry.registerProvider(new MockProvider('provider1'));
+      registry.registerProvider(new MockProvider('provider2'));
 
       registry.clear();
 
@@ -276,7 +278,7 @@ describe('ProviderRegistry', () => {
     });
 
     it('should reset default to claude', () => {
-      registry.register(new MockProvider('test'));
+      registry.registerProvider(new MockProvider('test'));
       registry.setDefault('test');
 
       registry.clear();
