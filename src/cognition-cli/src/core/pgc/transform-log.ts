@@ -136,7 +136,7 @@ export class TransformLog {
    *   inputs: { source_file: 'VISION.md' },
    *   outputs: [{ hash: 'def456...', type: 'markdown_document' }],
    *   phi: 1.0,
-   *   verification_result: { status: 'Success' }
+   *   verification_result: { success: true, messages: [] }
    * });
    */
   async set(hash: string, data: Transformation): Promise<void> {
@@ -176,7 +176,7 @@ export class TransformLog {
     const transformData: Transformation = {
       ...data,
       phi: 1.0, // Placeholder
-      verification_result: { status: 'Success' }, // Placeholder
+      verification_result: { success: true, messages: [] }, // Placeholder
     };
 
     const content = JSON.stringify(transformData);

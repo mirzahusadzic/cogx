@@ -1,4 +1,8 @@
 import { z } from 'zod';
+import {
+  VerificationResultSchema,
+  VerificationResult,
+} from './verification.js';
 
 /**
  * Transformation and Lineage Types
@@ -37,8 +41,8 @@ import { z } from 'zod';
  *   },
  *   phi: 0.98,
  *   verification_result: {
- *     status: 'Success',
- *     details: 'All criteria met, 42 functions extracted'
+ *     success: true,
+ *     messages: ['All criteria met, 42 functions extracted']
  *   },
  *   inputs: [
  *     { path: '/src/auth/handler.ts', hash: 'abc123...' }
@@ -77,32 +81,6 @@ export const GoalDataSchema = z.object({
   phimin: z.number(),
 });
 export type GoalData = z.infer<typeof GoalDataSchema>;
-
-/**
- * Outcome of a transformation verification check.
- *
- * Verification validates that the transformation achieved its goal
- * according to predefined acceptance criteria.
- *
- * @example
- * const result: VerificationResult = {
- *   status: 'Success',
- *   details: 'Extracted 156 functions, 42 classes, 23 interfaces'
- * };
- *
- * @example
- * const failure: VerificationResult = {
- *   status: 'Failure',
- *   details: 'Parse error: Unexpected token at line 142'
- * };
- */
-export const VerificationResultSchema = z.object({
-  /** Whether verification succeeded or failed */
-  status: z.enum(['Success', 'Failure']),
-  /** Human-readable details about the verification outcome */
-  details: z.string().optional(),
-});
-export type VerificationResult = z.infer<typeof VerificationResultSchema>;
 
 /**
  * Generic artifact data structure representing an input or output of a transformation.
@@ -175,3 +153,5 @@ export type Transformation = z.infer<typeof TransformationSchema>;
 
 /** Alias for Transformation record to support legacy naming if needed */
 export type TransformationRecord = Transformation;
+
+export { VerificationResultSchema, VerificationResult };

@@ -130,7 +130,13 @@ export async function auditCommand(filePath: string, options: AuditOptions) {
 function displayTransformation(data: Transformation) {
   console.log(`  Goal: ${data.goal}`);
   console.log(`  Fidelity (Phi): ${data.phi}`);
-  console.log(`  Verification Result: ${data.verification_result.status}`);
+  const vResult = data.verification_result;
+  const statusStr = vResult.success ? 'Success' : 'Failure';
+  console.log(`  Verification Result: ${statusStr}`);
+  if (vResult.messages && vResult.messages.length > 0) {
+    console.log(`  Verification Messages:`);
+    vResult.messages.forEach((msg) => console.log(`    - ${msg}`));
+  }
   console.log(`  Inputs:`);
   for (const input of data.inputs) {
     console.log(`    - ${input.path} (${input.hash})`);

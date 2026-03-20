@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 /**
  * Verification Result Types
  *
@@ -23,26 +25,6 @@
  *     'Verified 1,234 structural patterns'
  *   ]
  * };
- *
- * @example
- * // Failed verification with diagnostics
- * const result: VerificationResult = {
- *   success: false,
- *   messages: [
- *     'ERROR: 15 dirty files detected',
- *     'ERROR: auth-handler.ts hash mismatch',
- *     'WARN: 3 untracked TypeScript files',
- *     'Run `cogni reindex` to update'
- *   ]
- * };
- *
- * @example
- * // Mission-security alignment verification
- * const alignment = await verifyOverlayCoherence();
- * if (!alignment.success) {
- *   console.error('Mission-security misalignment detected:');
- *   alignment.messages.forEach(msg => console.error(`  ${msg}`));
- * }
  */
 
 /**
@@ -50,13 +32,19 @@
  *
  * The success flag indicates whether verification passed, while messages
  * provide detailed information about what was checked and any issues found.
- *
- * Verification operations should be idempotent and non-destructive.
- * They report issues but do not modify state.
  */
-export interface VerificationResult {
+export const VerificationResultSchema = z.object({
   /** Whether verification passed (true) or failed (false) */
-  success: boolean;
+  success: z.boolean(),
   /** Diagnostic messages describing verification results and any issues */
-  messages: string[];
-}
+  messages: z.array(z.string()),
+  /** @deprecated Use success instead */
+  status: z.enum(['Success', 'Failure']).optional(),
+  /** @deprecated Use messages instead */
+  details: z.string().optional(),
+});
+
+/**
+ * VerificationResult provides a unified contract for all verification operations.
+ */
+export type VerificationResult = z.infer<typeof VerificationResultSchema>;

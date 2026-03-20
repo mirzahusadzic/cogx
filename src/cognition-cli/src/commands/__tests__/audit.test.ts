@@ -102,7 +102,7 @@ describe('auditCommand', () => {
     const transformData1: Transformation = {
       goal: { objective: 'Initial implementation', criteria: [], phimin: 0.8 },
       phi: 0.9,
-      verification_result: { status: 'Success' },
+      verification_result: { success: true, messages: [] },
       inputs: [{ path: 'src/app.ts', hash: 'input-hash-1' }],
       outputs: [{ path: 'src/app.ts', hash: 'output-hash-1' }],
     };
@@ -110,7 +110,7 @@ describe('auditCommand', () => {
     const transformData2: Transformation = {
       goal: { objective: 'Refactor feature', criteria: [], phimin: 0.8 },
       phi: 0.95,
-      verification_result: { status: 'Success' },
+      verification_result: { success: true, messages: [] },
       inputs: [{ path: 'src/app.ts', hash: 'output-hash-1' }],
       outputs: [{ path: 'src/app.ts', hash: 'output-hash-2' }],
     };
