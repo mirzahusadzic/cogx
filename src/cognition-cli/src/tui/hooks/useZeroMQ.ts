@@ -10,7 +10,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import {
-  BusCoordinator,
+  MessageBus,
   ZeroMQBus,
   AgentRegistry,
   isMultiAgentAvailable,
@@ -27,6 +27,7 @@ export interface UseZeroMQConfig {
 export interface UseZeroMQResult {
   bus: ZeroMQBus | null;
   registry: AgentRegistry | null;
+  messageBus: MessageBus | null;
   connected: boolean;
   isBusMaster: boolean;
   error: Error | null;
@@ -36,11 +37,11 @@ export interface UseZeroMQResult {
 export function useZeroMQ(config: UseZeroMQConfig): UseZeroMQResult {
   const [bus, setBus] = useState<ZeroMQBus | null>(null);
   const [registry, setRegistry] = useState<AgentRegistry | null>(null);
+  const [messageBus, setMessageBus] = useState<MessageBus | null>(null);
   const [connected, setConnected] = useState(false);
   const [isBusMaster, setIsBusMaster] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const coordinatorRef = useRef<BusCoordinator | null>(null);
-  const cleanupRef = useRef<(() => Promise<void>) | null>(null);
+  const messageBusRef = useRef<MessageBus | null>(null);
 
   // Check if multi-agent is available
   const multiAgentAvailable = isMultiAgentAvailable;
@@ -65,51 +66,42 @@ export function useZeroMQ(config: UseZeroMQConfig): UseZeroMQResult {
           systemDiagnosticsService.systemLog('tui', 'ZeroMQ: Connecting...');
         }
 
-        // Create coordinator
-        const coordinator = new BusCoordinator();
-        coordinatorRef.current = coordinator;
+        // Create and connect unified MessageBus
+        const mBus = new MessageBus({
+          agentId: config.agentId,
+          model: config.model,
+          debug: config.debug,
+        });
+        messageBusRef.current = mBus;
 
-        // Connect to bus (with race condition prevention)
-        const connectedBus = await coordinator.connectWithFallback();
+        await mBus.connect();
 
         if (!mounted) {
-          await coordinator.cleanup();
+          await mBus.disconnect();
           return;
         }
 
-        // Create registry
-        const agentRegistry = new AgentRegistry(connectedBus, config.agentId);
-
         // Register this agent
-        agentRegistry.register({
-          id: config.agentId,
+        mBus.register({
           type: 'interactive',
           model: config.model,
           capabilities: getCapabilitiesForModel(config.model),
           status: 'idle',
-          subscriptions: new Set(),
         });
 
         // Update state
-        setBus(connectedBus);
-        setRegistry(agentRegistry);
+        setBus(mBus.getUnderlyingBus());
+        setRegistry(mBus.getRegistry());
+        setMessageBus(mBus);
         setConnected(true);
-        setIsBusMaster(coordinator.getIsBusMaster());
+        setIsBusMaster(mBus.isMaster());
 
         if (config.debug) {
           systemDiagnosticsService.systemLog(
             'tui',
-            `ZeroMQ: Connected (${coordinator.getIsBusMaster() ? 'Bus Master' : 'Peer'})`
+            `ZeroMQ: Connected (${mBus.isMaster() ? 'Bus Master' : 'Peer'})`
           );
         }
-
-        // Setup cleanup function
-        cleanupRef.current = async () => {
-          if (agentRegistry && config.agentId) {
-            agentRegistry.unregister(config.agentId);
-          }
-          await coordinator.cleanup();
-        };
       } catch (err) {
         if (!mounted) return;
 
@@ -142,8 +134,8 @@ export function useZeroMQ(config: UseZeroMQConfig): UseZeroMQResult {
     return () => {
       mounted = false;
 
-      if (cleanupRef.current) {
-        cleanupRef.current().catch((err) => {
+      if (messageBusRef.current) {
+        messageBusRef.current.disconnect().catch((err) => {
           systemDiagnosticsService.systemLog(
             'tui',
             'ZeroMQ: Cleanup error:',
@@ -163,6 +155,7 @@ export function useZeroMQ(config: UseZeroMQConfig): UseZeroMQResult {
   return {
     bus,
     registry,
+    messageBus,
     connected,
     isBusMaster,
     error,

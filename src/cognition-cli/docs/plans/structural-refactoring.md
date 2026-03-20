@@ -58,6 +58,7 @@ The `analyze-duplicates` command has identified a significant cluster of AST/Str
 - [x] Consolidate `TransformInput` and `TransformOutput` into a generic `TransformData<T>`.
 - [x] Unify `VerificationResult` schema in `src/core/types/verification.ts`.
 - [x] Implement Unified Shell Completion Provider.
+- [x] Consolidate `ZMQBus` and `IPCManager` into a single `MessageBus` service.
 - [ ] Automated CI check for high-similarity structural patterns.
 
 ---

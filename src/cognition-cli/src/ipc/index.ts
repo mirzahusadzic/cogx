@@ -34,6 +34,7 @@ export * from './Payloads.js';
 export * from './ZeroMQBus.js';
 export * from './BusCoordinator.js';
 export * from './AgentRegistry.js';
+export * from './MessageBus.js';
 export { MessageQueueMonitor, AgentInfo } from './MessageQueueMonitor.js';
 export { MessagePublisher } from './MessagePublisher.js';
 export { MessageQueue } from './MessageQueue.js';

@@ -26,7 +26,17 @@ const mockCoordinator = {
   getIsBusMaster: vi.fn(() => false),
 };
 
+const mockMessageBus = {
+  connect: vi.fn(),
+  disconnect: vi.fn(),
+  register: vi.fn(),
+  getUnderlyingBus: vi.fn(() => mockBus),
+  getRegistry: vi.fn(() => mockRegistry),
+  isMaster: vi.fn(() => false),
+};
+
 vi.mock('../../../../ipc/index.js', () => ({
+  MessageBus: vi.fn(() => mockMessageBus),
   BusCoordinator: vi.fn(() => mockCoordinator),
   ZeroMQBus: vi.fn(() => mockBus),
   AgentRegistry: vi.fn(() => mockRegistry),
@@ -48,7 +58,11 @@ describe('useZeroMQ', () => {
     vi.clearAllMocks();
     mockCoordinator.connectWithFallback.mockResolvedValue(mockBus);
     mockCoordinator.cleanup.mockResolvedValue(undefined);
-    mockCoordinator.getIsBusMaster.mockReturnValue(false);
+    mockMessageBus.isMaster.mockReturnValue(false);
+
+    mockMessageBus.connect.mockResolvedValue(undefined);
+    mockMessageBus.disconnect.mockResolvedValue(undefined);
+    mockMessageBus.isMaster.mockReturnValue(false);
   });
 
   describe('initialization', () => {
@@ -96,7 +110,7 @@ describe('useZeroMQ', () => {
         expect(result.current.connected).toBe(true);
       });
 
-      expect(mockCoordinator.connectWithFallback).toHaveBeenCalled();
+      expect(mockMessageBus.connect).toHaveBeenCalled();
       expect(result.current.bus).toBe(mockBus);
     });
 
@@ -107,9 +121,8 @@ describe('useZeroMQ', () => {
         expect(result.current.connected).toBe(true);
       });
 
-      expect(mockRegistry.register).toHaveBeenCalledWith(
+      expect(mockMessageBus.register).toHaveBeenCalledWith(
         expect.objectContaining({
-          id: 'claude-1',
           type: 'interactive',
           model: 'claude',
           status: 'idle',
@@ -125,14 +138,14 @@ describe('useZeroMQ', () => {
       // Wait a bit to ensure no connection attempt
       await new Promise((resolve) => setTimeout(resolve, 50));
 
-      expect(mockCoordinator.connectWithFallback).not.toHaveBeenCalled();
+      expect(mockMessageBus.connect).not.toHaveBeenCalled();
       expect(result.current.connected).toBe(false);
     });
   });
 
   describe('bus master detection', () => {
     it('should detect bus master status', async () => {
-      mockCoordinator.getIsBusMaster.mockReturnValue(true);
+      mockMessageBus.isMaster.mockReturnValue(true);
 
       const { result } = renderHook(() => useZeroMQ(defaultConfig));
 
@@ -144,7 +157,7 @@ describe('useZeroMQ', () => {
     });
 
     it('should detect peer status', async () => {
-      mockCoordinator.getIsBusMaster.mockReturnValue(false);
+      mockMessageBus.isMaster.mockReturnValue(false);
 
       const { result } = renderHook(() => useZeroMQ(defaultConfig));
 
@@ -166,7 +179,7 @@ describe('useZeroMQ', () => {
         expect(result.current.connected).toBe(true);
       });
 
-      expect(mockRegistry.register).toHaveBeenCalledWith(
+      expect(mockMessageBus.register).toHaveBeenCalledWith(
         expect.objectContaining({
           capabilities: expect.arrayContaining([
             expect.objectContaining({ name: 'code_implementation' }),
@@ -185,7 +198,7 @@ describe('useZeroMQ', () => {
         expect(result.current.connected).toBe(true);
       });
 
-      expect(mockRegistry.register).toHaveBeenCalledWith(
+      expect(mockMessageBus.register).toHaveBeenCalledWith(
         expect.objectContaining({
           capabilities: expect.arrayContaining([
             expect.objectContaining({ name: 'architecture_design' }),
@@ -204,7 +217,7 @@ describe('useZeroMQ', () => {
         expect(result.current.connected).toBe(true);
       });
 
-      expect(mockRegistry.register).toHaveBeenCalledWith(
+      expect(mockMessageBus.register).toHaveBeenCalledWith(
         expect.objectContaining({
           capabilities: expect.arrayContaining([
             expect.objectContaining({ name: 'code_review' }),
@@ -223,7 +236,7 @@ describe('useZeroMQ', () => {
         expect(result.current.connected).toBe(true);
       });
 
-      expect(mockRegistry.register).toHaveBeenCalledWith(
+      expect(mockMessageBus.register).toHaveBeenCalledWith(
         expect.objectContaining({
           capabilities: expect.arrayContaining([
             expect.objectContaining({ name: 'general_purpose' }),
@@ -236,7 +249,7 @@ describe('useZeroMQ', () => {
   describe('error handling', () => {
     it('should handle connection errors', async () => {
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      mockCoordinator.connectWithFallback.mockRejectedValue(
+      mockMessageBus.connect.mockRejectedValue(
         new Error('Connection failed')
       );
 
@@ -257,7 +270,7 @@ describe('useZeroMQ', () => {
 
     it('should gracefully degrade on error', async () => {
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      mockCoordinator.connectWithFallback.mockRejectedValue(
+      mockMessageBus.connect.mockRejectedValue(
         new Error('ZeroMQ not available')
       );
 
@@ -286,7 +299,7 @@ describe('useZeroMQ', () => {
       unmount();
 
       await waitFor(() => {
-        expect(mockRegistry.unregister).toHaveBeenCalledWith('claude-1');
+        expect(mockMessageBus.disconnect).toHaveBeenCalled();
       });
     });
 
@@ -301,11 +314,11 @@ describe('useZeroMQ', () => {
 
       // Cleanup is called asynchronously, give it time
       await new Promise((resolve) => setTimeout(resolve, 50));
-      expect(mockCoordinator.cleanup).toHaveBeenCalled();
+      expect(mockMessageBus.disconnect).toHaveBeenCalled();
     });
 
     it('should not cleanup if connection failed', async () => {
-      mockCoordinator.connectWithFallback.mockRejectedValue(
+      mockMessageBus.connect.mockRejectedValue(
         new Error('Failed')
       );
       vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -387,8 +400,9 @@ describe('useZeroMQ', () => {
         expect(result.current.connected).toBe(true);
       });
 
-      expect(mockRegistry.register).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'custom-agent' })
+      const { MessageBus: MessageBusMock } = await import('../../../../ipc/index.js');
+      expect(MessageBusMock).toHaveBeenCalledWith(
+        expect.objectContaining({ agentId: 'custom-agent' })
       );
     });
   });

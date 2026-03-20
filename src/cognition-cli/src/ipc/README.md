@@ -14,27 +14,32 @@ It implements a **decentralized message bus** using ZeroMQ, allowing agents to c
 
 ## 🏗️ Architecture
 
-The system is built on a **Brokerless ZeroMQ** architecture with a lightweight coordination layer.
+The system is built on a **Brokerless ZeroMQ** architecture with a unified abstraction layer.
 
 ```mermaid
 graph TD
-    AgentA["TUI Agent (Master)"] <-->|TCP/5555| AgentB[Headless Worker]
-    AgentA <-->|TCP/5555| AgentC[Tools Worker]
+    AgentA["TUI Agent"] <-->|ZeroMQ| AgentB["Background Agent"]
 
     subgraph "IPC Module Layer"
-        Coord[BusCoordinator]
-        ZMQ[ZeroMQBus]
-        Reg[AgentRegistry]
-        Queue[MessageQueue]
+        MB[MessageBus]
+        MB --> Coord[BusCoordinator]
+        MB --> ZMQ[ZeroMQBus]
+        MB --> Reg[AgentRegistry]
+        MB --> Pub[MessagePublisher]
     end
 
-    AgentA --- Coord
-    Coord --- ZMQ
-    ZMQ --- Reg
-    Reg --- Queue
+    MB --- Queue[MessageQueue]
 ```
 
 ### Core Components
+
+#### 0. MessageBus (`MessageBus.ts`)
+
+The **unified entry point** for all IPC operations. It consolidates the lifecycle management of the ZeroMQ sockets and coordination locks.
+
+- **Simplified API**: `connect()`, `disconnect()`, `publish()`, `subscribe()`.
+- **Integrated Registry**: Automatically manages agent registration and discovery.
+- **Publisher Wrapper**: Provides convenience methods for broadcasting and direct messaging.
 
 #### 1. ZeroMQBus (`ZeroMQBus.ts`)
 
@@ -108,37 +113,35 @@ interface AgentMessage {
 
 ## 💻 Usage
 
-### Connecting to the Bus
+### Connecting to the Bus (Recommended)
 
 ```typescript
-import { BusCoordinator, AgentRegistry } from '../ipc';
+import { MessageBus } from '../ipc';
 
-// 1. Connect (Auto-detects Master/Peer role)
-const coordinator = new BusCoordinator();
-const bus = await coordinator.connectWithFallback();
+// 1. Initialize and Connect
+const bus = new MessageBus({
+  agentId: 'my-agent-id',
+  model: 'claude-3-5-sonnet',
+  debug: true
+});
+
+await bus.connect();
 
 // 2. Register Identity
-const registry = new AgentRegistry(bus, 'my-agent-id');
-registry.register({
-  id: 'my-agent-id',
+bus.register({
+  type: 'interactive',
   model: 'claude-3-5-sonnet',
   status: 'idle',
-  capabilities: ['code', 'review'],
+  capabilities: [
+    { name: 'code', description: 'Write code', model: 'claude' }
+  ],
 });
-```
 
-### Sending a Message
+// 3. Send Message
+await bus.broadcast('agent.status', { status: 'working' });
 
-```typescript
-import { MessagePublisher } from '../ipc';
-
-const publisher = new MessagePublisher(bus, 'my-agent-id');
-
-// Send to specific agent
-await publisher.sendMessage('target-agent-id', 'Can you review this PR?');
-
-// Broadcast to all
-await publisher.broadcast('I am starting a build task...');
+// 4. Cleanup
+await bus.disconnect();
 ```
 
 ### Receiving Messages
