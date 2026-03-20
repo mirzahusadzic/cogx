@@ -326,7 +326,7 @@ export async function securityListCommand(
 
       if (actionOptions.type) {
         items = items.filter(
-          (item) => item.metadata.securityType === actionOptions.type
+          (item) => item.metadata.type === actionOptions.type
         );
       }
 
@@ -367,7 +367,7 @@ export async function securityListCommand(
                 : chalk.dim;
 
           log.info(
-            `${i + 1}. ${severityColor(`[${item.metadata.severity?.toUpperCase() || 'UNKNOWN'}]`)} ${item.metadata.securityType}`
+            `${i + 1}. ${severityColor(`[${(item.metadata.severity || 'LOW').toUpperCase()}]`)} ${item.metadata.type || 'UNKNOWN'}`
           );
           log.info(chalk.dim(`   ${item.metadata.text}`));
           if (item.metadata.cveId)
@@ -528,7 +528,7 @@ export async function securityQueryCommand(
                 : chalk.dim;
 
           log.info(
-            `${i + 1}. ${severityColor(`[${item.severity?.toUpperCase() || 'UNKNOWN'}]`)} ${item.type}`
+            `${i + 1}. ${severityColor(`[${(item.severity || 'LOW').toUpperCase()}]`)} ${item.type || 'UNKNOWN'}`
           );
           log.info(chalk.dim(`   ${item.text}`));
           log.info('');

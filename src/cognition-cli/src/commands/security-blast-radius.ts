@@ -240,7 +240,7 @@ export async function analyzeSecurityBlastRadius(
               item: OverlayItem<SecurityMetadata>;
               similarity: number;
             }) => ({
-              type: t.item.metadata.securityType,
+              type: t.item.metadata.type,
               severity: t.item.metadata.severity,
               description: t.item.metadata.text,
               similarity: t.similarity,
@@ -324,12 +324,12 @@ export async function analyzeSecurityBlastRadius(
 
         console.log(
           severityColor(
-            `   ├─ ${threat.item.metadata.securityType.toUpperCase()}: ${threat.item.metadata.text.substring(0, 80)}`
+            `   ├─ ${(threat.item.metadata.type || 'UNKNOWN').toUpperCase()}: ${threat.item.metadata.text.substring(0, 80)}`
           )
         );
         console.log(
           chalk.dim(
-            `   │    Severity: ${threat.item.metadata.severity.toUpperCase()} | Relevance: ${(threat.similarity * 100).toFixed(1)}%`
+            `   │    Severity: ${(threat.item.metadata.severity || 'low').toUpperCase()} | Relevance: ${(threat.similarity * 100).toFixed(1)}%`
           )
         );
         if (threat.item.metadata.mitigation) {
@@ -532,7 +532,7 @@ function generateRecommendations(
     item: {
       metadata: {
         severity: string;
-        securityType: string;
+        type: string;
         text: string;
         mitigation?: string;
       };
@@ -557,7 +557,7 @@ function generateRecommendations(
         );
       } else {
         recommendations.push(
-          `${chalk.red('CRITICAL')}: Address ${threat.item.metadata.securityType} immediately`
+          `${chalk.red('CRITICAL')}: Address ${threat.item.metadata.type || 'security issue'} immediately`
         );
       }
     }
