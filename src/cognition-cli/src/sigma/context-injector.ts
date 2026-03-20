@@ -14,42 +14,7 @@
 import type { TurnAnalysis } from './types.js';
 import type { EmbeddingService } from '../core/services/embedding.js';
 import { systemDiagnosticsService } from '../core/services/diagnostics/SystemDiagnosticsService.js';
-
-/**
- * Cosine similarity between two vectors
- *
- * Formula: dot(a, b) / (||a|| × ||b||)
- *
- * @param a - First vector
- * @param b - Second vector
- * @returns Similarity score from -1 (opposite) to 1 (identical)
- *
- * @throws Error if vectors have different dimensions
- *
- * @private
- */
-function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length) {
-    throw new Error('Vectors must have same dimensions');
-  }
-
-  let dotProduct = 0;
-  let magA = 0;
-  let magB = 0;
-
-  for (let i = 0; i < a.length; i++) {
-    dotProduct += a[i] * b[i];
-    magA += a[i] * a[i];
-    magB += b[i] * b[i];
-  }
-
-  magA = Math.sqrt(magA);
-  magB = Math.sqrt(magB);
-
-  if (magA === 0 || magB === 0) return 0;
-
-  return dotProduct / (magA * magB);
-}
+import { cosineSimilarity } from '../core/algebra/math.js';
 
 /**
  * Calculate relevance score for a turn

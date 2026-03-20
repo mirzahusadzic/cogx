@@ -32,7 +32,8 @@
     "lint:staged": "git diff --name-only --cached --diff-filter=ACMR | sed 's|^src/cognition-cli/||' | xargs -r sh -c 'ts_files=$(echo \"$@\" | tr \" \" \"\\n\" | grep -E \"^src/.*\\.(ts|tsx)$\" | tr \"\\n\" \" \"); md_files=$(echo \"$@\" | tr \" \" \"\\n\" | grep \"\\.md$\" | tr \"\\n\" \" \"); [ -n \"$ts_files\" ] && eslint $ts_files; [ -n \"$md_files\" ] && markdownlint $md_files; true' sh",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
     "format:changed": "git diff --name-only --diff-filter=ACMR HEAD | sed 's|^src/cognition-cli/||' | grep -E '\\.(ts|tsx|js|json|md)$' | xargs -r prettier --write",
-    "format:staged": "git diff --name-only --cached --diff-filter=ACMR | sed 's|^src/cognition-cli/||' | grep -E '\\.(ts|tsx|js|json|md)$' | xargs -r prettier --write"
+    "format:staged": "git diff --name-only --cached --diff-filter=ACMR | sed 's|^src/cognition-cli/||' | grep -E '\\.(ts|tsx|js|json|md)$' | xargs -r prettier --write",
+    "check:similarity": "tsx scripts/check-similarity.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.69.0",

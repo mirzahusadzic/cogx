@@ -27,25 +27,32 @@ The `analyze-duplicates` command has identified a significant cluster of AST/Str
 ## Refactoring Recommendations
 
 1. **AST Structural Consolidation**:
-   - Introduce an `IStructuralNode` or `ASTNodeBase` interface in `src/core/types/structural.ts`.
-   - Refactor `ClassData`, `InterfaceData`, etc., to extend this base interface.
-   - Example: `interface ClassData extends ASTNodeBase { type: 'class'; methods: FunctionData[]; }`
+   - [x] Introduce an `IStructuralNode` or `ASTNodeBase` interface in `src/core/types/structural.ts`.
+   - [x] Refactor `ClassData`, `InterfaceData`, etc., to extend this base interface.
+   - [x] Add mandatory `type` discriminators for backward compatibility.
 
 2. **Unified Shell Completion Provider**:
-   - Extract common boilerplate for command registration into a `BaseCompletionGenerator`.
-   - Parameterize provider-specific syntax (e.g., bash vs zsh aliases).
+   - [x] Extract common boilerplate for command registration into a `BaseCompletionGenerator`.
+   - [x] Extract CLI command and flag metadata into `src/commands/completion-metadata.ts`.
+   - [x] Implement Bash, Zsh, and Fish completion generators.
 
 3. **Bus Abstraction Layer**:
-   - Consolidate `ZMQBus` and `IPCManager` into a single `MessageBus` service.
-   - Reduce the combined blast radius from 52 to ~30 by centralizing the ZMQ lifecycle management.
+   - [x] Consolidate `ZMQBus` and `IPCManager` into a single `MessageBus` service in `src/ipc/MessageBus.ts`.
+   - [x] Simplify `useZeroMQ` hook to use the new abstraction.
+   - [x] Reduce combined blast radius by centralizing the ZMQ lifecycle management.
 
 4. **Algebra Delegation**:
-   - Refactor `ContextManager` to delegate its logic operations directly to `OverlayAlgebra`.
-   - Remove duplicated state management within the context layer.
+   - [x] Refactor `ContextManager` (and other managers) to delegate its logic operations directly to `OverlayAlgebra`.
+   - [x] Implemented `BaseOverlayManager` in `src/core/algebra/base-manager.ts`.
+   - [x] Refactored `BasePatternManager`, `BaseConversationManager`, and `CoherenceAlgebraAdapter` to extend it.
+   - [x] Unified vector similarity logic across all overlays.
+   - [x] Remove duplicated state management within the context layer.
 
 5. **Generic Transform Utilities**:
-   - Consolidate `TransformInput` and `TransformOutput` into a generic `TransformData<T>`.
-   - Centralize data transformation schemas to ensure bi-directional consistency.
+   - [x] Consolidate `TransformInput` and `TransformOutput` into a generic `TransformData<T>`.
+   - [x] Centralize data transformation schemas to ensure bi-directional consistency.
+   - [x] Unify `VerificationResult` schema in `src/core/types/verification.ts`.
+   - [x] Implement backward compatibility for structural and transform data.
 
 ## Implementation Roadmap
 
@@ -59,7 +66,10 @@ The `analyze-duplicates` command has identified a significant cluster of AST/Str
 - [x] Unify `VerificationResult` schema in `src/core/types/verification.ts`.
 - [x] Implement Unified Shell Completion Provider.
 - [x] Consolidate `ZMQBus` and `IPCManager` into a single `MessageBus` service.
-- [ ] Automated CI check for high-similarity structural patterns.
+- [x] Automated CI check for high-similarity structural patterns.
+  - [x] Implement `scripts/check-similarity.ts` and `npm run check:similarity`.
+  - [x] Integrate into CI pipeline (conceptual, added script to `package.json`).
+  - [x] Establish baseline allow-list in `.similarity-allowlist.json`.
 
 ---
 

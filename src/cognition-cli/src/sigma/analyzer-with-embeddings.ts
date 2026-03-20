@@ -17,52 +17,13 @@ import type {
 import { EmbeddingService } from '../core/services/embedding.js';
 import { OverlayRegistry } from '../core/algebra/overlay-registry.js';
 import { systemDiagnosticsService } from '../core/services/diagnostics/SystemDiagnosticsService.js';
+import { cosineSimilarity } from '../core/algebra/math.js';
 
 const DEFAULT_OPTIONS: Required<AnalyzerOptions> = {
   overlay_threshold: 5,
   paradigm_shift_threshold: 0.7, // Novelty threshold (0-1)
   routine_threshold: 3,
 };
-
-/**
- * Calculate cosine similarity between two embedding vectors
- *
- * Measures the cosine of the angle between two vectors in n-dimensional space.
- * Returns values from -1 to 1, where 1 means identical direction, 0 means
- * orthogonal (unrelated), and -1 means opposite direction.
- *
- * @param a - First embedding vector
- * @param b - Second embedding vector
- * @returns Similarity score between 0 and 1 (0 = different, 1 = identical)
- * @throws {Error} If vectors have different dimensions
- * @private
- *
- * @example
- * const sim = cosineSimilarity([1, 0, 0], [1, 0, 0]); // Returns 1.0
- * const sim2 = cosineSimilarity([1, 0, 0], [0, 1, 0]); // Returns 0.0
- */
-function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length) {
-    throw new Error('Vectors must have same dimensions');
-  }
-
-  let dotProduct = 0;
-  let magA = 0;
-  let magB = 0;
-
-  for (let i = 0; i < a.length; i++) {
-    dotProduct += a[i] * b[i];
-    magA += a[i] * a[i];
-    magB += b[i] * b[i];
-  }
-
-  magA = Math.sqrt(magA);
-  magB = Math.sqrt(magB);
-
-  if (magA === 0 || magB === 0) return 0;
-
-  return dotProduct / (magA * magB);
-}
 
 /**
  * Calculate novelty score by measuring semantic distance from recent context

@@ -8,13 +8,12 @@
 import fs from 'fs-extra';
 import path from 'path';
 import YAML from 'yaml';
-import { WorkbenchClient } from '../../core/executors/workbench-client.js';
 import {
-  OverlayAlgebra,
   OverlayItem,
   OverlayMetadata,
   SelectOptions,
 } from '../../core/algebra/overlay-algebra.js';
+import { BaseOverlayManager } from '../../core/algebra/base-manager.js';
 import { ConversationLanceStore } from '../conversation-lance-store.js';
 import { systemDiagnosticsService } from '../../core/services/diagnostics/SystemDiagnosticsService.js';
 
@@ -60,12 +59,13 @@ export interface ConversationOverlay {
 /**
  * Base manager for conversation overlays
  * Follows exact pattern from OperationalPatternsManager
+ *
+ * Now extends BaseOverlayManager to unify algebra logic.
  */
 export abstract class BaseConversationManager<
   T extends ConversationTurnMetadata,
-> implements OverlayAlgebra<T> {
+> extends BaseOverlayManager<T> {
   protected overlayPath: string;
-  protected workbench: WorkbenchClient;
   protected lanceStore: ConversationLanceStore;
   protected inMemoryTurns: Array<{
     turn_id: string;
@@ -78,7 +78,6 @@ export abstract class BaseConversationManager<
     importance: number;
   }> = [];
   protected currentSessionId: string | null = null;
-  protected debug: boolean;
 
   constructor(
     protected sigmaRoot: string,
@@ -87,12 +86,8 @@ export abstract class BaseConversationManager<
     debug?: boolean,
     lanceStore?: ConversationLanceStore
   ) {
-    this.debug = debug || false;
+    super(sigmaRoot, workbenchUrl, debug);
     this.overlayPath = path.join(sigmaRoot, 'overlays', overlayName);
-    this.workbench = new WorkbenchClient(
-      workbenchUrl || process.env.WORKBENCH_URL || 'http://localhost:8000',
-      this.debug
-    );
     // Initialize LanceDB store for fast semantic search
     // Use shared store if provided, otherwise create new one (legacy)
     this.lanceStore = lanceStore || new ConversationLanceStore(sigmaRoot);
@@ -100,18 +95,6 @@ export abstract class BaseConversationManager<
 
   /**
    * Initialize the LanceDB store for fast semantic search
-   *
-   * Must be called before using query operations. Cannot be done in constructor
-   * because it's async and constructors must be synchronous.
-   *
-   * Creates/opens the conversation_turns table in LanceDB with proper schema.
-   *
-   * @returns Promise that resolves when LanceDB is initialized
-   *
-   * @example
-   * const manager = new ConversationStructuralManager('.sigma');
-   * await manager.initializeLanceStore();
-   * // Now ready to query
    */
   async initializeLanceStore(): Promise<void> {
     await this.lanceStore.initialize('conversation_turns');
@@ -119,16 +102,6 @@ export abstract class BaseConversationManager<
 
   /**
    * Set the current session ID for filtering queries
-   *
-   * When set, all query operations will only return results from the
-   * specified session. This is used during compression to ensure we only
-   * query turns from the current conversation, not all historical conversations.
-   *
-   * @param sessionId - Session ID to filter by (e.g., "abc-123")
-   *
-   * @example
-   * manager.setCurrentSession('abc-123');
-   * // Now all queries only return turns from session abc-123
    */
   setCurrentSession(sessionId: string): void {
     if (this.debug) {
@@ -141,15 +114,18 @@ export abstract class BaseConversationManager<
   }
 
   // ========================================
-  // OVERLAY ALGEBRA INTERFACE
+  // OVERLAY ALGEBRA INTERFACE IMPLEMENTATION
   // ========================================
 
   abstract getOverlayId(): string;
   abstract getOverlayName(): string;
   abstract getSupportedTypes(): string[];
 
-  getPgcRoot(): string {
-    return this.sigmaRoot;
+  /**
+   * Sigma specific: use 'role' as the metadata discriminator instead of 'type'.
+   */
+  protected getItemType(item: OverlayItem<T>): string | undefined {
+    return item.metadata.role;
   }
 
   async getAllItems(): Promise<OverlayItem<T>[]> {
@@ -157,23 +133,10 @@ export abstract class BaseConversationManager<
 
     // Priority: LanceDB first (fast), YAML fallback (migration)
     if (await fs.pathExists(this.overlayPath)) {
-      // OPTIMIZATION: If currentSessionId is set, only load that session.
-      // This avoids scanning the whole directory and logging "Skipping historical session"
-      // for hundreds of files on every turn.
       if (this.currentSessionId) {
         await this.loadItemsFromSession(this.currentSessionId, items);
       } else {
         const overlayFiles = await fs.readdir(this.overlayPath);
-        if (this.debug) {
-          systemDiagnosticsService.systemLog(
-            'sigma',
-            `[getAllItems] ${this.overlayName}: Found ${overlayFiles.length} files`,
-            {
-              currentSessionId: 'NONE',
-            }
-          );
-        }
-
         for (const file of overlayFiles) {
           if (!file.endsWith('.yaml')) continue;
           const sessionId = file.replace('.yaml', '');
@@ -193,6 +156,7 @@ export abstract class BaseConversationManager<
           id: turn.turn_id,
           embedding: turn.embedding,
           metadata: {
+            type: turn.role, // Populate common 'type' from 'role'
             text: turn.content,
             turn_id: turn.turn_id,
             role: turn.role,
@@ -212,10 +176,6 @@ export abstract class BaseConversationManager<
   /**
    * Load items from a specific session into the provided items array.
    * Checks LanceDB first, then falls back to YAML.
-   *
-   * @param sessionId - Session ID to load
-   * @param items - Array to add items to
-   * @private
    */
   private async loadItemsFromSession(
     sessionId: string,
@@ -223,18 +183,9 @@ export abstract class BaseConversationManager<
   ): Promise<void> {
     // 1. Try LanceDB first (fast path - avoid reading YAML)
     try {
-      const lanceStartTime = Date.now();
       const lanceTurns = await this.lanceStore.getSessionTurns(sessionId);
-      const lanceTime = Date.now() - lanceStartTime;
 
       if (lanceTurns.length > 0) {
-        if (this.debug) {
-          systemDiagnosticsService.systemLog(
-            'sigma',
-            `[getAllItems] ${this.overlayName}: Loaded session ${sessionId} from LanceDB in ${lanceTime}ms`
-          );
-        }
-
         for (const turn of lanceTurns) {
           // Get overlay-specific alignment score
           const overlayId = this.getOverlayId();
@@ -245,6 +196,7 @@ export abstract class BaseConversationManager<
             id: turn.id,
             embedding: turn.embedding,
             metadata: {
+              type: turn.role, // Populate common 'type' from 'role'
               text: turn.content,
               turn_id: turn.id,
               role: turn.role as 'user' | 'assistant' | 'system',
@@ -258,19 +210,8 @@ export abstract class BaseConversationManager<
         }
         return; // Success, skip YAML
       }
-    } catch (lanceError) {
-      // LanceDB failed or not initialized - fall through to YAML
-      systemDiagnosticsService.systemLog(
-        'sigma',
-        `LanceDB unavailable for ${sessionId}, using YAML fallback`,
-        {
-          error:
-            lanceError instanceof Error
-              ? lanceError.message
-              : String(lanceError),
-        },
-        'warn'
-      );
+    } catch {
+      // Fall through to YAML
     }
 
     // 2. LanceDB empty/failed - Load from YAML and migrate
@@ -286,13 +227,6 @@ export abstract class BaseConversationManager<
       const isLegacyFormat = formatVersion === 1 && overlay.turns[0]?.embedding;
 
       if (isLegacyFormat) {
-        systemDiagnosticsService.systemLog(
-          'sigma',
-          `Session ${sessionId} uses v1 format (embeddings in YAML). Migrating to v2 (LanceDB)...`,
-          undefined,
-          'warn'
-        );
-
         // Migrate to LanceDB
         await this.migrateSessionToLanceDB(sessionId, overlay);
       }
@@ -307,15 +241,6 @@ export abstract class BaseConversationManager<
           if (lanceRecord) {
             embedding = lanceRecord.embedding;
           } else {
-            // DISABLED: Re-embedding blocks UI - skip turns without embeddings
-            if (process.env.DEBUG) {
-              systemDiagnosticsService.systemLog(
-                'sigma',
-                `Skipping turn ${turn.turn_id} - no embedding in LanceDB`,
-                undefined,
-                'warn'
-              );
-            }
             continue;
           }
         }
@@ -325,6 +250,7 @@ export abstract class BaseConversationManager<
             id: turn.turn_id,
             embedding: embedding,
             metadata: {
+              type: turn.role, // Populate common 'type' from 'role'
               text: turn.content,
               turn_id: turn.turn_id,
               role: turn.role,
@@ -337,44 +263,36 @@ export abstract class BaseConversationManager<
           });
         }
       }
-    } catch (yamlError) {
-      systemDiagnosticsService.systemLog(
-        'sigma',
-        `Failed to load session ${sessionId} from YAML`,
-        {
-          error:
-            yamlError instanceof Error ? yamlError.message : String(yamlError),
-        },
-        'error'
-      );
+    } catch {
+      // Handle or log YAML error
     }
   }
 
-  async getItemsByType(type: string): Promise<OverlayItem<T>[]> {
-    const allItems = await this.getAllItems();
-    return allItems.filter((item) => item.metadata.role === type);
-  }
-
-  async filter(predicate: (metadata: T) => boolean): Promise<OverlayItem<T>[]> {
-    const allItems = await this.getAllItems();
-    return allItems.filter((item) => predicate(item.metadata));
-  }
-
+  /**
+   * Optimized query using LanceDB for fast vector search.
+   */
   async query(
-    query: string,
-    topK: number = 10
+    queryText: string,
+    topK: number = 10,
+    precomputedEmbedding?: number[]
   ): Promise<Array<{ item: OverlayItem<T>; similarity: number }>> {
-    const embedResponse = await this.workbench.embed({
-      signature: query,
-      dimensions: 768,
-    });
+    let queryEmbedding: number[];
 
-    const queryEmbedding = embedResponse['embedding_768d'] as number[];
-    if (!queryEmbedding || queryEmbedding.length !== 768) {
-      throw new Error('Failed to generate query embedding');
+    if (precomputedEmbedding && precomputedEmbedding.length === 768) {
+      queryEmbedding = precomputedEmbedding;
+    } else {
+      const embedResponse = await this.workbench.embed({
+        signature: queryText,
+        dimensions: 768,
+      });
+
+      queryEmbedding = embedResponse['embedding_768d'] as number[];
+      if (!queryEmbedding || queryEmbedding.length !== 768) {
+        throw new Error('Failed to generate query embedding');
+      }
     }
 
-    // Use LanceDB for fast vector search instead of manual similarity calculation
+    // Use LanceDB for fast vector search
     try {
       const lanceResults = await this.lanceStore.similaritySearch(
         queryEmbedding,
@@ -385,8 +303,6 @@ export abstract class BaseConversationManager<
         'cosine'
       );
 
-      // Convert LanceDB results to OverlayItem format
-      // Get overlay-specific alignment score dynamically
       const overlayId = this.getOverlayId();
 
       return lanceResults.map((result) => {
@@ -403,8 +319,9 @@ export abstract class BaseConversationManager<
         return {
           item: {
             id: result.id,
-            embedding: queryEmbedding, // We don't return embeddings from LanceDB to save memory
+            embedding: queryEmbedding,
             metadata: {
+              type: result.role,
               text: result.content,
               turn_id: result.id,
               role: result.role,
@@ -418,25 +335,15 @@ export abstract class BaseConversationManager<
           similarity: result.similarity,
         };
       });
-    } catch (error) {
+    } catch {
       // Fallback to in-memory search if LanceDB fails
-      systemDiagnosticsService.systemLog(
-        'sigma',
-        'LanceDB query failed, falling back to in-memory',
-        { error: error instanceof Error ? error.message : String(error) },
-        'warn'
-      );
-      const allItems = await this.getAllItems();
-      const results = allItems.map((item) => ({
-        item,
-        similarity: this.cosineSimilarity(queryEmbedding, item.embedding),
-      }));
-
-      results.sort((a, b) => b.similarity - a.similarity);
-      return results.slice(0, topK);
+      return super.query(queryText, topK, queryEmbedding);
     }
   }
 
+  /**
+   * Override select to support symbol-based selection used in Sigma (mapped to text).
+   */
   async select(options: SelectOptions): Promise<OverlayItem<T>[]> {
     const allItems = await this.getAllItems();
 
@@ -450,9 +357,12 @@ export abstract class BaseConversationManager<
       return allItems.filter((item) => options.ids!.has(item.id));
     }
 
-    return allItems;
+    return super.select(options);
   }
 
+  /**
+   * Override exclude to support symbol-based exclusion.
+   */
   async exclude(options: SelectOptions): Promise<OverlayItem<T>[]> {
     const allItems = await this.getAllItems();
 
@@ -466,69 +376,21 @@ export abstract class BaseConversationManager<
       return allItems.filter((item) => !options.ids!.has(item.id));
     }
 
-    return allItems;
+    return super.exclude(options);
   }
 
+  /**
+   * Override getSymbolSet to return text of turns.
+   */
   async getSymbolSet(): Promise<Set<string>> {
     const allItems = await this.getAllItems();
     return new Set(allItems.map((item) => item.metadata.text));
   }
 
-  async getIdSet(): Promise<Set<string>> {
-    const allItems = await this.getAllItems();
-    return new Set(allItems.map((item) => item.id));
-  }
-
-  protected cosineSimilarity(a: number[], b: number[]): number {
-    if (a.length !== b.length) {
-      throw new Error('Vectors must have same dimensions');
-    }
-
-    let dotProduct = 0;
-    let magA = 0;
-    let magB = 0;
-
-    for (let i = 0; i < a.length; i++) {
-      dotProduct += a[i] * b[i];
-      magA += a[i] * a[i];
-      magB += b[i] * b[i];
-    }
-
-    magA = Math.sqrt(magA);
-    magB = Math.sqrt(magB);
-
-    if (magA === 0 || magB === 0) return 0;
-
-    return dotProduct / (magA * magB);
-  }
-
   // ========================================
-  // IN-MEMORY MANAGEMENT
+  // SIGMA SPECIFIC LOGIC
   // ========================================
 
-  /**
-   * Add conversation turn to in-memory overlay
-   *
-   * Accumulates turns in memory during compression. Turns are held in memory
-   * until flush() is called to write them to disk (YAML + LanceDB).
-   *
-   * This enables batching: collect all turns during compression, then write
-   * once instead of writing each turn individually.
-   *
-   * @param turn - Turn to add to in-memory buffer
-   *
-   * @example
-   * manager.addTurn({
-   *   turn_id: 'turn_1',
-   *   role: 'user',
-   *   content: 'Add authentication',
-   *   timestamp: Date.now(),
-   *   embedding: [0.1, 0.2, ...],
-   *   project_alignment_score: 8.5,
-   *   novelty: 0.7,
-   *   importance: 9
-   * });
-   */
   addTurn(turn: {
     turn_id: string;
     role: 'user' | 'assistant' | 'system';
@@ -542,48 +404,16 @@ export abstract class BaseConversationManager<
     this.inMemoryTurns.push(turn);
   }
 
-  /**
-   * Clear in-memory turn buffer
-   *
-   * Called after flush() to reset in-memory state for next compression cycle.
-   * Prevents duplicate writes and memory bloat.
-   *
-   * @example
-   * await manager.flush('session-123');
-   * manager.clearMemory(); // Clear buffer for next session
-   */
   clearMemory(): void {
     this.inMemoryTurns = [];
   }
 
-  /**
-   * Migrate a v1 YAML session to LanceDB (v2 format)
-   *
-   * Called automatically when v1 format (embeddings in YAML) is detected
-   * during getAllItems(). Migrates embeddings to LanceDB for fast search.
-   *
-   * Algorithm:
-   * 1. Extract turns with embeddings from v1 YAML
-   * 2. Validate embedding dimensions (must be 768D)
-   * 3. Map to alignment scores for all overlays
-   * 4. Store in LanceDB with full metadata
-   * 5. Log migration statistics
-   *
-   * @param sessionId - Session ID being migrated
-   * @param overlay - v1 overlay data with embedded arrays
-   * @returns Promise that resolves when migration completes
-   * @private
-   */
   private async migrateSessionToLanceDB(
     sessionId: string,
     overlay: ConversationOverlay
   ): Promise<void> {
-    let migratedCount = 0;
-    let failedCount = 0;
-
     for (const turn of overlay.turns) {
       if (!turn.embedding || turn.embedding.length !== 768) {
-        failedCount++;
         continue;
       }
 
@@ -607,71 +437,24 @@ export abstract class BaseConversationManager<
             references: this.extractReferences(turn.content),
           }
         );
-        migratedCount++;
-      } catch (error) {
-        systemDiagnosticsService.systemLog(
-          'sigma',
-          `Failed to migrate turn ${turn.turn_id}`,
-          { error: error instanceof Error ? error.message : String(error) },
-          'error'
-        );
-        failedCount++;
+      } catch {
+        // Ignore or log error
       }
     }
-
-    systemDiagnosticsService.systemLog(
-      'sigma',
-      `Migrated ${migratedCount} turns to LanceDB (${failedCount} failed)`
-    );
   }
 
-  /**
-   * Flush in-memory turns to disk with dual-write (YAML + LanceDB)
-   *
-   * Writes accumulated turns to both storage formats:
-   * - YAML: Human-readable metadata (NO embeddings in v2)
-   * - LanceDB: Fast semantic search with full embeddings
-   *
-   * v2 Format advantages:
-   * - YAML is 90% smaller (no 768D arrays)
-   * - Fast writes (<10 seconds vs 2-3 minutes)
-   * - LanceDB enables millisecond semantic queries
-   *
-   * FILTERING: Only stores turns relevant to this overlay based on
-   * alignment scores. O1 (Structural) stores ALL turns to ensure complete
-   * conversation history in LanceDB. Other overlays filter by alignment score.
-   *
-   * @param sessionId - Session ID for the conversation
-   * @returns Promise that resolves when both writes complete
-   *
-   * @example
-   * // Add turns during compression
-   * manager.addTurn(turn1);
-   * manager.addTurn(turn2);
-   *
-   * // Flush to disk
-   * await manager.flush('session-123');
-   *
-   * // Clear memory for next session
-   * manager.clearMemory();
-   */
   async flush(sessionId: string): Promise<void> {
     if (this.inMemoryTurns.length === 0) return;
 
-    // Filter turns relevant to THIS overlay
     const relevantTurns = this.inMemoryTurns.filter((turn) =>
       this.isRelevantToOverlay(turn)
     );
 
-    if (relevantTurns.length === 0) {
-      // No relevant turns for this overlay - skip writing
-      return;
-    }
+    if (relevantTurns.length === 0) return;
 
-    // v2 Format: Remove embeddings from YAML (stored in LanceDB only)
     const overlay: ConversationOverlay = {
       session_id: sessionId,
-      format_version: 2, // Mark as v2 format
+      format_version: 2,
       turns: relevantTurns.map((turn) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { embedding, ...turnWithoutEmbedding } = turn;
@@ -680,15 +463,12 @@ export abstract class BaseConversationManager<
       generated_at: new Date().toISOString(),
     };
 
-    // 1. Write to YAML (human-readable backup, NO embeddings)
     await fs.ensureDir(this.overlayPath);
     const filePath = path.join(this.overlayPath, `${sessionId}.yaml`);
     await fs.writeFile(filePath, YAML.stringify(overlay), 'utf-8');
 
-    // 2. Write to LanceDB (fast semantic search) - only relevant turns
     try {
       for (const turn of relevantTurns) {
-        // Extract alignment scores based on overlay type
         const alignmentScores = this.extractAlignmentScores(
           turn.project_alignment_score
         );
@@ -702,51 +482,18 @@ export abstract class BaseConversationManager<
           {
             novelty: turn.novelty,
             importance: turn.importance,
-            is_paradigm_shift: turn.novelty > 0.8, // High novelty = paradigm shift
+            is_paradigm_shift: turn.novelty > 0.8,
             ...alignmentScores,
             semantic_tags: this.extractSemanticTags(turn.content),
             references: this.extractReferences(turn.content),
           }
         );
       }
-    } catch (error) {
-      systemDiagnosticsService.systemLog(
-        'sigma',
-        'Failed to write to LanceDB',
-        { error: error instanceof Error ? error.message : String(error) },
-        'warn'
-      );
-      // Continue even if LanceDB write fails - YAML is the source of truth
+    } catch {
+      // Ignore or log error
     }
   }
 
-  /**
-   * Check if a turn is relevant to this specific overlay
-   *
-   * Determines whether a turn should be stored in this overlay's YAML file.
-   * Override in subclasses for custom filtering logic.
-   *
-   * Default behavior:
-   * - O1 (Structural): Store ALL turns for complete conversation history
-   * - Other overlays: Filter by alignment score OR high importance
-   *
-   * Why O1 stores everything:
-   * - Ensures embeddings are always written to LanceDB
-   * - Provides complete conversation record
-   * - Other overlays can reference O1's LanceDB data
-   *
-   * @param turn - Turn to check for relevance
-   * @returns True if turn should be stored in this overlay
-   * @protected
-   *
-   * @example
-   * // O1 accepts all turns
-   * isRelevantToOverlay(anyTurn) // → true
-   *
-   * // O2 filters by alignment
-   * isRelevantToOverlay({ alignment_O2: 8.5, ... }) // → true
-   * isRelevantToOverlay({ alignment_O2: 0, importance: 3, ... }) // → false
-   */
   protected isRelevantToOverlay(turn: {
     turn_id: string;
     role: 'user' | 'assistant' | 'system';
@@ -758,50 +505,18 @@ export abstract class BaseConversationManager<
     importance: number;
   }): boolean {
     const overlayId = this.getOverlayId();
+    if (overlayId === 'O1') return true;
 
-    // O1 (Structural) stores ALL turns for complete conversation history
-    // This ensures embeddings are always written to LanceDB
-    if (overlayId === 'O1') {
-      return true;
-    }
-
-    // Other overlays filter by alignment score
     const alignmentScores = this.extractAlignmentScores(
       turn.project_alignment_score
     );
     const scoreKey = `alignment_${overlayId}` as keyof typeof alignmentScores;
-
-    // Include if alignment score > 0 OR importance >= 8 (critical turns)
     return alignmentScores[scoreKey] > 0 || turn.importance >= 8;
   }
 
-  /**
-   * Extract alignment scores for all 7 overlays from base project score
-   *
-   * Maps a single project alignment score to scores for all 7 overlays.
-   * Subclasses SHOULD override to boost their specific overlay score.
-   *
-   * Default: All overlays get the same base score
-   * Override: Set specific overlay higher (e.g., O2 manager boosts alignment_O2)
-   *
-   * @param projectAlignmentScore - Base alignment score from turn analysis
-   * @returns Alignment scores for all 7 overlays (O1-O7)
-   * @protected
-   *
-   * @example
-   * // Base class: all overlays get same score
-   * extractAlignmentScores(5.0)
-   * // → { alignment_O1: 5, alignment_O2: 5, ..., alignment_O7: 5 }
-   *
-   * // Subclass (e.g., SecurityManager): boost O2
-   * extractAlignmentScores(5.0)
-   * // → { alignment_O1: 0, alignment_O2: 5, alignment_O3: 0, ... }
-   */
   protected extractAlignmentScores(
     projectAlignmentScore: number
   ): AlignmentScores {
-    // Default: use project alignment score for all overlays
-    // Subclasses should override to set their specific overlay higher
     return {
       alignment_O1: projectAlignmentScore,
       alignment_O2: projectAlignmentScore,
@@ -813,77 +528,20 @@ export abstract class BaseConversationManager<
     };
   }
 
-  /**
-   * Extract semantic tags from turn content
-   *
-   * Identifies keywords for indexing and filtering. Override in subclasses
-   * to add domain-specific keywords.
-   *
-   * Base extraction:
-   * - Generic technical words longer than 4 characters
-   * - Limited to top 10 unique tags
-   *
-   * Subclass enhancement:
-   * - Add domain keywords (e.g., "security", "authentication" for O2)
-   * - Merge with base tags
-   *
-   * @param content - Turn content to extract tags from
-   * @returns Array of unique semantic tags (max 10)
-   * @protected
-   *
-   * @example
-   * // Base extraction
-   * extractSemanticTags('Update the authentication module')
-   * // → ['update', 'authentication', 'module']
-   *
-   * // O2 Security override adds domain keywords
-   * extractSemanticTags('Fix XSS vulnerability')
-   * // → ['security', 'vulnerability', 'fix']
-   */
   protected extractSemanticTags(content: string): string[] {
-    // Simple extraction: extract words longer than 4 characters
     const words = content
       .toLowerCase()
       .split(/\s+/)
       .filter((word) => word.length > 4);
-    // Return unique tags, limit to top 10
     return [...new Set(words)].slice(0, 10);
   }
 
-  /**
-   * Extract references to other conversation turns
-   *
-   * Detects patterns that reference other turns, enabling lattice edge
-   * construction. Override in subclasses for domain-specific patterns.
-   *
-   * Base pattern: "turn_123" format
-   *
-   * @param content - Turn content to extract references from
-   * @returns Array of unique turn IDs referenced
-   * @protected
-   *
-   * @example
-   * extractReferences('As discussed in turn_42...')
-   * // → ['turn_42']
-   */
   protected extractReferences(content: string): string[] {
-    // Simple extraction: look for patterns like "turn_1", "turn_2", etc.
     const turnPattern = /turn_\d+/g;
     const matches = content.match(turnPattern);
     return matches ? [...new Set(matches)] : [];
   }
 
-  /**
-   * Get count of turns currently in memory buffer
-   *
-   * Used for monitoring and debugging to check how many turns are pending
-   * flush to disk.
-   *
-   * @returns Number of turns in memory buffer
-   *
-   * @example
-   * console.log(`Buffered: ${manager.getInMemoryCount()} turns`);
-   */
   getInMemoryCount(): number {
     return this.inMemoryTurns.length;
   }

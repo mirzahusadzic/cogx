@@ -10,6 +10,7 @@ import {
 import { DEFAULT_EMBEDDING_DIMENSIONS } from '../../../config.js';
 
 import { BaseLanceStore, LANCE_DUMMY_ID } from '../../common/lance-store.js';
+import { normalizedCosineSimilarity } from '../../algebra/math.js';
 
 /**
  * Creates Apache Arrow schema for lineage pattern records.
@@ -523,25 +524,6 @@ export class LanceVectorStore extends BaseLanceStore<VectorRecord> {
   }
 
   public cosineSimilarity(vecA: number[], vecB: number[]): number {
-    if (vecA.length !== vecB.length) {
-      throw new Error('Vectors must have the same dimensions');
-    }
-
-    let dotProduct = 0;
-    let normA = 0;
-    let normB = 0;
-
-    for (let i = 0; i < vecA.length; i++) {
-      dotProduct += vecA[i] * vecB[i];
-      normA += vecA[i] * vecA[i];
-      normB += vecB[i] * vecB[i];
-    }
-
-    if (normA === 0 || normB === 0) {
-      return 0;
-    }
-
-    const similarity = dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
-    return (similarity + 1) / 2;
+    return normalizedCosineSimilarity(vecA, vecB);
   }
 }

@@ -163,36 +163,6 @@ export class StrategicCoherenceManager {
   }
 
   /**
-   * Compute cosine similarity between two 768-dimensional vectors
-   */
-  private cosineSimilarity(vecA: number[], vecB: number[]): number {
-    if (vecA.length !== vecB.length) {
-      throw new Error(
-        `Vector dimension mismatch: ${vecA.length} vs ${vecB.length}`
-      );
-    }
-
-    let dotProduct = 0;
-    let normA = 0;
-    let normB = 0;
-
-    for (let i = 0; i < vecA.length; i++) {
-      dotProduct += vecA[i] * vecB[i];
-      normA += vecA[i] * vecA[i];
-      normB += vecB[i] * vecB[i];
-    }
-
-    normA = Math.sqrt(normA);
-    normB = Math.sqrt(normB);
-
-    if (normA === 0 || normB === 0) {
-      return 0; // Avoid division by zero
-    }
-
-    return dotProduct / (normA * normB);
-  }
-
-  /**
    * Compute strategic coherence overlay
    *
    * @param missionDocHash - Hash of mission document (e.g., VISION.md)

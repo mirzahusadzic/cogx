@@ -1,17 +1,19 @@
 import { StrategicCoherenceManager, SymbolCoherence } from './manager.js';
 import { MissionConceptsManager } from '../mission-concepts/manager.js';
-import { WorkbenchClient } from '../../executors/workbench-client.js';
 import {
-  OverlayAlgebra,
   OverlayItem,
-  OverlayMetadata,
   SelectOptions,
+  OverlayMetadata,
 } from '../../algebra/overlay-algebra.js';
+import { BaseOverlayManager } from '../../algebra/base-manager.js';
 
 /**
  * Metadata for coherence overlay items (O₇)
  */
 export interface CoherenceMetadata extends OverlayMetadata {
+  /** Arbitrary domain-specific fields */
+  [key: string]: unknown;
+
   text: string; // Symbol name
   symbolName: string; // Code symbol
   filePath: string; // Source file
@@ -28,29 +30,22 @@ export interface CoherenceMetadata extends OverlayMetadata {
  * Adapter for O₇ Coherence overlay to implement OverlayAlgebra interface.
  * Coherence data is computed (synthesis of O₁ + O₄), not extracted.
  *
- * CHALLENGE: SymbolCoherence records don't have embeddings.
- * SOLUTION: Generate synthetic embedding by averaging top aligned concept embeddings.
- *
- * This makes semantic sense: the coherence record IS the alignment between
- * structural and mission layers, so its embedding should reflect that synthesis.
+ * Now extends BaseOverlayManager to unify algebra logic.
  */
-export class CoherenceAlgebraAdapter implements OverlayAlgebra<CoherenceMetadata> {
+export class CoherenceAlgebraAdapter extends BaseOverlayManager<CoherenceMetadata> {
   private coherenceManager: StrategicCoherenceManager;
   private missionManager: MissionConceptsManager;
-  private workbench: WorkbenchClient;
 
   constructor(
     private pgcRoot: string,
     workbenchUrl?: string
   ) {
+    super(pgcRoot, workbenchUrl);
     this.coherenceManager = new StrategicCoherenceManager(
       pgcRoot,
       workbenchUrl
     );
     this.missionManager = new MissionConceptsManager(pgcRoot, workbenchUrl);
-    this.workbench = new WorkbenchClient(
-      workbenchUrl || process.env.WORKBENCH_URL || 'http://localhost:8000'
-    );
   }
 
   /**
@@ -74,10 +69,6 @@ export class CoherenceAlgebraAdapter implements OverlayAlgebra<CoherenceMetadata
 
   getSupportedTypes(): string[] {
     return ['alignment', 'coherence_score', 'drift'];
-  }
-
-  getPgcRoot(): string {
-    return this.pgcRoot;
   }
 
   async getAllItems(): Promise<OverlayItem<CoherenceMetadata>[]> {
@@ -134,6 +125,7 @@ export class CoherenceAlgebraAdapter implements OverlayAlgebra<CoherenceMetadata
             topConceptText: topAlignment?.conceptText || 'unknown',
             topConceptScore: topAlignment?.alignmentScore || 0,
             alignmentCount: symbolCoherence.topAlignments.length,
+            type: 'coherence_score', // Default type
           },
         });
       }
@@ -188,6 +180,9 @@ export class CoherenceAlgebraAdapter implements OverlayAlgebra<CoherenceMetadata
     return result;
   }
 
+  /**
+   * Override getItemsByType to support coherence-specific classifications.
+   */
   async getItemsByType(
     type: string
   ): Promise<OverlayItem<CoherenceMetadata>[]> {
@@ -202,78 +197,12 @@ export class CoherenceAlgebraAdapter implements OverlayAlgebra<CoherenceMetadata
       return allItems; // All items are coherence scores
     }
 
-    return allItems;
+    return super.getItemsByType(type);
   }
 
-  async filter(
-    predicate: (metadata: CoherenceMetadata) => boolean
-  ): Promise<OverlayItem<CoherenceMetadata>[]> {
-    const allItems = await this.getAllItems();
-    return allItems.filter((item) => predicate(item.metadata));
-  }
-
-  async query(
-    query: string,
-    topK: number = 10,
-    precomputedEmbedding?: number[]
-  ): Promise<
-    Array<{ item: OverlayItem<CoherenceMetadata>; similarity: number }>
-  > {
-    let queryEmbedding: number[];
-
-    // Use pre-computed embedding if provided (optimization)
-    if (precomputedEmbedding && precomputedEmbedding.length === 768) {
-      queryEmbedding = precomputedEmbedding;
-    } else {
-      // Generate embedding for query
-      const embedResponse = await this.workbench.embed({
-        signature: query,
-        dimensions: 768,
-      });
-
-      queryEmbedding = embedResponse['embedding_768d'] as number[];
-      if (!queryEmbedding || queryEmbedding.length !== 768) {
-        throw new Error('Failed to generate query embedding');
-      }
-    }
-
-    // Get all items and compute similarity
-    const allItems = await this.getAllItems();
-    const results = allItems.map((item) => ({
-      item,
-      similarity: this.cosineSimilarity(queryEmbedding, item.embedding),
-    }));
-
-    // Sort by similarity and return top K
-    results.sort((a, b) => b.similarity - a.similarity);
-    return results.slice(0, topK);
-  }
-
-  private cosineSimilarity(a: number[], b: number[]): number {
-    if (a.length !== b.length) {
-      throw new Error('Vector dimensions must match');
-    }
-
-    let dotProduct = 0;
-    let normA = 0;
-    let normB = 0;
-
-    for (let i = 0; i < a.length; i++) {
-      dotProduct += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
-    }
-
-    normA = Math.sqrt(normA);
-    normB = Math.sqrt(normB);
-
-    if (normA === 0 || normB === 0) {
-      return 0;
-    }
-
-    return dotProduct / (normA * normB);
-  }
-
+  /**
+   * Override select to support symbol-based selection used in Coherence.
+   */
   async select(
     options: SelectOptions
   ): Promise<OverlayItem<CoherenceMetadata>[]> {
@@ -289,9 +218,12 @@ export class CoherenceAlgebraAdapter implements OverlayAlgebra<CoherenceMetadata
       return allItems.filter((item) => options.ids!.has(item.id));
     }
 
-    return allItems;
+    return super.select(options);
   }
 
+  /**
+   * Override exclude to support symbol-based exclusion.
+   */
   async exclude(
     options: SelectOptions
   ): Promise<OverlayItem<CoherenceMetadata>[]> {
@@ -307,17 +239,15 @@ export class CoherenceAlgebraAdapter implements OverlayAlgebra<CoherenceMetadata
       return allItems.filter((item) => !options.ids!.has(item.id));
     }
 
-    return allItems;
+    return super.exclude(options);
   }
 
+  /**
+   * Override getSymbolSet to return symbolName.
+   */
   async getSymbolSet(): Promise<Set<string>> {
     const allItems = await this.getAllItems();
     return new Set(allItems.map((item) => item.metadata.symbolName));
-  }
-
-  async getIdSet(): Promise<Set<string>> {
-    const allItems = await this.getAllItems();
-    return new Set(allItems.map((item) => item.id));
   }
 
   /**

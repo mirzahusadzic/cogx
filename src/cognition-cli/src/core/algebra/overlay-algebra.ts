@@ -382,6 +382,21 @@ export interface SelectOptions {
    * @example ['src/auth/*', 'lib/security/*']
    */
   patterns?: string[];
+
+  /**
+   * Filter by domain-specific type
+   */
+  type?: string;
+
+  /**
+   * Filter by semantic similarity to a query
+   */
+  query?: string;
+
+  /**
+   * Minimum similarity threshold for query filtering
+   */
+  minSimilarity?: number;
 }
 
 /**

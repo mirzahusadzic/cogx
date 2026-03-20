@@ -60,6 +60,7 @@
  */
 
 import { MissionVersion } from './mission-integrity.js';
+import { cosineSimilarity } from '../algebra/math.js';
 
 /**
  * Result of drift analysis between two mission versions
@@ -238,7 +239,7 @@ export class SemanticDriftDetector {
     const oldCentroid = this.computeCentroid(oldEmbeddings);
     const newCentroid = this.computeCentroid(newEmbeddings);
 
-    const similarity = this.cosineSimilarity(oldCentroid, newCentroid);
+    const similarity = cosineSimilarity(oldCentroid, newCentroid);
     return 1 - similarity; // Convert similarity to distance
   }
 
@@ -260,34 +261,6 @@ export class SemanticDriftDetector {
     });
 
     return centroid.map((v) => v / embeddings.length);
-  }
-
-  /**
-   * Compute cosine similarity between two vectors
-   */
-  private cosineSimilarity(vecA: number[], vecB: number[]): number {
-    if (vecA.length !== vecB.length) {
-      throw new Error('Vector dimension mismatch');
-    }
-
-    let dotProduct = 0;
-    let normA = 0;
-    let normB = 0;
-
-    for (let i = 0; i < vecA.length; i++) {
-      dotProduct += vecA[i] * vecB[i];
-      normA += vecA[i] * vecA[i];
-      normB += vecB[i] * vecB[i];
-    }
-
-    normA = Math.sqrt(normA);
-    normB = Math.sqrt(normB);
-
-    if (normA === 0 || normB === 0) {
-      return 0;
-    }
-
-    return dotProduct / (normA * normB);
   }
 
   /**
