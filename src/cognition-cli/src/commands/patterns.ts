@@ -714,10 +714,8 @@ export function addPatternsCommands(program: Command) {
       );
 
       if (useJson) {
-        const vectorData1 = vector1 as Record<string, unknown>;
-        const vectorData2 = vector2 as Record<string, unknown>;
-        const metadata1 = vector1.metadata as Record<string, unknown>;
-        const metadata2 = vector2.metadata as Record<string, unknown>;
+        const metadata1 = vector1 as unknown as Record<string, unknown>;
+        const metadata2 = vector2 as unknown as Record<string, unknown>;
 
         console.log(
           JSON.stringify(
@@ -726,16 +724,12 @@ export function addPatternsCommands(program: Command) {
               symbol2,
               type: options.type,
               similarity,
-              metadata1: vector1.metadata,
-              metadata2: vector2.metadata,
+              metadata1,
+              metadata2,
               signature1:
-                vectorData1.structural_signature ||
-                metadata1.structural_signature ||
-                metadata1.lineage_signature,
+                metadata1.structural_signature || metadata1.lineage_signature,
               signature2:
-                vectorData2.structural_signature ||
-                metadata2.structural_signature ||
-                metadata2.lineage_signature,
+                metadata2.structural_signature || metadata2.lineage_signature,
             },
             null,
             2
@@ -753,16 +747,16 @@ export function addPatternsCommands(program: Command) {
       );
 
       // Show file paths
-      const metadata1 = vector1.metadata as Record<string, unknown>;
-      const metadata2 = vector2.metadata as Record<string, unknown>;
+      const metadata1 = vector1 as unknown as Record<string, unknown>;
+      const metadata2 = vector2 as unknown as Record<string, unknown>;
       console.log(
         chalk.dim(
-          `📁 ${symbol1}: ${metadata1.anchor || metadata1.file_path || 'unknown'}`
+          `📁 ${symbol1}: ${metadata1.anchor || metadata1.filePath || metadata1.file_path || 'unknown'}`
         )
       );
       console.log(
         chalk.dim(
-          `📁 ${symbol2}: ${metadata2.anchor || metadata2.file_path || 'unknown'}`
+          `📁 ${symbol2}: ${metadata2.anchor || metadata2.filePath || metadata2.file_path || 'unknown'}`
         )
       );
 
@@ -771,24 +765,19 @@ export function addPatternsCommands(program: Command) {
         `\n   Similarity: ${chalk.yellow(simBar)} ${(similarity * 100).toFixed(1)}%`
       );
 
-      const vectorData1 = vector1 as Record<string, unknown>;
-      const vectorData2 = vector2 as Record<string, unknown>;
-
       console.log(chalk.bold(`\nSignature for ${symbol1}:`));
       console.log(
         chalk.dim(
-          vectorData1.structural_signature ||
-            metadata1.structural_signature ||
-            metadata1.lineage_signature ||
+          (metadata1.structural_signature as string) ||
+            (metadata1.lineage_signature as string) ||
             'N/A'
         )
       );
       console.log(chalk.bold(`\nSignature for ${symbol2}:`));
       console.log(
         chalk.dim(
-          vectorData2.structural_signature ||
-            metadata2.structural_signature ||
-            metadata2.lineage_signature ||
+          (metadata2.structural_signature as string) ||
+            (metadata2.lineage_signature as string) ||
             'N/A'
         )
       );
