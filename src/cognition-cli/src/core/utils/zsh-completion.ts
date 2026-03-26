@@ -149,17 +149,17 @@ _cognition_cli "$@"
         }
         script += "            '*:: :->subargs'\n";
 
-        // Handle subcommands that have values or flags
+        // Handle subcommands that have values, flags, or their own subcommands
         if (
           cmd.subcommands &&
-          cmd.subcommands.some((s) => s.values || s.flags)
+          cmd.subcommands.some((s) => s.values || s.flags || s.subcommands)
         ) {
           script += `          case \${state} in
             subargs)
               case \${words[1]} in
 `;
           for (const sub of cmd.subcommands) {
-            if (sub.values || sub.flags) {
+            if (sub.values || sub.flags || sub.subcommands) {
               script += `                ${sub.name})
                   _arguments -C \\
 `;
@@ -171,6 +171,13 @@ _cognition_cli "$@"
                         `                    ${this.formatFlagForZsh(f)} \\`
                     )
                     .join('\n') + '\n';
+              }
+              if (sub.subcommands) {
+                const subSubNames = sub.subcommands
+                  .map((s) => s.name)
+                  .join(' ');
+                script += `                    '1:subcommand:(${subSubNames})' \\
+`;
               }
               if (sub.values) {
                 script += `                    '1: :(${sub.values.join(' ')})' \\

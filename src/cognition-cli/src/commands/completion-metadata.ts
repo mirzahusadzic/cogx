@@ -232,14 +232,172 @@ export const cliCommands: CommandMetadata[] = [
   },
   {
     name: 'patterns',
-    description: 'Pattern analysis',
+    description: 'Manage and query structural patterns',
     subcommands: [
       {
         name: 'analyze',
-        description: 'Analyze patterns',
-        subcommands: [
-          { name: 'duplicates', description: 'Analyze duplicate patterns' },
+        description: 'Analyze architectural patterns across the codebase',
+        flags: [
+          {
+            name: '--type',
+            description: "Pattern type ('structural' or 'lineage')",
+            values: ['structural', 'lineage'],
+          },
+          {
+            name: '--verbose',
+            short: '-v',
+            description: 'Show detailed information including file paths',
+          },
+          { name: '--json', description: 'Output as JSON' },
         ],
+        subcommands: [
+          {
+            name: 'roles',
+            description: 'List all architectural roles',
+            flags: [{ name: '--json', description: 'Output as JSON' }],
+          },
+          {
+            name: 'role',
+            description: 'Detailed analysis of a specific architectural role',
+            flags: [
+              {
+                name: '--type',
+                description: "Pattern type ('structural' or 'lineage')",
+                values: ['structural', 'lineage'],
+              },
+              { name: '--json', description: 'Output as JSON' },
+            ],
+          },
+          {
+            name: 'duplicates',
+            description: 'Analyze architectural duplicates across the codebase',
+            flags: [
+              {
+                name: '--threshold',
+                description: 'Similarity threshold (0-1)',
+                type: 'string' as const,
+              },
+              {
+                name: '--top-k',
+                description: 'Top K similar symbols to check',
+                type: 'string' as const,
+              },
+              { name: '--json', description: 'Output as JSON' },
+            ],
+          },
+        ],
+      },
+      {
+        name: 'compact',
+        description: 'Compact pattern tables to reclaim storage space',
+        flags: [
+          {
+            name: '--type',
+            description:
+              "Pattern type to compact ('structural', 'lineage', or 'all')",
+            values: ['structural', 'lineage', 'all'],
+          },
+        ],
+      },
+      {
+        name: 'find-similar',
+        description: 'Find architecturally similar symbols',
+        flags: [
+          {
+            name: '--top-k',
+            short: '-k',
+            description: 'Number of similar patterns to return',
+            type: 'string' as const,
+          },
+          {
+            name: '--type',
+            description: "Pattern type ('structural' or 'lineage')",
+            values: ['structural', 'lineage'],
+          },
+          { name: '--json', description: 'Output raw JSON' },
+        ],
+      },
+      {
+        name: 'list',
+        description: 'List all patterns, optionally filtered by role',
+        flags: [
+          {
+            name: '--role',
+            description: 'Filter by architectural role',
+            type: 'string' as const,
+          },
+          {
+            name: '--type',
+            description: "Pattern type ('structural' or 'lineage')",
+            values: ['structural', 'lineage'],
+          },
+          {
+            name: '--limit',
+            short: '-l',
+            description: 'Maximum number of results to show',
+            type: 'string' as const,
+          },
+          { name: '--json', description: 'Output as JSON' },
+        ],
+      },
+      {
+        name: 'inspect',
+        description: 'Show comprehensive information about a symbol',
+        flags: [{ name: '--json', description: 'Output as JSON' }],
+      },
+      {
+        name: 'duplicates',
+        description: 'Analyze architectural duplicates across the codebase',
+        flags: [
+          {
+            name: '--threshold',
+            description: 'Similarity threshold (0-1)',
+            type: 'string' as const,
+          },
+          {
+            name: '--top-k',
+            description: 'Top K similar symbols to check',
+            type: 'string' as const,
+          },
+          { name: '--json', description: 'Output as JSON' },
+        ],
+      },
+      {
+        name: 'analyze-duplicates',
+        description: 'Analyze architectural duplicates (alias for duplicates)',
+        flags: [
+          {
+            name: '--threshold',
+            description: 'Similarity threshold (0-1)',
+            type: 'string' as const,
+          },
+          {
+            name: '--top-k',
+            description: 'Top K similar symbols to check',
+            type: 'string' as const,
+          },
+          { name: '--json', description: 'Output as JSON' },
+        ],
+      },
+      {
+        name: 'graph',
+        description: 'Visualize dependency graph for a symbol',
+        flags: [
+          {
+            name: '--json',
+            description: 'Output as JSON instead of ASCII tree',
+          },
+          {
+            name: '--max-depth',
+            description: 'Maximum depth to traverse',
+            type: 'string' as const,
+          },
+        ],
+      },
+      {
+        name: 'compare',
+        description: 'Compare two symbols structurally',
+        flags: [{ name: '--json', description: 'Output as JSON' }],
       },
     ],
   },
