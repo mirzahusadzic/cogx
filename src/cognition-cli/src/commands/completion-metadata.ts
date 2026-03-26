@@ -747,4 +747,31 @@ export const cliCommands: CommandMetadata[] = [
       },
     ],
   },
+  {
+    name: 'transforms',
+    description: 'Manage PGC transform log (compaction, GC)',
+    subcommands: [
+      {
+        name: 'compact',
+        description:
+          'Compact the PGC transform log (purge invalidated, squash intermediates)',
+        flags: [
+          {
+            name: '--before',
+            description:
+              'Only compact transforms older than this ISO date (e.g. 2025-01-01)',
+          },
+          {
+            name: '--dry-run',
+            description: 'Show what would be done without making changes',
+          },
+          {
+            name: '--min-age',
+            description:
+              'Minimum age in days for a transform to be eligible (default 90)',
+          },
+        ],
+      },
+    ],
+  },
 ];

@@ -738,6 +738,14 @@ const { createConfigCommand } = await import('./commands/config.js');
 program.addCommand(createConfigCommand());
 const { createLockCommand } = await import('./commands/lock.js');
 program.addCommand(createLockCommand());
+
+// transforms subcommand group
+const { createTransformsCompactCommand } =
+  await import('./commands/transforms-compact.js');
+const transformsCmd = program
+  .command('transforms')
+  .description('Manage PGC transform log (compaction, GC)');
+transformsCmd.addCommand(createTransformsCompactCommand());
 addPatternsCommands(program);
 addCoherenceCommands(program);
 addConceptsCommands(program);
@@ -1509,6 +1517,7 @@ const ALL_COMMANDS = [
   'config',
   'lock',
   'lineage',
+  'transforms',
 ];
 
 // Handle unknown commands with suggestions
