@@ -851,6 +851,45 @@ export class OverlayOrchestrator extends BaseOrchestrator {
               `[Overlay] Cleaned up ${orphanedVectorIds.length} orphaned vectors.`
             );
           }
+
+          // Monument 4.9.6: Clean up orphaned manifest entries (in manifest but NOT in vector DB)
+          // These arise when embedding fails for a symbol that was previously successful —
+          // discoveredSymbols still includes the symbol (it exists in code) so Monument 4.9
+          // won't remove it, but the vector was never (re)stored.
+          const vectorKeySet = new Set(vectorEntries.map((e) => e.uniqueKey));
+          const orphanedManifestKeys = Object.keys(currentManifest).filter(
+            (key) => {
+              if (vectorKeySet.has(key)) return false;
+              // Also check symbol-only keys against file#symbol vectors
+              if (!key.includes('#')) {
+                return ![...vectorKeySet].some((vk) => vk.endsWith(`#${key}`));
+              }
+              return true;
+            }
+          );
+
+          if (orphanedManifestKeys.length > 0) {
+            this.logStep(
+              `\n[Overlay] Cleaning up ${orphanedManifestKeys.length} manifest entries with no vector...`
+            );
+            for (const key of orphanedManifestKeys) {
+              if (key.includes('#')) {
+                await this.pgc.overlays.update(
+                  'structural_patterns',
+                  key,
+                  null
+                );
+              }
+              await this.pgc.overlays.deleteManifestEntry(
+                'structural_patterns',
+                key
+              );
+              delete currentManifest[key];
+            }
+            this.logSuccess(
+              `[Overlay] Cleaned up ${orphanedManifestKeys.length} orphaned manifest entries.`
+            );
+          }
         }
 
         // Verify the structural patterns overlay after generation
