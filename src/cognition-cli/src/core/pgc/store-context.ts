@@ -4,6 +4,7 @@ import { ObjectStore } from './object-store.js';
 import { TransformLog } from './transform-log.js';
 import { ReverseDeps } from './reverse-deps.js';
 import { Overlays } from './overlays.js';
+import { IntentAdapter } from '../lineage/intent-adapter.js';
 
 /**
  * PGCStoreContext manages the physical location and initialization
@@ -17,6 +18,7 @@ import { Overlays } from './overlays.js';
  * - reverse_deps.jsonl: Dependency graph edges
  * - overlays/: Pattern metadata by overlay type
  * - lance/: Vector embeddings (LanceDB)
+ * - pending_intents/: Ephemeral agent intent declarations
  */
 export class PGCStoreContext {
   public readonly projectRoot: string;
@@ -26,6 +28,7 @@ export class PGCStoreContext {
   public readonly transformLog: TransformLog;
   public readonly reverseDeps: ReverseDeps;
   public readonly overlays: Overlays;
+  public readonly intentAdapter: IntentAdapter;
 
   constructor(projectRoot: string) {
     this.projectRoot = path.resolve(projectRoot);
@@ -37,5 +40,6 @@ export class PGCStoreContext {
     this.transformLog = new TransformLog(this.pgcRoot);
     this.reverseDeps = new ReverseDeps(this.pgcRoot);
     this.overlays = new Overlays(this.pgcRoot);
+    this.intentAdapter = new IntentAdapter(this.pgcRoot);
   }
 }

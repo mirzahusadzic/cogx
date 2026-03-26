@@ -188,6 +188,12 @@ export const PERSONA_CONVERSATION_MEMORY_ASSISTANT =
  */
 export const PERSONA_TOOL_OUTPUT_SUMMARIZER = 'tool_output_summarizer';
 
+/**
+ * Persona for synthesizing lineage intent from git diffs
+ * Used by EGemmaClient to analyze "why" a change occurred
+ */
+export const PERSONA_LINEAGE_ANALYST = 'lineage-analyst';
+
 // ========================================
 // RATE LIMITING (Fallback Defaults)
 // ========================================

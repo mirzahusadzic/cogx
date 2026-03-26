@@ -1263,6 +1263,98 @@ proofsCmd
     });
   });
 
+// Lineage commands
+const lineageCmd = program
+  .command('lineage')
+  .description('Track and manage code transformation lineage');
+
+lineageCmd
+  .command('record')
+  .description('Record file changes from a specific commit or range')
+  .option(
+    '--commit <ref>',
+    'Git commit hash or range (e.g. HEAD or HEAD~3..HEAD)',
+    'HEAD'
+  )
+  .option(
+    '--synthesize',
+    'Synthesize intent via eGemma for low-quality commit messages',
+    false
+  )
+  .option('--update', 'Trigger incremental update after recording', false)
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .action(async (options) => {
+    const { lineageRecordCommand } =
+      await import('./commands/lineage-record.js');
+    await lineageRecordCommand(options);
+  });
+
+lineageCmd
+  .command('hooks:install')
+  .description('Install git hooks to automatically record lineage')
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .action(async (options) => {
+    const { hooksInstallCommand } = await import('./commands/hooks-install.js');
+    await hooksInstallCommand(options);
+  });
+
+lineageCmd
+  .command('intent')
+  .description('Declare an intent for a future code transformation')
+  .requiredOption('--file <path>', 'Path to the file being modified')
+  .requiredOption('--intent <why>', 'Reasoning for the change')
+  .option('--decision <what>', 'What choice was made')
+  .option('--alternatives <choices...>', 'Alternatives considered')
+  .option(
+    '--source <id>',
+    'Identifier for the source (e.g. tui, claude-code)',
+    'ai_agent'
+  )
+  .option('--session <id>', 'Link to conversation session')
+  .option(
+    '--confidence <number>',
+    'Confidence in the reasoning (0.0-1.0)',
+    '0.95'
+  )
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .action(async (options) => {
+    const { lineageIntentCommand } =
+      await import('./commands/lineage-intent.js');
+    await lineageIntentCommand(options);
+  });
+
+lineageCmd
+  .command('enrich')
+  .description('Enrich low-confidence transforms via eGemma synthesis')
+  .option('--since <ref>', 'Scan transforms since a specific git ref')
+  .option(
+    '--dry-run',
+    'Show what would be enriched without making changes',
+    false
+  )
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .action(async (options) => {
+    const { lineageEnrichCommand } =
+      await import('./commands/lineage-enrich.js');
+    await lineageEnrichCommand(options);
+  });
+
 // Bootstrap security layer (one-time acknowledgment)
 await bootstrapSecurity();
 
@@ -1373,6 +1465,7 @@ const ALL_COMMANDS = [
   'migrate:lance',
   'completion',
   'config',
+  'lineage',
 ];
 
 // Handle unknown commands with suggestions

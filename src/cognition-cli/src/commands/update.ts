@@ -181,7 +181,7 @@ async function executeDryRun(projectRoot: string): Promise<void> {
  *   workbench: 'http://localhost:8000'
  * });
  */
-async function runUpdate(options: UpdateOptions) {
+export async function runUpdate(options: UpdateOptions) {
   intro(chalk.bold('🔄 Update: Syncing PGC with Changes'));
 
   try {

@@ -65,6 +65,12 @@ import {
   UntrackedFile,
 } from '../types/watcher.js';
 
+import { UpdateOrchestrator } from '../orchestrators/update.js';
+import { PGCManager } from '../pgc/manager.js';
+import { StructuralMiner } from '../orchestrators/miners/structural.js';
+import { WorkbenchClient } from '../executors/workbench-client.js';
+import { GenesisOracle } from '../pgc/oracles/genesis.js';
+
 export class FileWatcher extends EventEmitter {
   private watcher?: FSWatcher;
   private index: Index;
@@ -72,6 +78,7 @@ export class FileWatcher extends EventEmitter {
   private dirtyState: DirtyStateManager;
   private isWatching = false;
   private debounceTimers = new Map<string, NodeJS.Timeout>();
+  private autoUpdateTimer?: NodeJS.Timeout;
 
   /**
    * Create a new FileWatcher instance
@@ -175,6 +182,10 @@ export class FileWatcher extends EventEmitter {
    * await watcher.stop();
    */
   async stop(): Promise<void> {
+    if (this.autoUpdateTimer) {
+      clearTimeout(this.autoUpdateTimer);
+      this.autoUpdateTimer = undefined;
+    }
     if (this.watcher) {
       await this.watcher.close();
       this.watcher = undefined;
@@ -256,6 +267,7 @@ export class FileWatcher extends EventEmitter {
         };
 
         this.emit('change', event);
+        this.scheduleAutoUpdate();
         systemDiagnosticsService.systemLog(
           'watcher',
           `Detected change: ${relativePath}`
@@ -362,6 +374,62 @@ export class FileWatcher extends EventEmitter {
       'error'
     );
     this.emit('error', error);
+  }
+
+  private async scheduleAutoUpdate(): Promise<void> {
+    if (!this.options.autoUpdate) return;
+
+    if (this.autoUpdateTimer) {
+      clearTimeout(this.autoUpdateTimer);
+    }
+
+    const debounceMs = this.options.autoUpdateDebounceMs || 5000;
+
+    this.autoUpdateTimer = setTimeout(async () => {
+      await this.runAutoUpdate();
+      this.autoUpdateTimer = undefined;
+    }, debounceMs);
+  }
+
+  private async runAutoUpdate(): Promise<void> {
+    try {
+      systemDiagnosticsService.systemLog(
+        'watcher',
+        'Triggering auto-update...'
+      );
+
+      const pgc = new PGCManager(this.pgcRoot);
+      const workbench = new WorkbenchClient(
+        this.options.workbenchUrl ||
+          process.env.WORKBENCH_URL ||
+          'http://localhost:8000'
+      );
+      const miner = new StructuralMiner(workbench);
+      const genesisOracle = new GenesisOracle(pgc);
+
+      const orchestrator = new UpdateOrchestrator(
+        pgc,
+        miner,
+        workbench,
+        genesisOracle,
+        this.projectRoot
+      );
+
+      await orchestrator.run();
+      systemDiagnosticsService.systemLog('watcher', 'Auto-update complete');
+      this.emit('auto-update-complete');
+    } catch (error) {
+      systemDiagnosticsService.systemLog(
+        'watcher',
+        'Auto-update failed',
+        { error: error instanceof Error ? error.message : String(error) },
+        'error'
+      );
+      this.emit(
+        'error',
+        error instanceof Error ? error : new Error(String(error))
+      );
+    }
   }
 
   private async getIndexedFiles(): Promise<string[]> {

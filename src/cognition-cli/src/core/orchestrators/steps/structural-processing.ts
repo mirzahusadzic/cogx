@@ -6,10 +6,13 @@ import { fileURLToPath } from 'url';
 import * as workerpool from 'workerpool';
 import os from 'os';
 import YAML from 'yaml';
+import { execa } from 'execa';
 import type { SourceFile, StructuralData } from '../../types/structural.js';
 import type { GenesisJobResult, GenesisJobPacket } from '../genesis-worker.js';
 import { WORKBENCH_DEPENDENT_EXTRACTION_METHODS } from '../../../config.js';
 import { extractGitContext } from '../../git/context-extractor.js';
+import { IntentResolver } from '../../lineage/intent-resolver.js';
+import { EGemmaClient } from '../../lineage/egemma-client.js';
 
 export interface StructuralProcessingOptions {
   parallel?: boolean;
@@ -47,6 +50,14 @@ export class StructuralProcessingStep extends BaseStep {
       } remote)`
     );
 
+    // Hoist IntentResolver for Phase 4 performance
+    const egemma = new EGemmaClient(context.workbench);
+    const intentResolver = new IntentResolver(
+      context.pgc.intentAdapter,
+      egemma,
+      isWorkbenchHealthy // Synthesize only if workbench is healthy
+    );
+
     // Phase 1: Parallel parsing for native files (TS/JS)
     const nativeResults = new Map<string, StructuralData>();
     if (this.options.parallel && nativeFiles.length > 0) {
@@ -75,6 +86,7 @@ export class StructuralProcessingStep extends BaseStep {
           file,
           context,
           isWorkbenchHealthy,
+          intentResolver,
           preParsed
         );
 
@@ -105,6 +117,7 @@ export class StructuralProcessingStep extends BaseStep {
     file: SourceFile,
     context: PipelineContext,
     isWorkbenchHealthy: boolean,
+    intentResolver: IntentResolver,
     preParsed?: StructuralData
   ): Promise<boolean> {
     const contentHash = context.pgc.objectStore.computeHash(file.content);
@@ -164,6 +177,28 @@ export class StructuralProcessingStep extends BaseStep {
         context.projectRoot
       );
 
+      // Get diff for synthesis if needed
+      let diff: string | null = null;
+      if (isWorkbenchHealthy && gitContext?.commit_hash) {
+        try {
+          const { stdout: diffStdout } = await execa(
+            'git',
+            ['show', gitContext.commit_hash, '--', file.relativePath],
+            { cwd: context.projectRoot }
+          );
+          diff = diffStdout;
+        } catch {
+          // Ignore diff extraction errors
+        }
+      }
+
+      const resolved = await intentResolver.resolve(
+        file.relativePath,
+        gitContext?.message || null,
+        diff,
+        gitContext
+      );
+
       // Record transform
       recordedTransformId = await context.pgc.transformLog.record({
         goal: {
@@ -177,20 +212,25 @@ export class StructuralProcessingStep extends BaseStep {
           ],
           phimin: 0.8,
         },
+        timestamp: new Date().toISOString(),
+        method: structural.extraction_method,
         inputs: [{ path: file.relativePath, hash: contentHash }],
         outputs: [{ path: file.relativePath, hash: structuralHash }],
-        method: structural.extraction_method,
-        fidelity: structural.fidelity,
         git: gitContext || undefined,
         reasoning: {
-          intent: 'Extract structural metadata from source file',
-          confidence: structural.fidelity,
+          intent: resolved.intent,
+          decision: resolved.decision,
+          alternatives: resolved.alternatives,
+          confidence: resolved.confidence,
         },
-        source: {
+        source: resolved.source || {
           type: 'system',
           identifier: 'StructuralProcessingStep',
         },
       });
+
+      // Clear pending intent after consumption (handled inside IntentResolver but we can be explicit)
+      await context.pgc.intentAdapter.clearIntent(file.relativePath);
 
       // Update index
       await context.pgc.index.set(file.relativePath, {

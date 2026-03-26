@@ -209,6 +209,23 @@ export interface WatcherOptions {
    * Prevents redundant processing during mass edits.
    */
   debounceMs?: number;
+
+  /**
+   * Whether to trigger update automatically after debounce.
+   * If true, runs UpdateOrchestrator.run() internally.
+   */
+  autoUpdate?: boolean;
+
+  /**
+   * Debounce delay for auto-update in milliseconds.
+   * Batches changes before triggering update.
+   */
+  autoUpdateDebounceMs?: number;
+
+  /**
+   * URL of the workbench for embedding generation (required for autoUpdate).
+   */
+  workbenchUrl?: string;
 }
 
 /**

@@ -344,6 +344,16 @@ export const COMMAND_GROUPS: CommandGroup[] = [
     ],
   },
   {
+    title: 'track lineage',
+    commands: [
+      { name: 'lineage record', desc: 'Record file changes from git commits' },
+      {
+        name: 'lineage hooks:install',
+        desc: 'Install git hooks for auto-recording',
+      },
+    ],
+  },
+  {
     title: 'audit and security',
     commands: [
       {

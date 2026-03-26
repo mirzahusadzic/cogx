@@ -130,6 +130,10 @@ export type TransformOutput<T = unknown> = TransformData<T>;
  * - Quality auditing: "Which transformations fell below phimin threshold?"
  */
 export const TransformationSchema = z.object({
+  /** Type of the transformation (e.g., 'structural', 'genesis_doc') */
+  type: z.string().optional(),
+  /** ISO-8601 timestamp when the transformation was recorded */
+  timestamp: z.string().optional(),
   /** The goal this transformation was trying to achieve */
   goal: GoalDataSchema,
   /** Achieved fidelity score (0.0-1.0), should be >= goal.phimin */

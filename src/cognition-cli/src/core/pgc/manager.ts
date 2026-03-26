@@ -10,6 +10,7 @@ import { PGCQueryService } from './query-service.js';
 import { PGCIndexerService } from './indexer-service.js';
 import { IndexData } from '../types/index.js';
 import { Transformation } from '../types/transform.js';
+import { IntentAdapter } from '../lineage/intent-adapter.js';
 
 /**
  * PGCManager (Grounded Context Pool Manager)
@@ -32,6 +33,7 @@ import { Transformation } from '../types/transform.js';
  * - TransformLog: Transformation provenance (transform_id → inputs/outputs)
  * - ReverseDeps: Dependency graph (output_hash → transform_ids that used it)
  * - Overlays: Pattern metadata and embeddings storage
+ * - IntentAdapter: Declared agent intent capture for transforms
  *
  * PROVENANCE:
  * Every piece of derived data has a complete provenance chain:
@@ -52,6 +54,9 @@ import { Transformation } from '../types/transform.js';
  *
  * // Search for a symbol
  * const results = await pgc.search('StrategicCoherenceManager');
+ *
+ * // Capture agent intent
+ * await pgc.intentAdapter.recordIntent({ ... });
  */
 export class PGCManager {
   private context: PGCStoreContext;
@@ -65,6 +70,7 @@ export class PGCManager {
   public readonly transformLog: TransformLog;
   public readonly reverseDeps: ReverseDeps;
   public readonly overlays: Overlays;
+  public readonly intentAdapter: IntentAdapter;
 
   constructor(projectRoot: string) {
     this.context = new PGCStoreContext(projectRoot);
@@ -79,6 +85,7 @@ export class PGCManager {
     this.transformLog = this.context.transformLog;
     this.reverseDeps = this.context.reverseDeps;
     this.overlays = this.context.overlays;
+    this.intentAdapter = this.context.intentAdapter;
   }
 
   // --- QUERY DELEGATION ---

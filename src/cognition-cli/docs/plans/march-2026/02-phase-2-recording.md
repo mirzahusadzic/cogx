@@ -321,4 +321,21 @@ cognition-cli lineage enrich --dry-run
 - `lineage enrich --dry-run` → reports count without modifying
 - Persona returns valid JSON for all three tier formats
 
+## Implementation Notes (Post-Review)
+
+**⚠️ EGemmaClient/IntentResolver instantiation:** Currently a new `EGemmaClient` + `IntentResolver`
+is created per file in `processSingleFile()`. Lightweight now, but should be hoisted to step-level
+for Phase 4 when the reactive loop processes many files per cycle.
+
+**⚠️ `lineage enrich --since` filter:** The `--since` CLI flag is defined but not yet wired to
+filter transforms by git ref. Currently scans all index entries. Must be implemented before
+Phase 2.5 (rehydration produces hundreds of low-confidence transforms).
+
+**✅ eGemma persona routing fix:** The `egemma-client.ts` sends `filename: 'commit_diff.patch'`.
+eGemma routes `.patch` → `code/` persona type. The `intent_synthesizer.md` persona was created
+in both `personas/code/` and `personas/docs/` paths to handle either routing. Without the
+persona file, synthesis silently falls back to default (generic summarizer) → `JSON.parse()`
+fails → returns null → Priority 4 fallback. The try/catch prevents crashes but synthesis
+is effectively disabled without the persona.
+
 ---

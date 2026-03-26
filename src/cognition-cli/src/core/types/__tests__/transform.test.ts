@@ -31,6 +31,8 @@ describe('TransformationSchema', () => {
   it('should validate new fields: reasoning, source, and git', () => {
     const fullTransform = {
       ...baseTransform,
+      type: 'test_transform',
+      timestamp: new Date().toISOString(),
       reasoning: {
         intent: 'Refactoring for better modularity',
         decision: 'Split class into two',

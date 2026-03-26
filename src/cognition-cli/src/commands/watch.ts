@@ -57,6 +57,21 @@ export function createWatchCommand(): Command {
     .description('Watch files for changes and maintain PGC coherence state')
     .option('--untracked', 'Also watch for new untracked files', false)
     .option('--debounce <ms>', 'Debounce delay in milliseconds', '300')
+    .option(
+      '--auto-update',
+      'Automatically trigger incremental update on change',
+      false
+    )
+    .option(
+      '--auto-update-debounce <ms>',
+      'Auto-update debounce delay in milliseconds',
+      '5000'
+    )
+    .option(
+      '-w, --workbench <url>',
+      'URL of the egemma workbench (for auto-update)',
+      'http://localhost:8000'
+    )
     .option('-v, --verbose', 'Show detailed change events', false)
     .action(async (options) => {
       try {
@@ -100,6 +115,9 @@ export function createWatchCommand(): Command {
 async function runWatch(options: {
   untracked?: boolean;
   debounce?: string;
+  autoUpdate?: boolean;
+  autoUpdateDebounce?: string;
+  workbench?: string;
   verbose?: boolean;
 }): Promise<void> {
   const projectRoot = environmentService.findProjectRoot(process.cwd());
@@ -118,11 +136,20 @@ async function runWatch(options: {
   console.log(chalk.bold('🔭 Starting File Watcher'));
   console.log(chalk.gray(`Project: ${projectRoot}`));
   console.log(chalk.gray(`PGC: ${pgcRoot}`));
+  if (options.autoUpdate) {
+    console.log(chalk.gray('Auto-update: Enabled'));
+    console.log(
+      chalk.gray(`Workbench: ${options.workbench || 'http://localhost:8000'}`)
+    );
+  }
   console.log('');
 
   const watcher = new FileWatcher(pgcRoot, projectRoot, {
     watchUntracked: options.untracked,
     debounceMs: parseInt(options.debounce || '300', 10),
+    autoUpdate: options.autoUpdate,
+    autoUpdateDebounceMs: parseInt(options.autoUpdateDebounce || '5000', 10),
+    workbenchUrl: options.workbench,
   });
 
   // Event handlers
@@ -131,6 +158,10 @@ async function runWatch(options: {
     console.log(chalk.gray('Press Ctrl+C to stop'));
     console.log('');
     console.log(chalk.bold('Watching for changes...'));
+  });
+
+  watcher.on('auto-update-complete', () => {
+    console.log(chalk.green('✓ Auto-update complete - PGC is coherent'));
   });
 
   watcher.on('change', (event: ChangeEvent) => {
