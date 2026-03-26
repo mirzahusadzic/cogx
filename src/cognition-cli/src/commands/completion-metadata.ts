@@ -30,11 +30,33 @@ export const cliCommands: CommandMetadata[] = [
     name: 'init',
     aliases: ['i'],
     description: 'Initialize a new PGC',
+    flags: [
+      {
+        name: '--project-root',
+        short: '-p',
+        description: 'Project root directory',
+        type: 'directory',
+      },
+      { name: '--dry-run', short: '-n', description: 'Preview creation' },
+      { name: '--force', short: '-f', description: 'Skip prompts' },
+    ],
   },
   {
     name: 'genesis',
     aliases: ['g'],
     description: 'Build verifiable skeleton',
+    flags: [
+      {
+        name: '--project-root',
+        short: '-p',
+        description: 'Project root directory',
+        type: 'directory',
+      },
+      { name: '--workbench', short: '-w', description: 'eGemma workbench URL' },
+      { name: '--dry-run', short: '-n', description: 'Preview processing' },
+      { name: '--resume', short: '-r', description: 'Resume processing' },
+      { name: '--json', description: 'Output progress as JSON' },
+    ],
     subcommands: [
       {
         name: 'docs',
@@ -45,7 +67,28 @@ export const cliCommands: CommandMetadata[] = [
   {
     name: 'query',
     aliases: ['q'],
-    description: 'Query the codebase',
+    description: 'Query the codebase for information',
+    flags: [
+      {
+        name: '--project-root',
+        short: '-p',
+        description: 'Project root directory',
+        type: 'directory',
+      },
+      {
+        name: '--depth',
+        short: '-d',
+        description: 'Depth of dependency traversal',
+      },
+      {
+        name: '--format',
+        short: '-f',
+        description: 'Output format',
+        values: ['human', 'json', 'lineage', 'markdown'],
+      },
+      { name: '--lineage', description: 'Output dependency lineage as JSON' },
+      { name: '--json', description: 'Output results as JSON' },
+    ],
   },
   {
     name: 'audit',
@@ -137,11 +180,29 @@ export const cliCommands: CommandMetadata[] = [
         description: 'Disable automatic AI response on tool completion',
       },
     ],
+    subcommands: [
+      {
+        name: 'provider',
+        description: 'Manage LLM providers',
+        subcommands: [
+          { name: 'list', description: 'List available providers' },
+          { name: 'set-default', description: 'Set default provider' },
+          { name: 'test', description: 'Test provider availability' },
+          { name: 'config', description: 'Show current configuration' },
+          { name: 'models', description: 'List available models' },
+        ],
+      },
+    ],
   },
   { name: 'ask', description: 'Ask questions about docs' },
   {
     name: 'pr-analyze',
     description: 'Comprehensive PR impact analysis (O1+O2+O3+O4+O7)',
+    flags: [
+      { name: '--branch', description: 'Branch to analyze' },
+      { name: '--max-depth', description: 'Maximum blast radius depth' },
+      { name: '--json', description: 'Output as JSON' },
+    ],
   },
   {
     name: 'lattice',
@@ -219,9 +280,56 @@ export const cliCommands: CommandMetadata[] = [
     ],
   },
   { name: 'blast-radius', description: 'Impact analysis' },
-  { name: 'watch', description: 'Watch for changes' },
-  { name: 'status', description: 'Check status' },
-  { name: 'update', description: 'Update PGC' },
+  {
+    name: 'watch',
+    description: 'Watch for changes and maintain PGC coherence state',
+    flags: [
+      { name: '--untracked', description: 'Watch for new untracked files' },
+      { name: '--debounce', description: 'Debounce delay (ms)' },
+      { name: '--auto-update', description: 'Auto-trigger update on change' },
+      { name: '--auto-update-debounce', description: 'Auto-update delay (ms)' },
+      {
+        name: '--workbench',
+        short: '-w',
+        description: 'eGemma workbench URL',
+      },
+      { name: '--verbose', short: '-v', description: 'Show detailed changes' },
+    ],
+  },
+  {
+    name: 'status',
+    description: 'Check PGC coherence state',
+    flags: [
+      { name: '--json', description: 'Output as JSON' },
+      {
+        name: '--verbose',
+        short: '-v',
+        description: 'Show detailed blast radius info',
+      },
+    ],
+  },
+  {
+    name: 'update',
+    description: 'Incremental PGC sync from dirty state',
+    flags: [
+      {
+        name: '--project-root',
+        short: '-p',
+        description: 'Project root directory',
+        type: 'directory',
+      },
+      {
+        name: '--workbench',
+        short: '-w',
+        description: 'eGemma workbench URL',
+      },
+      {
+        name: '--dry-run',
+        short: '-n',
+        description: 'Preview pending changes',
+      },
+    ],
+  },
   { name: 'guide', description: 'Documentation browser' },
   {
     name: 'migrate',
@@ -236,6 +344,83 @@ export const cliCommands: CommandMetadata[] = [
         name: '--shell',
         description: 'Shell type',
         values: ['bash', 'zsh', 'fish'],
+      },
+    ],
+  },
+  {
+    name: 'lineage',
+    description: 'Track and manage code transformation lineage',
+    subcommands: [
+      {
+        name: 'record',
+        description: 'Record file changes from a specific commit or range',
+        flags: [
+          { name: '--commit', description: 'Git commit hash or range' },
+          { name: '--synthesize', description: 'Synthesize intent via eGemma' },
+          { name: '--update', description: 'Trigger incremental update' },
+          {
+            name: '--project-root',
+            short: '-p',
+            description: 'Project root directory',
+            type: 'directory',
+          },
+        ],
+      },
+      {
+        name: 'hooks:install',
+        description: 'Install git hooks to automatically record lineage',
+        flags: [
+          {
+            name: '--project-root',
+            short: '-p',
+            description: 'Project root directory',
+            type: 'directory',
+          },
+        ],
+      },
+      {
+        name: 'intent',
+        description: 'Declare an intent for a future code transformation',
+        flags: [
+          {
+            name: '--file',
+            description: 'Path to the file being modified',
+            type: 'file',
+          },
+          { name: '--intent', description: 'Reasoning for the change' },
+          { name: '--decision', description: 'What choice was made' },
+          { name: '--alternatives', description: 'Alternatives considered' },
+          {
+            name: '--source',
+            description: 'Identifier for the source',
+            values: ['ai_agent', 'tui', 'claude-code'],
+          },
+          { name: '--session', description: 'Link to conversation session' },
+          {
+            name: '--confidence',
+            description: 'Confidence in the reasoning (0.0-1.0)',
+          },
+          {
+            name: '--project-root',
+            short: '-p',
+            description: 'Project root directory',
+            type: 'directory',
+          },
+        ],
+      },
+      {
+        name: 'enrich',
+        description: 'Enrich low-confidence transforms via eGemma synthesis',
+        flags: [
+          { name: '--since', description: 'Scan transforms since git ref' },
+          { name: '--dry-run', description: 'Show what would be enriched' },
+          {
+            name: '--project-root',
+            short: '-p',
+            description: 'Project root directory',
+            type: 'directory',
+          },
+        ],
       },
     ],
   },

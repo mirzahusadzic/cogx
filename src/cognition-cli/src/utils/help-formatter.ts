@@ -347,6 +347,8 @@ export const COMMAND_GROUPS: CommandGroup[] = [
     title: 'track lineage',
     commands: [
       { name: 'lineage record', desc: 'Record file changes from git commits' },
+      { name: 'lineage intent', desc: 'Declare intent for future change' },
+      { name: 'lineage enrich', desc: 'Enrich transforms via eGemma' },
       {
         name: 'lineage hooks:install',
         desc: 'Install git hooks for auto-recording',
