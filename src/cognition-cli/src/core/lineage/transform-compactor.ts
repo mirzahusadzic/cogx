@@ -25,6 +25,8 @@
  */
 
 import { TransformLog } from '../pgc/transform-log.js';
+import { ReverseDeps } from '../pgc/reverse-deps.js';
+import { TransformDAG } from '../pgc/transform-dag.js';
 import { Transformation } from '../types/transform.js';
 
 /** Compaction plan produced by scan(). Describes what would be done. */
@@ -69,7 +71,11 @@ export interface CompactionResult {
  * 2. `compact()` — execute the plan (or simulate with dryRun)
  */
 export class TransformCompactor {
-  constructor(private readonly transformLog: TransformLog) {}
+  constructor(
+    private readonly transformLog: TransformLog,
+    private readonly reverseDeps: ReverseDeps,
+    private readonly transformDAG: TransformDAG
+  ) {}
 
   /**
    * Scan the transform log and produce a compaction plan.
@@ -199,13 +205,20 @@ export class TransformCompactor {
     // Phase 1: Purge invalidated transforms
     for (const id of plan.toInvalidated) {
       if (!dryRun) {
+        // Clean up indexing for the invalidated transform before purging
+        const tx = await this.transformLog.getTransformation(id);
+        if (tx) {
+          for (const input of tx.inputs) {
+            await this.reverseDeps.delete(input.hash, id);
+          }
+        }
         await this.transformLog.purge(id);
         result.purged++;
       }
     }
 
     // Phase 2: Squash intermediate groups
-    for (const [, intermediateIds] of plan.squashGroups) {
+    for (const [filePath, intermediateIds] of plan.squashGroups) {
       if (intermediateIds.length === 0) continue;
 
       // Load all intermediate transforms
@@ -231,7 +244,7 @@ export class TransformCompactor {
         const firstTx = transforms[0];
         const lastTx = transforms[transforms.length - 1];
         const summaryInput = firstTx.inputs[0] ?? {
-          path: '__no_input__',
+          path: filePath,
           hash: '',
         };
         const summaryOutput = lastTx.outputs[0] ?? summaryInput;
@@ -254,8 +267,30 @@ export class TransformCompactor {
             goal: firstTx.goal,
           };
 
-        await this.transformLog.record(summaryData);
+        const summaryId = await this.transformLog.record(summaryData);
+
+        // Re-index summary: update ReverseDeps and TransformDAG
+        await this.transformDAG.link(summaryId, {
+          ...summaryData,
+          phi: 1.0,
+          verification_result: {
+            success: true,
+            messages: ['Compaction summary generated successfully'],
+          },
+        } as Transformation);
+
+        for (const input of summaryData.inputs) {
+          await this.reverseDeps.add(input.hash, summaryId);
+        }
+
+        // Prune intermediate indices and purge files
         for (const id of intermediateIds) {
+          const tx = await this.transformLog.getTransformation(id);
+          if (tx) {
+            for (const input of tx.inputs) {
+              await this.reverseDeps.delete(input.hash, id);
+            }
+          }
           await this.transformLog.purge(id);
         }
 

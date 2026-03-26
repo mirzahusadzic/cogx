@@ -3,6 +3,8 @@ import chalk from 'chalk';
 import { intro, outro } from '@clack/prompts';
 import { resolvePgcRoot } from './sugar/utils.js';
 import { TransformLog } from '../core/pgc/transform-log.js';
+import { ReverseDeps } from '../core/pgc/reverse-deps.js';
+import { TransformDAG } from '../core/pgc/transform-dag.js';
 import { TransformCompactor } from '../core/lineage/transform-compactor.js';
 
 /**
@@ -54,7 +56,13 @@ export function createTransformsCompactCommand(): Command {
 
         const pgcRoot = resolvePgcRoot(process.cwd());
         const transformLog = new TransformLog(pgcRoot);
-        const compactor = new TransformCompactor(transformLog);
+        const reverseDeps = new ReverseDeps(pgcRoot);
+        const transformDAG = new TransformDAG(pgcRoot);
+        const compactor = new TransformCompactor(
+          transformLog,
+          reverseDeps,
+          transformDAG
+        );
 
         console.log(chalk.dim('Scanning transform log…'));
 

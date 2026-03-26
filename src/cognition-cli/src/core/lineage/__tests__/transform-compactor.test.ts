@@ -4,6 +4,8 @@ import path from 'path';
 import os from 'os';
 import crypto from 'node:crypto';
 import { TransformLog } from '../../pgc/transform-log.js';
+import { ReverseDeps } from '../../pgc/reverse-deps.js';
+import { TransformDAG } from '../../pgc/transform-dag.js';
 import { TransformCompactor } from '../transform-compactor.js';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -55,6 +57,8 @@ function daysAgo(n: number): string {
 describe('TransformCompactor', () => {
   let tempDir: string;
   let log: TransformLog;
+  let reverseDeps: ReverseDeps;
+  let transformDAG: TransformDAG;
   let compactor: TransformCompactor;
 
   beforeEach(async () => {
@@ -64,7 +68,9 @@ describe('TransformCompactor', () => {
     );
     await fs.ensureDir(tempDir);
     log = new TransformLog(tempDir);
-    compactor = new TransformCompactor(log);
+    reverseDeps = new ReverseDeps(tempDir);
+    transformDAG = new TransformDAG(tempDir);
+    compactor = new TransformCompactor(log, reverseDeps, transformDAG);
   });
 
   afterEach(async () => {
@@ -409,5 +415,58 @@ describe('TransformCompactor', () => {
     const result = await compactor.compact(plan, { dryRun: false });
 
     expect(result.endpointsPreserved).toBe(2);
+  });
+
+  it('compact() updates ReverseDeps for summary transforms', async () => {
+    const file = 'src/index.ts';
+    const hash1 = 'hash1';
+    const hash2 = 'hash2';
+    const hash3 = 'hash3';
+
+    // Record transforms and manually add to ReverseDeps
+    const id1 = await log.record({
+      type: 'update',
+      timestamp: daysAgo(300),
+      inputs: [{ path: file, hash: 'start' }],
+      outputs: [{ path: file, hash: hash1 }],
+      goal: { objective: 'test', criteria: [], phimin: 0.8 },
+      method: 'test',
+    });
+    await reverseDeps.add('start', id1);
+
+    const id2 = await log.record({
+      type: 'update',
+      timestamp: daysAgo(200),
+      inputs: [{ path: file, hash: hash1 }],
+      outputs: [{ path: file, hash: hash2 }],
+      goal: { objective: 'test', criteria: [], phimin: 0.8 },
+      method: 'test',
+    });
+    await reverseDeps.add(hash1, id2);
+
+    const id3 = await log.record({
+      type: 'update',
+      timestamp: daysAgo(100),
+      inputs: [{ path: file, hash: hash2 }],
+      outputs: [{ path: file, hash: hash3 }],
+      goal: { objective: 'test', criteria: [], phimin: 0.8 },
+      method: 'test',
+    });
+    await reverseDeps.add(hash2, id3);
+
+    const plan = await compactor.scan({ minAgeDays: 90 });
+    await compactor.compact(plan, { dryRun: false });
+
+    // Check ReverseDeps
+    const hash1Deps = await reverseDeps.getTransformIds(hash1);
+    expect(hash1Deps).not.toContain(id2);
+    // Find the summary ID from the log
+    const allIds = await log.getAllTransformIds();
+    const sId = allIds.find((id) => id !== id1 && id !== id3);
+    expect(hash1Deps).toContain(sId);
+
+    // Check TransformDAG
+    const producer = await transformDAG.getProducerTransformId(hash2);
+    expect(producer).toBe(sId);
   });
 });
