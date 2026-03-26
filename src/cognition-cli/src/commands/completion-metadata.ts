@@ -381,6 +381,11 @@ export const cliCommands: CommandMetadata[] = [
             description: 'Show detailed error messages',
             short: '-v',
           },
+          {
+            name: '--history',
+            description:
+              'Show intent-grounded coherence metrics and reclassified symbols',
+          },
         ],
       },
       {

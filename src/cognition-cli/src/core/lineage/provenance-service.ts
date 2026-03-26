@@ -39,6 +39,10 @@ export interface FileHistory {
     type: string;
     method: string;
     phi: number;
+    reasoning?: {
+      intent?: string;
+      confidence?: number;
+    };
   }>;
 }
 
@@ -208,6 +212,12 @@ export class ProvenanceService {
         type: transform.type ?? 'unknown',
         method: transform.method ?? 'unknown',
         phi: transform.phi,
+        reasoning: transform.reasoning
+          ? {
+              intent: transform.reasoning.intent,
+              confidence: transform.reasoning.confidence,
+            }
+          : undefined,
       });
     }
 

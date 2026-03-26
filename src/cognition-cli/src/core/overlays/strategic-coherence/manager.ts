@@ -173,7 +173,8 @@ export class StrategicCoherenceManager {
   async computeCoherence(
     missionDocHash: string,
     topN: number = 5,
-    alignmentThreshold: number = 0.5
+    alignmentThreshold: number = 0.5,
+    enableIntentGrounding: boolean = false
   ): Promise<StrategicCoherenceOverlay> {
     // 1. Load mission concepts (from O₃)
     const missionOverlay = await this.missionManager.retrieve(missionDocHash);
@@ -264,6 +265,9 @@ export class StrategicCoherenceManager {
       }
 
       // For each symbol, use LanceDB's native similarity search
+      let intentGenerator:
+        | import('./intent-embeddings.js').IntentEmbeddingGenerator
+        | null = null;
       for (const vectorRecord of vectorsForCoherence) {
         const symbolEmbedding = vectorRecord.embedding;
 
@@ -307,12 +311,68 @@ export class StrategicCoherenceManager {
             (vectorRecord.lineage_hash as string) ||
             'unknown';
 
+          let finalCoherence = overallCoherence;
+
+          if (enableIntentGrounding) {
+            if (!intentGenerator) {
+              const { IntentEmbeddingGenerator } =
+                await import('./intent-embeddings.js');
+              const { WorkbenchClient } =
+                await import('../../executors/workbench-client.js');
+              const workbench = new WorkbenchClient(
+                process.env.WORKBENCH_URL || 'http://localhost:8000'
+              );
+              intentGenerator = new IntentEmbeddingGenerator(
+                this.pgcManager.index,
+                this.pgcManager.transformLog,
+                workbench
+              );
+            }
+
+            try {
+              const intentEmb = await intentGenerator.generateForSymbol(
+                symbolName,
+                filePath
+              );
+              if (
+                intentEmb &&
+                intentEmb.confidence > 0.3 &&
+                intentEmb.embedding.length === 768
+              ) {
+                const intentSearchResults =
+                  await conceptVectorStore.similaritySearch(
+                    intentEmb.embedding,
+                    topN * 2,
+                    undefined,
+                    'cosine'
+                  );
+                const intentAlignments = intentSearchResults
+                  .filter((r) => r.similarity >= alignmentThreshold)
+                  .slice(0, topN);
+
+                if (intentAlignments.length > 0) {
+                  const intentCoherence =
+                    intentAlignments.reduce((sum, r) => sum + r.similarity, 0) /
+                    intentAlignments.length;
+                  const intentWeight = intentEmb.confidence * 0.5;
+                  const shadowWeight = 1.0 - intentWeight;
+                  finalCoherence =
+                    shadowWeight * overallCoherence +
+                    intentWeight * intentCoherence;
+                }
+              }
+            } catch {
+              // Intent grounding failed — silently fall back to shadow-only
+              finalCoherence = overallCoherence;
+            }
+          }
+
           symbolCoherenceList.push({
             symbolName,
             filePath,
             symbolHash,
             topAlignments: alignments,
-            overallCoherence,
+            overallCoherence: finalCoherence,
           });
 
           // Update reverse mapping (concept → symbols)
@@ -433,7 +493,8 @@ export class StrategicCoherenceManager {
   async computeCoherenceFromMultipleDocs(
     missionDocHashes: string[],
     topN: number = 5,
-    alignmentThreshold: number = 0.5
+    alignmentThreshold: number = 0.5,
+    enableIntentGrounding: boolean = false
   ): Promise<StrategicCoherenceOverlay> {
     // 1. Load and aggregate mission concepts from all documents
     const allMissionConcepts: MissionConcept[] = [];
@@ -520,6 +581,9 @@ export class StrategicCoherenceManager {
       }
 
       // For each symbol, use LanceDB's native similarity search
+      let intentGeneratorMulti:
+        | import('./intent-embeddings.js').IntentEmbeddingGenerator
+        | null = null;
       for (const vectorRecord of vectorRecords) {
         const symbolEmbedding = vectorRecord.embedding;
 
@@ -563,12 +627,68 @@ export class StrategicCoherenceManager {
             (vectorRecord.lineage_hash as string) ||
             'unknown';
 
+          let finalCoherence = overallCoherence;
+
+          if (enableIntentGrounding) {
+            if (!intentGeneratorMulti) {
+              const { IntentEmbeddingGenerator } =
+                await import('./intent-embeddings.js');
+              const { WorkbenchClient } =
+                await import('../../executors/workbench-client.js');
+              const workbench = new WorkbenchClient(
+                process.env.WORKBENCH_URL || 'http://localhost:8000'
+              );
+              intentGeneratorMulti = new IntentEmbeddingGenerator(
+                this.pgcManager.index,
+                this.pgcManager.transformLog,
+                workbench
+              );
+            }
+
+            try {
+              const intentEmb = await intentGeneratorMulti.generateForSymbol(
+                symbolName,
+                filePath
+              );
+              if (
+                intentEmb &&
+                intentEmb.confidence > 0.3 &&
+                intentEmb.embedding.length === 768
+              ) {
+                const intentSearchResults =
+                  await conceptVectorStore.similaritySearch(
+                    intentEmb.embedding,
+                    topN * 2,
+                    undefined,
+                    'cosine'
+                  );
+                const intentAlignments = intentSearchResults
+                  .filter((r) => r.similarity >= alignmentThreshold)
+                  .slice(0, topN);
+
+                if (intentAlignments.length > 0) {
+                  const intentCoherence =
+                    intentAlignments.reduce((sum, r) => sum + r.similarity, 0) /
+                    intentAlignments.length;
+                  const intentWeight = intentEmb.confidence * 0.5;
+                  const shadowWeight = 1.0 - intentWeight;
+                  finalCoherence =
+                    shadowWeight * overallCoherence +
+                    intentWeight * intentCoherence;
+                }
+              }
+            } catch {
+              // Intent grounding failed — silently fall back to shadow-only
+              finalCoherence = overallCoherence;
+            }
+          }
+
           symbolCoherenceList.push({
             symbolName,
             filePath,
             symbolHash,
             topAlignments: alignments,
-            overallCoherence,
+            overallCoherence: finalCoherence,
           });
 
           // Update reverse mapping (concept → symbols)

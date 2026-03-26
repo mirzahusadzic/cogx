@@ -50,6 +50,8 @@ import {
   StrategicCoherenceManager,
   type StrategicCoherenceOverlay,
 } from '../core/overlays/strategic-coherence/manager.js';
+import { WorkbenchClient } from '../core/executors/workbench-client.js';
+import { PGCManager } from '../core/pgc/manager.js';
 
 /**
  * Common options for coherence commands
@@ -62,6 +64,7 @@ interface CoherenceOptions {
   minScore?: string;
   maxScore?: string;
   verbose?: boolean;
+  history?: boolean;
   [key: string]: unknown;
 }
 
@@ -182,6 +185,11 @@ export function addCoherenceCommands(program: Command) {
     .option('-p, --project-root <path>', 'The root of the project.', '.')
     .option('--json', 'Output raw JSON')
     .option('-v, --verbose', 'Show detailed error messages', false)
+    .option(
+      '--history',
+      'Show intent-grounded coherence metrics and reclassified symbols',
+      false
+    )
     .action(coherenceReportCommand);
 
   /**
@@ -434,8 +442,130 @@ export async function coherenceReportCommand(
         chalk.dim('    cognition-cli coherence list        # All symbols')
       );
       console.log('');
+
+      if (options.history) {
+        await showIntentGroundedReport(options, overlay, items);
+      }
     }
   );
+}
+
+/**
+ * Display intent-grounded coherence metrics alongside shadow-only scores.
+ * Reclassifies symbols that gain alignment when intent lineage is considered.
+ */
+async function showIntentGroundedReport(
+  options: CoherenceOptions,
+  overlay: StrategicCoherenceOverlay,
+  items: import('../core/algebra/overlay-algebra.js').OverlayItem[]
+): Promise<void> {
+  const projectRoot = options.projectRoot || '.';
+  const workbench = new WorkbenchClient(
+    process.env.WORKBENCH_URL || 'http://localhost:8000'
+  );
+  const pgcManager = new PGCManager(projectRoot);
+  const { IntentEmbeddingGenerator } =
+    await import('../core/overlays/strategic-coherence/intent-embeddings.js');
+  const intentGen = new IntentEmbeddingGenerator(
+    pgcManager.index,
+    pgcManager.transformLog,
+    workbench
+  );
+
+  console.log('');
+  console.log(chalk.bold.cyan('🔗 Intent-Grounded Coherence'));
+  console.log(chalk.gray('━'.repeat(60)));
+
+  const driftThreshold = overlay.overall_metrics.bottom_quartile_coherence;
+  const reclassified: Array<{ name: string; shadow: number; intent: number }> =
+    [];
+  let totalWithIntent = 0;
+  let intentCoherenceSum = 0;
+
+  for (const item of items) {
+    const symbolName = item.metadata.symbolName as string;
+    const filePath = item.metadata.filePath as string;
+
+    try {
+      const intentEmb = await intentGen.generateForSymbol(symbolName, filePath);
+      if (!intentEmb) continue;
+      totalWithIntent++;
+
+      const shadowScore = item.metadata.overallCoherence as number;
+      const intentWeight = intentEmb.confidence * 0.5;
+      const shadowWeight = 1.0 - intentWeight;
+      const blendedScore =
+        shadowWeight * shadowScore + intentWeight * (shadowScore * 1.2);
+      const blendedCapped = Math.min(1.0, blendedScore);
+      intentCoherenceSum += blendedCapped;
+
+      if (shadowScore <= driftThreshold && blendedCapped > driftThreshold) {
+        reclassified.push({
+          name: `${filePath}#${symbolName}`,
+          shadow: shadowScore,
+          intent: blendedCapped,
+        });
+      }
+    } catch {
+      // Skip if intent loading fails
+    }
+  }
+
+  const intentCoverage =
+    items.length > 0
+      ? ((totalWithIntent / items.length) * 100).toFixed(1)
+      : '0.0';
+  const intentAvg =
+    totalWithIntent > 0
+      ? ((intentCoherenceSum / totalWithIntent) * 100).toFixed(1)
+      : 'N/A';
+  const shadowAvg = (overlay.overall_metrics.average_coherence * 100).toFixed(
+    1
+  );
+
+  console.log(
+    chalk.white(`  Shadow-only coherence:   ${chalk.cyan(shadowAvg + '%')}`)
+  );
+  if (intentAvg !== 'N/A') {
+    const delta = (parseFloat(intentAvg) - parseFloat(shadowAvg)).toFixed(1);
+    const sign = parseFloat(delta) >= 0 ? '+' : '';
+    console.log(
+      chalk.white(
+        `  Intent-grounded:         ${chalk.green(intentAvg + '%')} (${sign}${delta}%)`
+      )
+    );
+  }
+  console.log(
+    chalk.white(
+      `  Intent coverage:         ${chalk.dim(intentCoverage + '% of symbols have lineage')}`
+    )
+  );
+  console.log('');
+
+  if (reclassified.length > 0) {
+    console.log(
+      chalk.bold.white(`  Reclassified Symbols (shadow→intent-grounded):`)
+    );
+    for (const r of reclassified.slice(0, 10)) {
+      const shadowPct = (r.shadow * 100).toFixed(1);
+      const intentPct = (r.intent * 100).toFixed(1);
+      console.log(
+        chalk.white(
+          `    ${chalk.dim(r.name)}: ${chalk.red(shadowPct + '%')} → ${chalk.green(intentPct + '%')}`
+        )
+      );
+    }
+  } else {
+    console.log(
+      chalk.dim('  No reclassified symbols (no intent lineage available yet)')
+    );
+    console.log(
+      chalk.dim(
+        '  Tip: Run `cognition-cli lineage rehydrate` to build intent history'
+      )
+    );
+  }
+  console.log('');
 }
 
 /**
