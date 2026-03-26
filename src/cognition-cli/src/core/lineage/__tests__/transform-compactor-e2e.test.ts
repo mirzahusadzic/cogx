@@ -7,6 +7,7 @@ import crypto from 'node:crypto';
 import { PGCManager } from '../../pgc/manager.js';
 import { TransformCompactor } from '../transform-compactor.js';
 import { ProvenanceService } from '../provenance-service.js';
+import { RehydrateService } from '../rehydrate-service.js';
 import { StructuralMiner } from '../../orchestrators/miners/structural.js';
 import { WorkbenchClient } from '../../executors/workbench-client.js';
 import { GenesisOrchestrator } from '../../orchestrators/genesis.js';
@@ -296,5 +297,18 @@ describe('TransformCompactor E2E', () => {
     const fileHistory = await provenanceService.getFileHistory('src/test.ts');
     expect(fileHistory.transforms).toHaveLength(3);
     expect(fileHistory.transforms[1].transformId).toBe(summaryId);
+
+    // 6. Test Rehydrate Interaction
+    // If we rehydrate now, it should NOT re-add the intermediate transforms
+    // that were just compacted, because they are represented by the summary.
+    // However, the current rehydrate logic only checks ReverseDeps.
+    // Since we removed intermediates from ReverseDeps, rehydrate might try to add them back.
+    const rehydrateService = new RehydrateService(pgc);
+    const rehydrateResults = await rehydrateService.rehydrate();
+
+    // We expect 0 new transforms if the system correctly identifies that
+    // the Git history is already covered by the summary.
+    // (Note: This might fail initially, proving we need a fix)
+    expect(rehydrateResults.recordedCount).toBe(0);
   });
 });

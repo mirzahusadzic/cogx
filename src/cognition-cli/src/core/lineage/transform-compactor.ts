@@ -258,6 +258,13 @@ export class TransformCompactor {
             method: 'compaction',
             inputs: [summaryInput],
             outputs: [summaryOutput],
+            // Preserve git context and record compacted commits
+            git: {
+              ...lastTx.git,
+              compacted_commits: transforms
+                .map((tx) => tx.git?.commit_hash)
+                .filter((c): c is string => !!c),
+            } as Record<string, unknown>,
             reasoning: {
               intent: concatenatedIntent,
               confidence: 0.5,
