@@ -662,6 +662,32 @@ export const cliCommands: CommandMetadata[] = [
           },
         ],
       },
+      {
+        name: 'rehydrate',
+        description: 'Reconstruct PGC lineage from git commit history',
+        flags: [
+          {
+            name: '--depth',
+            short: '-n',
+            description: 'Process only the last N commits',
+          },
+          {
+            name: '--since',
+            description: 'Process commits after this date or git ref',
+          },
+          { name: '--resume', description: 'Skip already-processed commits' },
+          {
+            name: '--synthesize',
+            description: 'Enrich transforms via eGemma synthesis',
+          },
+          {
+            name: '--project-root',
+            short: '-p',
+            description: 'Project root directory',
+            type: 'directory',
+          },
+        ],
+      },
     ],
   },
   { name: 'config', description: 'View and manage CLI settings' },

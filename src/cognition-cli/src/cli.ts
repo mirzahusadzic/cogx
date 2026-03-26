@@ -1358,6 +1358,42 @@ lineageCmd
     await lineageEnrichCommand(options);
   });
 
+lineageCmd
+  .command('rehydrate')
+  .description('Reconstruct PGC lineage from git commit history')
+  .option('-n, --depth <N>', 'Process only the last N commits', parseInt)
+  .option('--since <date>', 'Process commits after this date or ref')
+  .option(
+    '--resume',
+    'Skip already-processed commits (uses rehydration manifest)',
+    false
+  )
+  .option(
+    '--synthesize',
+    'Enrich transforms via eGemma intent synthesis',
+    false
+  )
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .addHelpText(
+    'after',
+    `
+Examples:
+  $ cognition-cli lineage rehydrate
+  $ cognition-cli lineage rehydrate --depth 50
+  $ cognition-cli lineage rehydrate --since 2025-01-01
+  $ cognition-cli lineage rehydrate --resume
+  $ cognition-cli lineage rehydrate --resume --synthesize`
+  )
+  .action(async (options) => {
+    const { lineageRehydrateCommand } =
+      await import('./commands/lineage-rehydrate.js');
+    await lineageRehydrateCommand(options);
+  });
+
 // Bootstrap security layer (one-time acknowledgment)
 await bootstrapSecurity();
 
