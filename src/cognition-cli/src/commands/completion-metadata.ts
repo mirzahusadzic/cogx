@@ -243,8 +243,231 @@ export const cliCommands: CommandMetadata[] = [
       },
     ],
   },
-  { name: 'concepts', description: 'Concept operations' },
-  { name: 'coherence', description: 'Coherence checking' },
+  {
+    name: 'concepts',
+    description: 'Concept operations',
+    subcommands: [
+      {
+        name: 'list',
+        description: 'List concepts',
+        flags: [
+          {
+            name: '--project-root',
+            description: 'The root of the project.',
+            short: '-p',
+          },
+          {
+            name: '--format',
+            description: 'Output format: table, json, summary',
+            short: '-f',
+          },
+          {
+            name: '--limit',
+            description: 'Maximum number of results',
+            short: '-l',
+          },
+          {
+            name: '--verbose',
+            description: 'Show detailed error messages',
+            short: '-v',
+          },
+          { name: '--json', description: 'Output results as JSON' },
+        ],
+      },
+      {
+        name: 'top',
+        description: 'Show top concepts',
+        flags: [
+          {
+            name: '--project-root',
+            description: 'The root of the project.',
+            short: '-p',
+          },
+          {
+            name: '--limit',
+            description: 'Maximum number of results',
+            short: '-l',
+          },
+          {
+            name: '--verbose',
+            description: 'Show detailed error messages',
+            short: '-v',
+          },
+          { name: '--json', description: 'Output results as JSON' },
+        ],
+      },
+      {
+        name: 'search',
+        description: 'Search concepts',
+        flags: [
+          {
+            name: '--project-root',
+            description: 'The root of the project.',
+            short: '-p',
+          },
+          { name: '--query', description: 'Search query', short: '-q' },
+          {
+            name: '--limit',
+            description: 'Maximum number of results',
+            short: '-l',
+          },
+          {
+            name: '--verbose',
+            description: 'Show detailed error messages',
+            short: '-v',
+          },
+          { name: '--json', description: 'Output results as JSON' },
+        ],
+      },
+      {
+        name: 'by-section',
+        description: 'List concepts by section',
+        flags: [
+          {
+            name: '--project-root',
+            description: 'The root of the project.',
+            short: '-p',
+          },
+          { name: '--section', description: 'Section name', short: '-s' },
+          {
+            name: '--limit',
+            description: 'Maximum number of results',
+            short: '-l',
+          },
+          {
+            name: '--verbose',
+            description: 'Show detailed error messages',
+            short: '-v',
+          },
+          { name: '--json', description: 'Output results as JSON' },
+        ],
+      },
+      {
+        name: 'inspect',
+        description: 'Inspect a specific concept',
+        flags: [
+          {
+            name: '--project-root',
+            description: 'The root of the project.',
+            short: '-p',
+          },
+          { name: '--concept', description: 'Concept name', short: '-c' },
+          {
+            name: '--verbose',
+            description: 'Show detailed error messages',
+            short: '-v',
+          },
+          { name: '--json', description: 'Output results as JSON' },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'coherence',
+    description: 'Coherence checking',
+    subcommands: [
+      {
+        name: 'report',
+        description: 'Show overall strategic coherence metrics',
+        flags: [
+          {
+            name: '--project-root',
+            description: 'The root of the project.',
+            short: '-p',
+          },
+          { name: '--json', description: 'Output raw JSON' },
+          {
+            name: '--verbose',
+            description: 'Show detailed error messages',
+            short: '-v',
+          },
+        ],
+      },
+      {
+        name: 'aligned',
+        description: 'Show symbols aligned with mission',
+        flags: [
+          {
+            name: '--project-root',
+            description: 'The root of the project.',
+            short: '-p',
+          },
+          { name: '--min-score', description: 'Minimum coherence score' },
+          {
+            name: '--format',
+            description: 'Output format: table, json, summary',
+            short: '-f',
+          },
+          {
+            name: '--limit',
+            description: 'Maximum number of results',
+            short: '-l',
+          },
+          {
+            name: '--verbose',
+            description: 'Show detailed error messages',
+            short: '-v',
+          },
+          { name: '--json', description: 'Output results as JSON' },
+        ],
+      },
+      {
+        name: 'drifted',
+        description: 'Show symbols drifted from mission',
+        flags: [
+          {
+            name: '--project-root',
+            description: 'The root of the project.',
+            short: '-p',
+          },
+          { name: '--max-score', description: 'Maximum coherence score' },
+          {
+            name: '--format',
+            description: 'Output format: table, json, summary',
+            short: '-f',
+          },
+          {
+            name: '--limit',
+            description: 'Maximum number of results',
+            short: '-l',
+          },
+          {
+            name: '--verbose',
+            description: 'Show detailed error messages',
+            short: '-v',
+          },
+          { name: '--json', description: 'Output results as JSON' },
+        ],
+      },
+      {
+        name: 'list',
+        description: 'Show all symbols with coherence scores',
+        flags: [
+          {
+            name: '--project-root',
+            description: 'The root of the project.',
+            short: '-p',
+          },
+          {
+            name: '--format',
+            description: 'Output format: table, json, summary',
+            short: '-f',
+          },
+          {
+            name: '--limit',
+            description: 'Maximum number of results',
+            short: '-l',
+          },
+          {
+            name: '--verbose',
+            description: 'Show detailed error messages',
+            short: '-v',
+          },
+          { name: '--json', description: 'Output results as JSON' },
+        ],
+      },
+    ],
+  },
   {
     name: 'security',
     description: 'Security analysis',
@@ -339,11 +562,28 @@ export const cliCommands: CommandMetadata[] = [
   {
     name: 'completion',
     description: 'Manage shell completion',
-    flags: [
+    subcommands: [
       {
-        name: '--shell',
-        description: 'Shell type',
-        values: ['bash', 'zsh', 'fish'],
+        name: 'install',
+        description: 'Install shell completion scripts',
+        flags: [
+          {
+            name: '--shell',
+            description: 'Shell type: bash, zsh, or fish',
+            values: ['bash', 'zsh', 'fish'],
+          },
+        ],
+      },
+      {
+        name: 'uninstall',
+        description: 'Uninstall shell completion scripts',
+        flags: [
+          {
+            name: '--shell',
+            description: 'Shell type: bash, zsh, or fish',
+            values: ['bash', 'zsh', 'fish'],
+          },
+        ],
       },
     ],
   },
