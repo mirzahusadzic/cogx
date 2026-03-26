@@ -72,7 +72,7 @@ export class MaintenanceStep extends BaseStep {
 
         // Clean up transform history
         for (const transformId of indexData.history) {
-          await context.pgc.transformLog.delete(transformId);
+          await context.pgc.transformLog.purge(transformId);
           await context.pgc.reverseDeps.delete(
             indexData.content_hash,
             transformId
@@ -158,7 +158,7 @@ export class MaintenanceStep extends BaseStep {
       const transformData =
         await context.pgc.transformLog.getTransformation(transformId);
       if (!transformData) {
-        await context.pgc.transformLog.delete(transformId);
+        await context.pgc.transformLog.purge(transformId);
         cleanedTransformLogEntries++;
         continue;
       }
@@ -181,7 +181,7 @@ export class MaintenanceStep extends BaseStep {
       }
 
       if (!isValid) {
-        await context.pgc.transformLog.delete(transformId);
+        await context.pgc.transformLog.purge(transformId);
         cleanedTransformLogEntries++;
       }
     }

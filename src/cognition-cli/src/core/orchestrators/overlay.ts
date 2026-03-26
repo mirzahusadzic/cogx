@@ -974,7 +974,7 @@ export class OverlayOrchestrator extends BaseOrchestrator {
         await this.pgc.objectStore.delete(indexData.content_hash);
         await this.pgc.objectStore.delete(indexData.structural_hash);
         for (const transformId of indexData.history) {
-          await this.pgc.transformLog.delete(transformId);
+          await this.pgc.transformLog.purge(transformId);
           await this.pgc.reverseDeps.delete(
             indexData.content_hash,
             transformId
@@ -1015,7 +1015,7 @@ export class OverlayOrchestrator extends BaseOrchestrator {
       const transformData =
         await this.pgc.transformLog.getTransformation(transformId);
       if (!transformData) {
-        await this.pgc.transformLog.delete(transformId);
+        await this.pgc.transformLog.purge(transformId);
         cleanedTransformLogEntries++;
         continue;
       }
@@ -1038,7 +1038,7 @@ export class OverlayOrchestrator extends BaseOrchestrator {
       }
 
       if (!isValid) {
-        await this.pgc.transformLog.delete(transformId);
+        await this.pgc.transformLog.purge(transformId);
         cleanedTransformLogEntries++;
       }
     }

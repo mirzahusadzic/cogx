@@ -144,6 +144,43 @@ export const TransformationSchema = z.object({
   method: z.string().optional(),
   /** Redundant with phi, kept for backward compatibility */
   fidelity: z.number().optional(),
+  /** Why this transformation was performed */
+  reasoning: z
+    .object({
+      /** WHY was this done */
+      intent: z.string(),
+      /** What choice was made */
+      decision: z.string().optional(),
+      /** Alternatives considered */
+      alternatives: z.array(z.string()).optional(),
+      /** Confidence in the reasoning (0.0-1.0) */
+      confidence: z.number().min(0).max(1).optional(),
+    })
+    .optional(),
+  /** Who or what initiated this transformation */
+  source: z
+    .object({
+      /** Type of the source */
+      type: z.enum(['developer', 'ai_agent', 'automated', 'system']),
+      /** username, agent name, or tool identifier */
+      identifier: z.string().optional(),
+      /** link to conversation or session */
+      session_id: z.string().optional(),
+    })
+    .optional(),
+  /** Git metadata associated with the transformation state */
+  git: z
+    .object({
+      /** SHA-1 hash of the commit */
+      commit_hash: z.string().optional(),
+      /** Author of the commit */
+      author: z.string().optional(),
+      /** Commit message */
+      message: z.string().optional(),
+      /** ISO-8601 timestamp of the commit */
+      timestamp: z.string().optional(),
+    })
+    .optional(),
 });
 
 /**

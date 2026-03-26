@@ -9,6 +9,7 @@ import YAML from 'yaml';
 import type { SourceFile, StructuralData } from '../../types/structural.js';
 import type { GenesisJobResult, GenesisJobPacket } from '../genesis-worker.js';
 import { WORKBENCH_DEPENDENT_EXTRACTION_METHODS } from '../../../config.js';
+import { extractGitContext } from '../../git/context-extractor.js';
 
 export interface StructuralProcessingOptions {
   parallel?: boolean;
@@ -157,6 +158,12 @@ export class StructuralProcessingStep extends BaseStep {
         return true;
       }
 
+      // Extract Git context
+      const gitContext = await extractGitContext(
+        path.join(context.projectRoot, file.relativePath),
+        context.projectRoot
+      );
+
       // Record transform
       recordedTransformId = await context.pgc.transformLog.record({
         goal: {
@@ -174,6 +181,15 @@ export class StructuralProcessingStep extends BaseStep {
         outputs: [{ path: file.relativePath, hash: structuralHash }],
         method: structural.extraction_method,
         fidelity: structural.fidelity,
+        git: gitContext || undefined,
+        reasoning: {
+          intent: 'Extract structural metadata from source file',
+          confidence: structural.fidelity,
+        },
+        source: {
+          type: 'system',
+          identifier: 'StructuralProcessingStep',
+        },
       });
 
       // Update index
@@ -230,7 +246,10 @@ export class StructuralProcessingStep extends BaseStep {
           }
         }
       }
-      await context.pgc.transformLog.delete(transformId);
+      await context.pgc.transformLog.invalidate(
+        transformId,
+        'Structural change in source file'
+      );
       await context.pgc.reverseDeps.delete(oldStructuralHash, transformId);
     }
   }
@@ -312,7 +331,10 @@ export class StructuralProcessingStep extends BaseStep {
       await context.pgc.objectStore.delete(hash);
     }
     if (transformId) {
-      await context.pgc.transformLog.delete(transformId);
+      await context.pgc.transformLog.invalidate(
+        transformId,
+        'Rollback: Cleaning up partial PGC mutations'
+      );
     }
   }
 

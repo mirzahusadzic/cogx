@@ -106,4 +106,13 @@ export async function extractGitDiffContext(
 - Returns null gracefully outside git
 - Handles binary files, new files, deleted files
 
+## Implementation Notes (Post-Review)
+
+**⚠️ purge() vs invalidate() in GC paths:** `overlay.ts` and `maintenance.ts` use `purge()`
+(hard delete) for orphaned/corrupt transforms during maintenance sweeps. This is correct —
+these transforms are genuinely broken (no manifest, missing inputs). However, if full audit
+trail is ever required even for corrupt transforms (e.g., forensic analysis of PGC corruption),
+consider switching GC paths to `invalidate()` with reason `"GC: orphaned transform"` instead
+of `purge()`. Low priority — current behavior is sound for normal operation.
+
 ---

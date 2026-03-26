@@ -203,18 +203,65 @@ export class TransformLog {
   }
 
   /**
-   * Delete a transform
+   * Invalidate a transform (soft delete)
    *
-   * Removes transform directory and manifest. Use with caution -
-   * transforms should be immutable for audit trail integrity.
+   * Writes an invalidation marker alongside the manifest.yaml.
+   * Transforms should be immutable for audit trail integrity, so
+   * we invalidate them instead of deleting them.
    *
-   * @param hash - Transform ID to delete
+   * @param hash - Transform ID to invalidate
+   * @param reason - Reason for invalidation
    *
    * @example
-   * // Only for cleanup/testing
-   * await log.delete('abc123...');
+   * await log.invalidate('abc123...', 'Source file was deleted');
    */
-  async delete(hash: string): Promise<void> {
+  async invalidate(hash: string, reason: string): Promise<void> {
+    const transform = await this.getTransformation(hash);
+    if (!transform) return;
+
+    // Write invalidation marker alongside manifest.yaml
+    const invalidationPath = path.join(
+      this.getTransformPath(hash),
+      'invalidated.yaml'
+    );
+    await fs.writeFile(
+      invalidationPath,
+      yaml.dump({
+        original_id: hash,
+        reason,
+        invalidated_at: new Date().toISOString(),
+      })
+    );
+  }
+
+  /**
+   * Check if a transform is invalidated
+   *
+   * @param hash - Transform ID to check
+   * @returns true if invalidated, false otherwise
+   */
+  async isInvalidated(hash: string): Promise<boolean> {
+    const invalidationPath = path.join(
+      this.getTransformPath(hash),
+      'invalidated.yaml'
+    );
+    return fs.pathExists(invalidationPath);
+  }
+
+  /**
+   * Purge a transform (hard delete)
+   *
+   * Removes transform directory and manifest. Use with extreme caution.
+   * This is intended for garbage collection or explicit cleanup commands only.
+   * For standard removals, use invalidate() instead.
+   *
+   * @param hash - Transform ID to purge
+   *
+   * @example
+   * // Only for explicit GC/cleanup
+   * await log.purge('abc123...');
+   */
+  async purge(hash: string): Promise<void> {
     const transformPath = this.getTransformPath(hash);
     await fs.remove(transformPath);
   }
