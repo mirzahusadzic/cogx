@@ -945,7 +945,7 @@ cognition-cli overlay generate mission_concepts
 
 ❌ **Exclude** (via `.gitignore`):
 
-```gitignore
+```text
 # Large, regenerable content
 objects/
 patterns.lancedb/

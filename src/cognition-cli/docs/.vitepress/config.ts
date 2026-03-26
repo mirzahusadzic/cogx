@@ -11,6 +11,8 @@ export default defineConfig({
     /^http:\/\/localhost/,
     // Ignore .log file links (proof artifacts)
     /\.log$/,
+    // Ignore links to .claude directory
+    /\.claude\//,
   ],
   themeConfig: {
     nav: [
