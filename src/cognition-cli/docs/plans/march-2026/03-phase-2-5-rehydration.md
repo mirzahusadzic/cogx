@@ -336,4 +336,37 @@ individual file queries by checking `bulk_rename.files[]` for the specific old�
 - Rehydrate empty repo → graceful no-op
 - Rehydrate non-git directory → clear error message
 
+## Validation & Testing
+
+### 2.5.1 Rehydrate Command
+
+- Full rehydration on small repo (~50 commits) → all transforms recorded in causal order
+- `--depth 10` → exactly last 10 commits processed
+- `--since 2025-01-01` → only commits after date
+- Commit with binary files → filtered out (supported extensions only)
+- Status A/M/D/R all handled → verify inputs/outputs correct per status type
+- Object store populated → `git show <hash>:<path>` content matches stored object
+
+### 2.5.2 Manifest & Resume
+
+- After rehydration → manifest.json exists with correct counts
+- `--resume` after full run → zero new transforms (idempotent)
+- `--resume` after 5 new commits → only those 5 processed
+- Corrupt/missing manifest → full rehydration (safe default)
+
+### 2.5.3 Enrichment & Tiered Diffing
+
+- Micro commit (2 files, 30 lines) → classified as micro, full diff sent
+- Medium commit (15 files, 2K lines) → classified as medium, stat + hunks sent
+- Large commit (50 files, 8K lines) → classified as large, stat only
+- Enrichment updates reasoning but preserves original `git.message`
+- Confidence discounted: `egemma * 0.7 * 0.8` for rehydrated transforms
+
+### 2.5.4 Renames & Bulk
+
+- Single rename → RenameTransform with old/new path, chain crosses boundary
+- Bulk rename (10 files, common prefix) → single BulkRenameTransform
+- 4 renames (below threshold) → individual transforms (no grouping)
+- ProvenanceService resolves individual file from bulk transform
+
 ---

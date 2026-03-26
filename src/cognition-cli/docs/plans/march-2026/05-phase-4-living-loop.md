@@ -103,4 +103,27 @@ Emit as event. Skills can consume this to warn developers:
    Consider: Does this change align with the project mission?
 ```
 
+## Validation & Testing
+
+### 4.1 Reactive Pipeline
+
+- File change while `--auto-update` → transform recorded without manual `update`
+- Agent lock acquired → watcher defers until lock released
+- Lock auto-expires after timeout → watcher resumes (no deadlock)
+- Orphaned lock file → expired, watcher proceeds
+- Multiple rapid changes → batched into single update cycle
+
+### 4.2 Selective Regeneration
+
+- Change 1 file → only that symbol's overlay re-embedded (not full regen)
+- Unchanged files → manifest hash matches, skipped
+- `propagateInvalidation` output → correctly fed to `regenerateAffected`
+
+### 4.3 Drift Detection
+
+- Change that lowers coherence → drift event emitted with delta
+- Change that improves coherence → positive delta, no warning
+- No coherence change → delta ≈ 0, no event
+- `drifted_symbols` list matches actual symbol-level changes
+
 ---

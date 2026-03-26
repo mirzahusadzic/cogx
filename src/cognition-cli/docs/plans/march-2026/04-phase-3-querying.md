@@ -135,4 +135,36 @@ maxDepth: 0,        // TODO: Calculate from lineage patterns
 
 With calls to `ProvenanceService.analyzeImpact()` using the transform DAG for transitive consumer counting and depth calculation.
 
+## Validation & Testing
+
+### 3.1 Transform DAG
+
+- Record transform with known inputs → edges created to producer transforms
+- `getDownstream(A)` → returns all transitive consumers
+- `getUpstream(C)` → returns all transitive producers
+- File reversion (hash_A → hash_B → hash_A) → cycle detected, traversal terminates (no infinite loop)
+- `getChain(source, target)` → returns ordered path or null if unreachable
+
+### 3.2 Provenance Service
+
+- `traceForward` from source file → reaches overlay pattern
+- `traceBackward` from O₁ pattern → reaches source file content
+- `verifyChain` with all objects present → VERIFIED
+- `verifyChain` with missing object → BROKEN (reports which link)
+- `getFileHistory` → returns transforms in temporal order (oldest first)
+- `analyzeImpact` → returns transitive consumer count and max depth
+
+### 3.3 verify-provenance Command
+
+- Known good file → "✅ VERIFIED" with full chain printed
+- File with broken chain → "❌ BROKEN" with specific gap identified
+- Non-existent file → clear error
+- File not in PGC → "No provenance data available"
+
+### 3.4 Blast Radius
+
+- `consumerCount` now > 0 for files with dependents
+- `maxDepth` reflects actual transitive depth
+- Values match manual trace through transform DAG
+
 ---

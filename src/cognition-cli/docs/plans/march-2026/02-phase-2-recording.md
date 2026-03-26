@@ -288,4 +288,37 @@ cognition-cli lineage enrich --dry-run
 - `src/commands/lineage-record.ts` — integrate IntentResolver, add `--synthesize` flag
 - `src/core/orchestrators/steps/structural-processing.ts` — call `IntentResolver.resolve()` before recording transform
 
+## Validation & Testing
+
+### 2.1 Auto-Update
+
+- `--auto-update` flag triggers update after debounce window
+- Without flag, behavior identical to current (no regression)
+- Rapid saves (< debounce) batched into single update
+- Update errors don't crash the watcher
+
+### 2.2 Lineage Record
+
+- Single commit → one transform per changed file
+- Commit range (`HEAD~3..HEAD`) → transforms for each commit in order
+- Already-recorded hash → skipped (idempotent)
+- `hooks install` → creates executable `.git/hooks/post-commit`
+- Non-git directory → clear error, exit 1
+
+### 2.3 Agent Intent
+
+- `lineage intent` → creates pending intent file
+- Pending intent consumed on next file change → appears in transform reasoning
+- Stale intents expire after 1 hour
+- No pending intent → transform records without reasoning (no crash)
+
+### 2.4 Intent Resolver
+
+- Priority chain: agent > quality commit > eGemma > fallback
+- `isQualityMessage("fix")` → false; `("Fix race condition in auth")` → true
+- `--synthesize` off → eGemma never called
+- eGemma unreachable → fallback gracefully, no crash
+- `lineage enrich --dry-run` → reports count without modifying
+- Persona returns valid JSON for all three tier formats
+
 ---

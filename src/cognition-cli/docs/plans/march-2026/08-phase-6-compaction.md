@@ -27,3 +27,13 @@ cognition-cli transforms compact --before 2025-01-01 --dry-run
 **Why parked:** With soft-delete, the log is append-only and immutable. It will be months
 before any real project hits storage pressure. By then, usage patterns will inform the
 compaction strategy better than upfront design.
+
+## Validation & Testing (When Implemented)
+
+- `--dry-run` → reports eligible transforms without modifying anything
+- Invalidated transforms → purged, no longer on disk
+- Intermediate transforms → squashed, summary narrative generated
+- Chain endpoints (first + latest per file) → always preserved
+- Agent-sourced transforms (`source.type: 'ai_agent'`) → never compacted
+- Transforms < 90 days old → never compacted
+- `verify-provenance` after compaction → chains still valid (summary fills gaps)
