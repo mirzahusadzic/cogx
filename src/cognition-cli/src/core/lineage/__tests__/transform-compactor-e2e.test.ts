@@ -115,33 +115,55 @@ describe('TransformCompactor E2E', () => {
     // 1. Genesis
     const content1 = 'export const a = 1;';
     await fs.writeFile(fullPath, content1);
-    execSync(`git add ${filePath} && git commit -m "initial commit"`, { cwd: projectRoot });
+    execSync(`git add ${filePath} && git commit -m "initial commit"`, {
+      cwd: projectRoot,
+    });
 
-    const genesis = new GenesisOrchestrator(pgc, miner, workbench, oracle, projectRoot);
+    const genesis = new GenesisOrchestrator(
+      pgc,
+      miner,
+      workbench,
+      oracle,
+      projectRoot
+    );
     await genesis.executeBottomUpAggregation(['src']);
 
     // 2. Multiple Updates (Non-structural to avoid invalidation)
-    const updateOrchestrator = new UpdateOrchestrator(pgc, miner, workbench, oracle, projectRoot);
+    const updateOrchestrator = new UpdateOrchestrator(
+      pgc,
+      miner,
+      workbench,
+      oracle,
+      projectRoot
+    );
     const dirtyManager = new DirtyStateManager(pgc.pgcRoot);
 
     for (let i = 2; i <= 5; i++) {
       const oldContent = await fs.readFile(fullPath, 'utf-8');
-      const tracked_hash = crypto.createHash('sha256').update(oldContent).digest('hex');
-      
+      const tracked_hash = crypto
+        .createHash('sha256')
+        .update(oldContent)
+        .digest('hex');
+
       // Update with a comment change only (same structural hash from mock)
       const newContent = `export const a = 1; // update ${i}`;
       await fs.writeFile(fullPath, newContent);
-      execSync(`git add ${filePath} && git commit -m "update ${i}"`, { cwd: projectRoot });
-      
-      const current_hash = crypto.createHash('sha256').update(newContent).digest('hex');
-      
+      execSync(`git add ${filePath} && git commit -m "update ${i}"`, {
+        cwd: projectRoot,
+      });
+
+      const current_hash = crypto
+        .createHash('sha256')
+        .update(newContent)
+        .digest('hex');
+
       // Simulate file watcher writing dirty state
       await dirtyManager.addDirty({
         path: filePath,
         tracked_hash,
         current_hash,
         detected_at: new Date().toISOString(),
-        change_type: 'modified'
+        change_type: 'modified',
       });
       await updateOrchestrator.run();
     }
@@ -154,8 +176,11 @@ describe('TransformCompactor E2E', () => {
       if (tx) history.push({ id, tx });
     }
     // Sort by timestamp to identify Genesis and Latest
-    history.sort((a, b) => new Date(a.tx.timestamp).getTime() - new Date(b.tx.timestamp).getTime());
-    
+    history.sort(
+      (a, b) =>
+        new Date(a.tx.timestamp).getTime() - new Date(b.tx.timestamp).getTime()
+    );
+
     // We expect 5 transforms (Genesis + 4 Updates)
     expect(history.length).toBe(5);
 
@@ -165,14 +190,21 @@ describe('TransformCompactor E2E', () => {
     // Verify ReverseDeps has all of them
     for (const item of history) {
       if (item.tx.outputs[0]) {
-        const owners = await pgc.reverseDeps.getTransformIds(item.tx.outputs[0].hash);
+        const owners = await pgc.reverseDeps.getTransformIds(
+          item.tx.outputs[0].hash
+        );
         expect(owners).toContain(item.id);
       }
     }
 
     // 3. Compact
-    const compactor = new TransformCompactor(pgc.transformLog, pgc.reverseDeps, pgc.transformDAG, pgc.index);
-    
+    const compactor = new TransformCompactor(
+      pgc.transformLog,
+      pgc.reverseDeps,
+      pgc.transformDAG,
+      pgc.index
+    );
+
     // Scan - all should be eligible for squash if we set minAge to 0
     const plan = await compactor.scan({ minAgeDays: 0 });
     expect(plan.toIntermediate.length).toBeGreaterThan(0);
@@ -189,15 +221,15 @@ describe('TransformCompactor E2E', () => {
     expect(newIds.length).toBe(3);
 
     // Find summary ID
-    let summaryId = "";
+    let summaryId = '';
     for (const id of newIds) {
       const t = await pgc.transformLog.getTransformation(id);
-      if (t?.type === "squash_summary") {
+      if (t?.type === 'squash_summary') {
         summaryId = id;
         break;
       }
     }
-    expect(summaryId).not.toBe("");
+    expect(summaryId).not.toBe('');
 
     expect(newIds).toContain(genesisId);
     expect(newIds).toContain(latestId);
@@ -207,14 +239,23 @@ describe('TransformCompactor E2E', () => {
     for (let i = 1; i <= 3; i++) {
       const id = history[i].id;
       expect(newIds).not.toContain(id);
-      const exists = await fs.pathExists(path.join(projectRoot, '.open_cognition', 'transforms', id.slice(0, 2), id.slice(2)));
+      const exists = await fs.pathExists(
+        path.join(
+          projectRoot,
+          '.open_cognition',
+          'transforms',
+          id.slice(0, 2),
+          id.slice(2)
+        )
+      );
       expect(exists).toBe(false);
     }
 
     // Verify ReverseDeps is updated
-    const summaryTransform = await pgc.transformLog.getTransformation(summaryId);
+    const summaryTransform =
+      await pgc.transformLog.getTransformation(summaryId);
     expect(summaryTransform).toBeDefined();
-    
+
     // Check Summary outputs are in ReverseDeps
     for (const output of summaryTransform!.outputs) {
       const owners = await pgc.reverseDeps.getTransformIds(output.hash);
@@ -227,8 +268,8 @@ describe('TransformCompactor E2E', () => {
       // We know the outputs of the old transform from our history array
       const oldOutputs = history[i].tx.outputs;
       for (const output of oldOutputs) {
-         const owners = await pgc.reverseDeps.getTransformIds(output.hash);
-         expect(owners).not.toContain(oldId);
+        const owners = await pgc.reverseDeps.getTransformIds(output.hash);
+        expect(owners).not.toContain(oldId);
       }
     }
 
@@ -237,7 +278,7 @@ describe('TransformCompactor E2E', () => {
     const historyData = await pgc.index.get('src/test.ts');
     expect(historyData).toBeDefined();
     const historyIds = historyData!.history;
-    
+
     // Should be [Genesis, Summary, Latest]
     expect(historyIds).toHaveLength(3);
     expect(historyIds[0]).toBe(genesisId);
@@ -246,11 +287,11 @@ describe('TransformCompactor E2E', () => {
 
     // Verify ProvenanceService can still reconstruct the chain
     const provenanceService = new ProvenanceService(
-        pgc.transformLog,
-        pgc.transformDAG,
-        pgc.objectStore,
-        pgc.index,
-        pgc.reverseDeps
+      pgc.transformLog,
+      pgc.transformDAG,
+      pgc.objectStore,
+      pgc.index,
+      pgc.reverseDeps
     );
     const fileHistory = await provenanceService.getFileHistory('src/test.ts');
     expect(fileHistory.transforms).toHaveLength(3);

@@ -114,7 +114,7 @@ export async function lineageEnrichCommand(options: LineageEnrichOptions) {
 
         // c. If confidence improved, record new transform and invalidate old one
         if (resolved.confidence > (transform.reasoning.confidence || 0)) {
-          const newTransformId = await pgc.transformLog.record({
+          const newTransformId = await pgc.recordTransform({
             ...transform,
             reasoning: {
               ...transform.reasoning,
