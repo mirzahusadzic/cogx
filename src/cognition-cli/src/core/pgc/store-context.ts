@@ -5,6 +5,7 @@ import { TransformLog } from './transform-log.js';
 import { ReverseDeps } from './reverse-deps.js';
 import { Overlays } from './overlays.js';
 import { IntentAdapter } from '../lineage/intent-adapter.js';
+import { TransformDAG } from './transform-dag.js';
 
 /**
  * PGCStoreContext manages the physical location and initialization
@@ -29,6 +30,7 @@ export class PGCStoreContext {
   public readonly reverseDeps: ReverseDeps;
   public readonly overlays: Overlays;
   public readonly intentAdapter: IntentAdapter;
+  public readonly transformDAG: TransformDAG;
 
   constructor(projectRoot: string) {
     this.projectRoot = path.resolve(projectRoot);
@@ -41,5 +43,6 @@ export class PGCStoreContext {
     this.reverseDeps = new ReverseDeps(this.pgcRoot);
     this.overlays = new Overlays(this.pgcRoot);
     this.intentAdapter = new IntentAdapter(this.pgcRoot);
+    this.transformDAG = new TransformDAG(this.pgcRoot);
   }
 }

@@ -59,6 +59,11 @@ import { DirtyState } from '../core/types/watcher.js';
 import { addExamples, combineHelpSections } from '../utils/help-formatter.js';
 import { resolvePgcRoot } from './sugar/utils.js';
 import { intro } from '@clack/prompts';
+import { ProvenanceService } from '../core/lineage/provenance-service.js';
+import { TransformLog } from '../core/pgc/transform-log.js';
+import { TransformDAG } from '../core/pgc/transform-dag.js';
+import { ObjectStore } from '../core/pgc/object-store.js';
+import { ReverseDeps } from '../core/pgc/reverse-deps.js';
 
 /**
  * Impact analysis data for a modified file
@@ -202,7 +207,7 @@ export async function statusCommand(options: {
   let totalImpact = 0;
 
   for (const dirtyFile of dirtyState.dirty_files) {
-    const impact = await calculateBlastRadius(dirtyFile.path, index);
+    const impact = await calculateBlastRadius(dirtyFile.path, index, pgcRoot);
     blastRadius.set(dirtyFile.path, impact);
     totalImpact += impact.affectedSymbols.length;
   }
@@ -256,7 +261,8 @@ export async function statusCommand(options: {
  */
 async function calculateBlastRadius(
   filePath: string,
-  index: Index
+  index: Index,
+  pgcRoot: string
 ): Promise<BlastRadiusInfo> {
   try {
     const indexData = await index.get(filePath);
@@ -286,14 +292,20 @@ async function calculateBlastRadius(
       symbols.push(...data.exports);
     }
 
-    // For now, return basic impact (symbol count)
-    // TODO: Enhanced blast radius calculation using pattern metadata
-    // which includes reverse dependencies from structural_patterns overlay
+    // Real impact analysis via structural dependency graph in the index
+    const provenanceService = new ProvenanceService(
+      new TransformLog(pgcRoot),
+      new TransformDAG(pgcRoot),
+      new ObjectStore(pgcRoot),
+      index,
+      new ReverseDeps(pgcRoot)
+    );
+    const impact = await provenanceService.analyzeImpact(filePath);
 
     return {
       affectedSymbols: symbols,
-      consumerCount: 0, // TODO: Calculate from pattern metadata
-      maxDepth: 0, // TODO: Calculate from lineage patterns
+      consumerCount: impact.consumerCount,
+      maxDepth: impact.maxDepth,
     };
   } catch (error) {
     console.warn(`Error calculating blast radius for ${filePath}:`, error);

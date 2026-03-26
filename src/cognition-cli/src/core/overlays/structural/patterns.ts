@@ -402,7 +402,11 @@ export class StructuralPatternsManager implements PatternManager {
       // Deduplicate by ID — LanceDB mergeInsert rejects batches with duplicate IDs
       const seen = new Map<
         string,
-        { id: string; embedding: number[]; metadata: Omit<VectorRecord, 'id' | 'embedding'> }
+        {
+          id: string;
+          embedding: number[];
+          metadata: Omit<VectorRecord, 'id' | 'embedding'>;
+        }
       >();
       for (const rec of allVectorRecords) {
         seen.set(rec.id, rec); // last write wins (most recently embedded)

@@ -723,12 +723,15 @@ const { createCompletionCommand } = await import('./commands/completion.js');
 const { addPatternsCommands } = await import('./commands/patterns.js');
 const { addCoherenceCommands } = await import('./commands/coherence.js');
 const { addConceptsCommands } = await import('./commands/sugar/concepts.js');
+const { createVerifyProvenanceCommand } =
+  await import('./commands/verify-provenance.js');
 
 program.addCommand(overlayCommand);
 program.addCommand(blastRadiusCommand);
 program.addCommand(createWatchCommand());
 program.addCommand(createStatusCommand());
 program.addCommand(createUpdateCommand());
+program.addCommand(createVerifyProvenanceCommand());
 program.addCommand(createGuideCommand());
 program.addCommand(createCompletionCommand());
 const { createConfigCommand } = await import('./commands/config.js');
@@ -1460,6 +1463,7 @@ const ALL_COMMANDS = [
   'watch',
   'status',
   'update',
+  'verify-provenance',
   'guide',
   'migrate',
   'migrate:lance',

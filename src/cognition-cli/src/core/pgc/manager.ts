@@ -11,6 +11,7 @@ import { PGCIndexerService } from './indexer-service.js';
 import { IndexData } from '../types/index.js';
 import { Transformation } from '../types/transform.js';
 import { IntentAdapter } from '../lineage/intent-adapter.js';
+import { TransformDAG } from './transform-dag.js';
 
 /**
  * PGCManager (Grounded Context Pool Manager)
@@ -71,6 +72,7 @@ export class PGCManager {
   public readonly reverseDeps: ReverseDeps;
   public readonly overlays: Overlays;
   public readonly intentAdapter: IntentAdapter;
+  public readonly transformDAG: TransformDAG;
 
   constructor(projectRoot: string) {
     this.context = new PGCStoreContext(projectRoot);
@@ -86,6 +88,7 @@ export class PGCManager {
     this.reverseDeps = this.context.reverseDeps;
     this.overlays = this.context.overlays;
     this.intentAdapter = this.context.intentAdapter;
+    this.transformDAG = this.context.transformDAG;
   }
 
   // --- QUERY DELEGATION ---
@@ -128,7 +131,15 @@ export class PGCManager {
   public async recordTransform(
     transformData: Omit<Transformation, 'phi' | 'verification_result'>
   ): Promise<string> {
-    return this.indexerService.recordTransform(transformData);
+    const transformId =
+      await this.indexerService.recordTransform(transformData);
+    // Link in DAG synchronously to maintain consistency
+    await this.transformDAG.link(transformId, {
+      ...transformData,
+      phi: 1.0,
+      verification_result: { success: true, messages: [] },
+    });
+    return transformId;
   }
 
   /**
