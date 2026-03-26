@@ -399,12 +399,28 @@ export class StructuralPatternsManager implements PatternManager {
 
     // Phase 3: Batch store everything (Massive speedup!)
     if (allVectorRecords.length > 0) {
+      // Deduplicate by ID — LanceDB mergeInsert rejects batches with duplicate IDs
+      const seen = new Map<
+        string,
+        { id: string; embedding: number[]; metadata: Omit<VectorRecord, 'id' | 'embedding'> }
+      >();
+      for (const rec of allVectorRecords) {
+        seen.set(rec.id, rec); // last write wins (most recently embedded)
+      }
+      const dedupedRecords = Array.from(seen.values());
+      if (dedupedRecords.length < allVectorRecords.length) {
+        console.log(
+          chalk.yellow(
+            `[StructuralPatterns] Deduplicated ${allVectorRecords.length - dedupedRecords.length} duplicate vector IDs before batch store.`
+          )
+        );
+      }
       console.log(
         chalk.blue(
-          `\n[StructuralPatterns] Phase 3: Batch storing ${allVectorRecords.length} vectors...`
+          `\n[StructuralPatterns] Phase 3: Batch storing ${dedupedRecords.length} vectors...`
         )
       );
-      await this.vectorDB.batchStoreVectors(allVectorRecords);
+      await this.vectorDB.batchStoreVectors(dedupedRecords);
     }
 
     if (Object.keys(manifestUpdates).length > 0) {
