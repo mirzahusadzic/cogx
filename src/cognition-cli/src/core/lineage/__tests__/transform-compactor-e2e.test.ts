@@ -7,7 +7,7 @@ import crypto from 'node:crypto';
 import { PGCManager } from '../../pgc/manager.js';
 import { TransformCompactor } from '../transform-compactor.js';
 import { ProvenanceService } from '../provenance-service.js';
-import { RehydrateService } from '../rehydrate-service.js';
+import { RehydrateService } from '../../services/rehydrate-service.js';
 import { StructuralMiner } from '../../orchestrators/miners/structural.js';
 import { WorkbenchClient } from '../../executors/workbench-client.js';
 import { GenesisOrchestrator } from '../../orchestrators/genesis.js';
@@ -434,7 +434,7 @@ describe('TransformCompactor E2E', () => {
       structural_hash: 'structA1',
       status: 'Valid',
       history: [idA1],
-      structuralData: mockStructuralData as any,
+      structuralData: mockStructuralData as unknown as StructuralData,
     });
 
     const idB1 = await pgc.recordTransform({
@@ -452,7 +452,7 @@ describe('TransformCompactor E2E', () => {
       structural_hash: 'structB1',
       status: 'Valid',
       history: [idB1],
-      structuralData: mockStructuralData as any,
+      structuralData: mockStructuralData as unknown as StructuralData,
     });
 
     // Record a multi-file intermediate transform
