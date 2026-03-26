@@ -385,6 +385,7 @@ const StructuralDataSchemaBase = ASTNodeBaseSchema.extend({
     'ast_remote',
     'slm',
     'llm_supervised',
+    'failed',
   ]),
   fidelity: z.number(),
   summary: z.string().optional(),

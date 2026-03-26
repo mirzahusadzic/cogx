@@ -528,6 +528,13 @@ export class OverlayOrchestrator extends BaseOrchestrator {
               return { file, skip: true, test: false };
             }
 
+            if (structuralData.extraction_method === 'failed') {
+              this.logWarn(
+                `Skipping ${file.relativePath}: all extraction layers failed`
+              );
+              return { file, skip: true, test: false };
+            }
+
             return {
               file,
               skip: false,
