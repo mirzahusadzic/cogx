@@ -23,7 +23,7 @@ ${globalOpts}
   )
 
   _arguments -C \\
-    $global_opts \\
+    "$global_opts[@]" \\
     '1: :->command' \\
     '*:: :->args'
 
@@ -53,9 +53,10 @@ _cognition_cli "$@"
   private getCommandsDescription(): string {
     const list: string[] = [];
     for (const cmd of this.commands) {
-      list.push(
-        `    '${cmd.name}:${cmd.description}${cmd.aliases ? ` (alias: ${cmd.aliases.join(', ')})` : ''}'`
+      const desc = this.escapeZsh(
+        `${cmd.description}${cmd.aliases ? ` (alias: ${cmd.aliases.join(', ')})` : ''}`
       );
+      list.push(`    '${cmd.name}:${desc}'`);
       if (cmd.aliases) {
         for (const alias of cmd.aliases) {
           list.push(`    '${alias}:Alias for ${cmd.name}'`);
@@ -63,7 +64,8 @@ _cognition_cli "$@"
       }
       if (cmd.subcommands) {
         for (const sub of cmd.subcommands) {
-          list.push(`    '${cmd.name}:${sub.name}:${sub.description}'`);
+          const subDesc = this.escapeZsh(sub.description);
+          list.push(`    '${cmd.name}:${sub.name}:${subDesc}'`);
         }
       }
     }
@@ -77,15 +79,17 @@ _cognition_cli "$@"
       .join('\n');
   }
 
-  private formatFlagForZsh(flag: FlagMetadata): string {
-    let zshFlag = '';
-    if (flag.short) {
-      zshFlag = `{-${flag.short.replace(/^-+/, '')},${flag.name}}`;
-    } else {
-      zshFlag = `'${flag.name}'`;
-    }
+  private escapeZsh(str: string): string {
+    return str
+      .replace(/:/g, '\\:') // Escape colons for _describe
+      .replace(/\[/g, '\\[') // Escape brackets for _arguments
+      .replace(/\]/g, '\\]')
+      .replace(/'/g, "'\\''"); // Escape single quotes for shell
+  }
 
-    const description = `[${flag.description}]`;
+  private formatFlagForZsh(flag: FlagMetadata): string {
+    const description = this.escapeZsh(flag.description);
+
     let values = '';
     if (flag.values) {
       values = `:${flag.name.replace(/^-+/, '')}:(${flag.values.join(' ')})`;
@@ -97,7 +101,12 @@ _cognition_cli "$@"
       values = `:${flag.name.replace(/^-+/, '')}:`;
     }
 
-    return `${zshFlag}${description}${values}`;
+    if (flag.short) {
+      const short = flag.short.replace(/^-+/, '');
+      return `{-${short},${flag.name}}'[${description}]${values}'`;
+    } else {
+      return `'${flag.name}[${description}]${values}'`;
+    }
   }
 
   private generateSubcommandDescriptions(): string {
@@ -109,7 +118,7 @@ _cognition_cli "$@"
       const aliases = p.aliases ? `|${p.aliases.join('|')}` : '';
       script += `          ${p.name}${aliases})
             local -a ${p.name}_cmds
-            ${p.name}_cmds=(${p.subcommands!.map((s) => `'${s.name}:${s.description}'`).join(' ')})
+            ${p.name}_cmds=(${p.subcommands!.map((s) => `'${s.name}:${this.escapeZsh(s.description)}'`).join(' ')})
             _describe '${p.name} subcommand' ${p.name}_cmds
             ;;
 `;

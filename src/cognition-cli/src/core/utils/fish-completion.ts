@@ -53,7 +53,7 @@ export class FishCompletionGenerator extends BaseCompletionGenerator {
       : '';
     const short = flag.short ? `-s ${flag.short.replace(/^-+/, '')} ` : '';
     const long = `-l ${flag.name.replace(/^-+/, '')} `;
-    const description = `-d "${flag.description}" `;
+    const description = `-d "${flag.description.replace(/"/g, '\\"')}" `;
     const values = flag.values ? `-xa "${flag.values.join(' ')}"` : '';
 
     return `complete -c cognition-cli ${condition}${short}${long}${description}${values}\n`;
