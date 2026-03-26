@@ -38,13 +38,15 @@ vi.mock('proper-lockfile', () => ({
 
 // Mock IntentResolver and EGemmaClient to avoid real LLM calls
 vi.mock('../../lineage/intent-resolver.js', () => ({
-  IntentResolver: vi.fn().mockImplementation(() => ({
-    resolve: vi.fn(async () => ({ intent: 'test intent' })),
-  })),
+  IntentResolver: class {
+    async resolve() {
+      return { intent: 'test intent' };
+    }
+  },
 }));
 
 vi.mock('../../lineage/egemma-client.js', () => ({
-  EGemmaClient: vi.fn().mockImplementation(() => ({})),
+  EGemmaClient: class {},
 }));
 
 describe('TransformCompactor E2E', () => {
@@ -310,5 +312,245 @@ describe('TransformCompactor E2E', () => {
     // the Git history is already covered by the summary.
     // (Note: This might fail initially, proving we need a fix)
     expect(rehydrateResults.recordedCount).toBe(0);
+  });
+
+  it('should clean up invalidated transforms from Index history', async () => {
+    const filePath = 'src/test.ts';
+    const fullPath = path.join(projectRoot, filePath);
+    await fs.ensureDir(path.dirname(fullPath));
+
+    // 1. Genesis
+    await fs.writeFile(fullPath, 'export const a = 1;');
+    execSync(`git add ${filePath} && git commit -m "initial commit"`, {
+      cwd: projectRoot,
+    });
+    const genesis = new GenesisOrchestrator(
+      pgc,
+      miner,
+      workbench,
+      oracle,
+      projectRoot
+    );
+    await genesis.executeBottomUpAggregation(['src']);
+
+    // 2. An update that will be invalidated
+    const updateOrchestrator = new UpdateOrchestrator(
+      pgc,
+      miner,
+      workbench,
+      oracle,
+      projectRoot
+    );
+    const dirtyManager = new DirtyStateManager(pgc.pgcRoot);
+
+    const oldContent = 'export const a = 1;';
+    const tracked_hash = crypto
+      .createHash('sha256')
+      .update(oldContent)
+      .digest('hex');
+    const newContent = 'export const a = 2;';
+    await fs.writeFile(fullPath, newContent);
+    execSync(`git add ${filePath} && git commit -m "update to 2"`, {
+      cwd: projectRoot,
+    });
+    const current_hash = crypto
+      .createHash('sha256')
+      .update(newContent)
+      .digest('hex');
+
+    await dirtyManager.addDirty({
+      path: filePath,
+      tracked_hash,
+      current_hash,
+      detected_at: new Date().toISOString(),
+      change_type: 'modified',
+    });
+    await updateOrchestrator.run();
+
+    const allIds = await pgc.transformLog.getAllTransformIds();
+    expect(allIds).toHaveLength(2);
+    const updateId = allIds.find((id) => id !== allIds[0]); // Find the non-genesis ID
+
+    // 3. Manually invalidate the update
+    await pgc.transformLog.invalidate(updateId!);
+
+    // 4. Verify it's in history
+    const historyBefore = await pgc.index.get(filePath);
+    expect(historyBefore!.history).toContain(updateId);
+
+    // 5. Compact
+    const compactor = new TransformCompactor(
+      pgc.transformLog,
+      pgc.reverseDeps,
+      pgc.transformDAG,
+      pgc.index
+    );
+    const plan = await compactor.scan({ minAgeDays: 0 });
+    expect(plan.toInvalidated).toContain(updateId);
+
+    await compactor.compact(plan, { dryRun: false });
+
+    // 6. Verify it's removed from history
+    const historyAfter = await pgc.index.get(filePath);
+    expect(historyAfter!.history).not.toContain(updateId);
+    expect(historyAfter!.history).toHaveLength(1); // Only genesis remains
+  });
+
+  it('should update Index history for ALL files in a multi-file transform', async () => {
+    // This case is harder to simulate because UpdateOrchestrator is per-file.
+    // We'll manually record a multi-file transform.
+    const fileA = 'src/A.ts';
+    const fileB = 'src/B.ts';
+
+    const mockStructuralData = {
+      type: 'source_file',
+      language: 'typescript',
+      docstring: '',
+      imports: [],
+      classes: [],
+      functions: [],
+      extraction_method: 'ast_native',
+      fidelity: 1,
+    };
+
+    // Genesis for both
+    await fs.ensureDir(path.join(projectRoot, 'src'));
+    await fs.writeFile(path.join(projectRoot, fileA), 'content A');
+    await fs.writeFile(path.join(projectRoot, fileB), 'content B');
+
+    // Manually record genesis-like transforms
+    const idA1 = await pgc.recordTransform({
+      type: 'genesis',
+      goal: { objective: 'init A', criteria: [], phimin: 0 },
+      phi: 1,
+      verification_result: { success: true, messages: [] },
+      inputs: [{ path: fileA, hash: 'hashA0' }],
+      outputs: [{ path: fileA, hash: 'hashA1' }],
+      timestamp: new Date(Date.now() - 10000).toISOString(),
+    });
+    await pgc.index.set(fileA, {
+      path: fileA,
+      content_hash: 'hashA1',
+      structural_hash: 'structA1',
+      status: 'Valid',
+      history: [idA1],
+      structuralData: mockStructuralData as any,
+    });
+
+    const idB1 = await pgc.recordTransform({
+      type: 'genesis',
+      goal: { objective: 'init B', criteria: [], phimin: 0 },
+      phi: 1,
+      verification_result: { success: true, messages: [] },
+      inputs: [{ path: fileB, hash: 'hashB0' }],
+      outputs: [{ path: fileB, hash: 'hashB1' }],
+      timestamp: new Date(Date.now() - 10000).toISOString(),
+    });
+    await pgc.index.set(fileB, {
+      path: fileB,
+      content_hash: 'hashB1',
+      structural_hash: 'structB1',
+      status: 'Valid',
+      history: [idB1],
+      structuralData: mockStructuralData as any,
+    });
+
+    // Record a multi-file intermediate transform
+    const idMulti = await pgc.recordTransform({
+      type: 'structural',
+      goal: { objective: 'update both', criteria: [], phimin: 0 },
+      phi: 1,
+      verification_result: { success: true, messages: [] },
+      inputs: [
+        { path: fileA, hash: 'hashA1' },
+        { path: fileB, hash: 'hashB1' },
+      ],
+      outputs: [
+        { path: fileA, hash: 'hashA2' },
+        { path: fileB, hash: 'hashB2' },
+      ],
+      timestamp: new Date(Date.now() - 5000).toISOString(),
+    });
+
+    // Update indices
+    const idxA = await pgc.index.get(fileA);
+    await pgc.index.set(fileA, {
+      ...idxA!,
+      history: [...idxA!.history, idMulti],
+      content_hash: 'hashA2',
+    });
+    const idxB = await pgc.index.get(fileB);
+    await pgc.index.set(fileB, {
+      ...idxB!,
+      history: [...idxB!.history, idMulti],
+      content_hash: 'hashB2',
+    });
+
+    // Record latest transforms for both (to keep idMulti intermediate)
+    const idA3 = await pgc.recordTransform({
+      type: 'structural',
+      goal: { objective: 'update A', criteria: [], phimin: 0 },
+      phi: 1,
+      verification_result: { success: true, messages: [] },
+      inputs: [{ path: fileA, hash: 'hashA2' }],
+      outputs: [{ path: fileA, hash: 'hashA3' }],
+      timestamp: new Date().toISOString(),
+    });
+    const curIdxA = await pgc.index.get(fileA);
+    await pgc.index.set(fileA, {
+      ...curIdxA!,
+      history: [idA1, idMulti, idA3],
+      content_hash: 'hashA3',
+    });
+
+    const idB3 = await pgc.recordTransform({
+      type: 'structural',
+      goal: { objective: 'update B', criteria: [], phimin: 0 },
+      phi: 1,
+      verification_result: { success: true, messages: [] },
+      inputs: [{ path: fileB, hash: 'hashB2' }],
+      outputs: [{ path: fileB, hash: 'hashB3' }],
+      timestamp: new Date().toISOString(),
+    });
+    const curIdxB = await pgc.index.get(fileB);
+    await pgc.index.set(fileB, {
+      ...curIdxB!,
+      history: [idB1, idMulti, idB3],
+      content_hash: 'hashB3',
+    });
+
+    // Verify setup
+    expect((await pgc.index.get(fileA))!.history).toContain(idMulti);
+    expect((await pgc.index.get(fileB))!.history).toContain(idMulti);
+
+    // Compact
+    const compactor = new TransformCompactor(
+      pgc.transformLog,
+      pgc.reverseDeps,
+      pgc.transformDAG,
+      pgc.index
+    );
+    const plan = await compactor.scan({ minAgeDays: 0 });
+
+    // It should identify idMulti as intermediate for fileA (since it's grouping by inputs[0])
+    expect(plan.toIntermediate).toContain(idMulti);
+
+    await compactor.compact(plan, { dryRun: false });
+
+    // Verify it's removed from BOTH histories
+    const historyA = await pgc.index.get(fileA);
+    const historyB = await pgc.index.get(fileB);
+
+    expect(historyA!.history).not.toContain(idMulti);
+    expect(historyB!.history).not.toContain(idMulti);
+
+    // Both should have the same summary ID in place of idMulti
+    expect(historyA!.history).toHaveLength(3);
+    expect(historyB!.history).toHaveLength(3);
+    expect(historyA!.history[1]).toBe(historyB!.history[1]);
+
+    const summaryId = historyA!.history[1];
+    const summaryTx = await pgc.transformLog.getTransformation(summaryId);
+    expect(summaryTx?.type).toBe('squash_summary');
   });
 });

@@ -210,8 +210,27 @@ export class TransformCompactor {
         // Clean up indexing for the invalidated transform before purging
         const tx = await this.transformLog.getTransformation(id);
         if (tx) {
+          // 1. Clean up ReverseDeps
           for (const input of tx.inputs) {
             await this.reverseDeps.delete(input.hash, id);
+          }
+          for (const output of tx.outputs) {
+            await this.reverseDeps.delete(output.hash, id);
+          }
+
+          // 2. Clean up Index history for ALL affected files
+          const affectedFiles = new Set<string>();
+          tx.inputs.forEach((i) => affectedFiles.add(i.path));
+          tx.outputs.forEach((o) => affectedFiles.add(o.path));
+
+          for (const filePath of affectedFiles) {
+            const existingIndex = await this.index.get(filePath);
+            if (existingIndex && existingIndex.history.includes(id)) {
+              await this.index.set(filePath, {
+                ...existingIndex,
+                history: existingIndex.history.filter((h) => h !== id),
+              });
+            }
           }
         }
         await this.transformLog.purge(id);
@@ -220,14 +239,21 @@ export class TransformCompactor {
     }
 
     // Phase 2: Squash intermediate groups
-    for (const [filePath, intermediateIds] of plan.squashGroups) {
+    for (const [groupFilePath, intermediateIds] of plan.squashGroups) {
       if (intermediateIds.length === 0) continue;
 
       // Load all intermediate transforms
       const transforms: Transformation[] = [];
+      const intermediateSet = new Set(intermediateIds);
+      const allAffectedFiles = new Set<string>([groupFilePath]);
+
       for (const id of intermediateIds) {
         const tx = await this.transformLog.getTransformation(id);
-        if (tx) transforms.push(tx);
+        if (tx) {
+          transforms.push(tx);
+          tx.inputs.forEach((i) => allAffectedFiles.add(i.path));
+          tx.outputs.forEach((o) => allAffectedFiles.add(o.path));
+        }
       }
 
       if (transforms.length === 0) continue;
@@ -242,22 +268,22 @@ export class TransformCompactor {
             ? intents.join(' | ')
             : 'squashed intermediate transforms';
 
-        // Build summary transform from first inputs[0] → last outputs[0]
+        // Build summary transform from first inputs → last outputs
         const firstTx = transforms[0];
         const lastTx = transforms[transforms.length - 1];
-        const summaryInput = firstTx.inputs[0] ?? {
-          path: filePath,
-          hash: '',
-        };
-        const summaryOutput = lastTx.outputs[0] ?? summaryInput;
+
+        // Use all unique inputs from the first transform and all unique outputs from the last transform
+        // to ensure multi-file transforms are correctly represented in the summary.
+        const summaryInputs = firstTx.inputs;
+        const summaryOutputs = lastTx.outputs;
 
         const summaryData: Omit<Transformation, 'phi' | 'verification_result'> =
           {
             type: 'squash_summary',
             timestamp: lastTx.timestamp || new Date().toISOString(),
             method: 'compaction',
-            inputs: [summaryInput],
-            outputs: [summaryOutput],
+            inputs: summaryInputs,
+            outputs: summaryOutputs,
             // Preserve git context and record compacted commits
             git: {
               ...lastTx.git,
@@ -295,33 +321,31 @@ export class TransformCompactor {
           await this.reverseDeps.add(output.hash, summaryId);
         }
 
-        // Update Index history for the file
-        const existingIndex = await this.index.get(filePath);
-        if (existingIndex) {
-          const intermediateSet = new Set(intermediateIds);
-
-          // Find where to insert summary — between the first and last intermediate position
-          // Or just insert it after the first non-intermediate that comes before any intermediate
-          let insertIndex = -1;
-          for (let i = 0; i < existingIndex.history.length; i++) {
-            if (intermediateSet.has(existingIndex.history[i])) {
-              insertIndex = i;
-              break;
+        // Update Index history for ALL affected files
+        for (const filePath of allAffectedFiles) {
+          const existingIndex = await this.index.get(filePath);
+          if (existingIndex) {
+            // Find where to insert summary — at the first intermediate position found in THIS file's history
+            let insertIndex = -1;
+            for (let i = 0; i < existingIndex.history.length; i++) {
+              if (intermediateSet.has(existingIndex.history[i])) {
+                insertIndex = i;
+                break;
+              }
             }
-          }
 
-          if (insertIndex !== -1) {
-            // Re-calculate the new history more carefully to ensure summary is in the right spot
-            const head = existingIndex.history.slice(0, insertIndex);
-            const tail = existingIndex.history
-              .slice(insertIndex)
-              .filter((id) => !intermediateSet.has(id));
-            const finalHistory = [...head, summaryId, ...tail];
+            if (insertIndex !== -1) {
+              const head = existingIndex.history.slice(0, insertIndex);
+              const tail = existingIndex.history
+                .slice(insertIndex)
+                .filter((id) => !intermediateSet.has(id));
+              const finalHistory = [...head, summaryId, ...tail];
 
-            await this.index.set(filePath, {
-              ...existingIndex,
-              history: finalHistory,
-            });
+              await this.index.set(filePath, {
+                ...existingIndex,
+                history: finalHistory,
+              });
+            }
           }
         }
 
