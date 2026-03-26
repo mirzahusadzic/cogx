@@ -736,6 +736,8 @@ program.addCommand(createGuideCommand());
 program.addCommand(createCompletionCommand());
 const { createConfigCommand } = await import('./commands/config.js');
 program.addCommand(createConfigCommand());
+const { createLockCommand } = await import('./commands/lock.js');
+program.addCommand(createLockCommand());
 addPatternsCommands(program);
 addCoherenceCommands(program);
 addConceptsCommands(program);
@@ -1505,6 +1507,7 @@ const ALL_COMMANDS = [
   'migrate:lance',
   'completion',
   'config',
+  'lock',
   'lineage',
 ];
 

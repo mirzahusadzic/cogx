@@ -226,6 +226,12 @@ export interface WatcherOptions {
    * URL of the workbench for embedding generation (required for autoUpdate).
    */
   workbenchUrl?: string;
+
+  /**
+   * Path to the agent lock file override.
+   * Defaults to <pgcRoot>/.agent_lock when not provided.
+   */
+  agentLockFile?: string;
 }
 
 /**

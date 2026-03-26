@@ -1901,4 +1901,44 @@ export class OverlayOrchestrator extends BaseOrchestrator {
   public async shutdown(): Promise<void> {
     await this.vectorDB.close();
   }
+
+  /**
+   * Regenerate only the specified symbols in the overlay (selective re-embedding).
+   * Called by UpdateOrchestrator after propagateInvalidation identifies affected symbols.
+   * Deletes manifest entries for the affected file paths so they are re-embedded on
+   * the next full run() call.
+   *
+   * @param overlayType - The overlay type to update (e.g. 'structural_patterns')
+   * @param affectedFilePaths - Relative file paths whose symbols need re-embedding
+   * @returns Counts of regenerated and skipped symbols
+   */
+  async regenerateAffected(
+    overlayType: string,
+    affectedFilePaths: string[]
+  ): Promise<{ regenerated: number; skipped: number }> {
+    if (affectedFilePaths.length === 0) {
+      return { regenerated: 0, skipped: 0 };
+    }
+
+    const manifest = await this.pgc.overlays.getManifest(overlayType);
+    const affectedSet = new Set(affectedFilePaths);
+    const keysToDelete: string[] = [];
+
+    for (const key of Object.keys(manifest)) {
+      const entry = manifest[key];
+      const filePath =
+        typeof entry === 'string'
+          ? entry
+          : (entry as { filePath?: string }).filePath;
+      if (filePath && affectedSet.has(filePath)) {
+        keysToDelete.push(key);
+      }
+    }
+
+    for (const key of keysToDelete) {
+      await this.pgc.overlays.deleteManifestEntry(overlayType, key);
+    }
+
+    return { regenerated: keysToDelete.length, skipped: 0 };
+  }
 }

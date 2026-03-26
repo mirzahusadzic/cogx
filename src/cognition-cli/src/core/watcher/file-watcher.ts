@@ -393,6 +393,18 @@ export class FileWatcher extends EventEmitter {
 
   private async runAutoUpdate(): Promise<void> {
     try {
+      // Check agent lock before proceeding
+      const { AgentLockManager } = await import('./agent-lock.js');
+      const lockManager = new AgentLockManager(this.pgcRoot);
+      if (await lockManager.isLocked()) {
+        systemDiagnosticsService.systemLog(
+          'watcher',
+          'Auto-update deferred: agent lock active'
+        );
+        await this.scheduleAutoUpdate();
+        return;
+      }
+
       systemDiagnosticsService.systemLog(
         'watcher',
         'Triggering auto-update...'

@@ -12,6 +12,7 @@ import type { PGCManager } from '../pgc/manager.js';
 import type { StructuralMiner } from './miners/structural.js';
 import type { WorkbenchClient } from '../executors/workbench-client.js';
 import type { GenesisOracle } from '../pgc/oracles/genesis.js';
+import { CoherenceDriftDetector } from '../overlays/coherence-drift.js';
 
 /**
  * Update Orchestrator: Implements surgical invalidation for incremental PGC updates
@@ -93,6 +94,9 @@ export class UpdateOrchestrator extends BaseOrchestrator {
    * @param onProgress - Optional callback for reporting progress to the UI
    */
   async run(onProgress?: ProgressCallback): Promise<void> {
+    const driftDetector = new CoherenceDriftDetector(this.pgc.pgcRoot);
+    const beforeScore = await driftDetector.snapshot();
+
     const config: OrchestratorConfig = {
       name: 'Update',
       discoverySteps: [
@@ -124,5 +128,18 @@ export class UpdateOrchestrator extends BaseOrchestrator {
     );
 
     await orchestrator.run(onProgress);
+
+    if (beforeScore !== null) {
+      const delta = await driftDetector.computeDelta(beforeScore);
+      if (Math.abs(delta.drift) > 0.01) {
+        const direction =
+          delta.drift < 0 ? '⚠️  Coherence drift' : '✅ Coherence improved';
+        const arrow = `${delta.before.toFixed(3)} → ${delta.after.toFixed(3)}`;
+        const sign = delta.drift >= 0 ? '+' : '';
+        console.log(
+          `${direction}: ${arrow} (${sign}${delta.drift.toFixed(3)})`
+        );
+      }
+    }
   }
 }

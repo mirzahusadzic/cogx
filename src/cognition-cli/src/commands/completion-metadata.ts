@@ -691,4 +691,55 @@ export const cliCommands: CommandMetadata[] = [
     ],
   },
   { name: 'config', description: 'View and manage CLI settings' },
+  {
+    name: 'lock',
+    description: 'Manage agent write locks for the PGC',
+    subcommands: [
+      {
+        name: 'acquire',
+        description: 'Acquire a write lock',
+        flags: [
+          {
+            name: '--source',
+            description: 'Lock holder identifier (e.g. claude-code)',
+          },
+          {
+            name: '--timeout',
+            description: 'Auto-expire timeout in seconds',
+          },
+          { name: '--session', description: 'Session identifier' },
+          {
+            name: '--project-root',
+            short: '-p',
+            description: 'Project root directory',
+            type: 'directory',
+          },
+        ],
+      },
+      {
+        name: 'release',
+        description: 'Release an active write lock',
+        flags: [
+          {
+            name: '--project-root',
+            short: '-p',
+            description: 'Project root directory',
+            type: 'directory',
+          },
+        ],
+      },
+      {
+        name: 'status',
+        description: 'Show current lock status',
+        flags: [
+          {
+            name: '--project-root',
+            short: '-p',
+            description: 'Project root directory',
+            type: 'directory',
+          },
+        ],
+      },
+    ],
+  },
 ];
