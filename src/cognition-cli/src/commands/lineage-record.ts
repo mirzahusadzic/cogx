@@ -122,7 +122,7 @@ export async function lineageRecordCommand(options: LineageRecordOptions) {
       );
 
       // f. Record transform
-      const transformId = await pgc.transformLog.record({
+      const transformId = await pgc.recordTransform({
         goal: {
           objective: 'Record file change from git history',
           criteria: ['File hash matches commit state'],

@@ -200,7 +200,7 @@ export class StructuralProcessingStep extends BaseStep {
       );
 
       // Record transform
-      recordedTransformId = await context.pgc.transformLog.record({
+      recordedTransformId = await context.pgc.recordTransform({
         goal: {
           objective: this.options.incremental
             ? 'Incremental update of source file'
@@ -266,8 +266,12 @@ export class StructuralProcessingStep extends BaseStep {
 
   private async propagateInvalidation(
     oldStructuralHash: string,
-    context: PipelineContext
+    context: PipelineContext,
+    visited: Set<string> = new Set()
   ) {
+    if (visited.has(oldStructuralHash)) return;
+    visited.add(oldStructuralHash);
+
     // 1. Invalidate Overlays
     await this.invalidateOverlays(oldStructuralHash, context);
 
@@ -278,11 +282,17 @@ export class StructuralProcessingStep extends BaseStep {
       const transform =
         await context.pgc.transformLog.getTransformation(transformId);
       if (transform) {
+        // Skip if this transform actually produced the hash (don't invalidate producers)
+        const isProducer = transform.outputs.some(
+          (o) => o.hash === oldStructuralHash
+        );
+        if (isProducer) continue;
+
         for (const output of transform.outputs) {
           if (output.path) {
             this.log(`Invalidating dependent: ${output.path}`);
             await context.pgc.index.remove(output.path);
-            await this.propagateInvalidation(output.hash, context);
+            await this.propagateInvalidation(output.hash, context, visited);
           }
         }
       }

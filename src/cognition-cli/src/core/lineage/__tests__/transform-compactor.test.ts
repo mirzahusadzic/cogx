@@ -6,6 +6,7 @@ import crypto from 'node:crypto';
 import { TransformLog } from '../../pgc/transform-log.js';
 import { ReverseDeps } from '../../pgc/reverse-deps.js';
 import { TransformDAG } from '../../pgc/transform-dag.js';
+import { Index } from '../../pgc/index.js';
 import { TransformCompactor } from '../transform-compactor.js';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -59,6 +60,7 @@ describe('TransformCompactor', () => {
   let log: TransformLog;
   let reverseDeps: ReverseDeps;
   let transformDAG: TransformDAG;
+  let index: Index;
   let compactor: TransformCompactor;
 
   beforeEach(async () => {
@@ -70,7 +72,8 @@ describe('TransformCompactor', () => {
     log = new TransformLog(tempDir);
     reverseDeps = new ReverseDeps(tempDir);
     transformDAG = new TransformDAG(tempDir);
-    compactor = new TransformCompactor(log, reverseDeps, transformDAG);
+    index = new Index(tempDir);
+    compactor = new TransformCompactor(log, reverseDeps, transformDAG, index);
   });
 
   afterEach(async () => {

@@ -27,6 +27,7 @@
 import { TransformLog } from '../pgc/transform-log.js';
 import { ReverseDeps } from '../pgc/reverse-deps.js';
 import { TransformDAG } from '../pgc/transform-dag.js';
+import { Index } from '../pgc/index.js';
 import { Transformation } from '../types/transform.js';
 
 /** Compaction plan produced by scan(). Describes what would be done. */
@@ -74,7 +75,8 @@ export class TransformCompactor {
   constructor(
     private readonly transformLog: TransformLog,
     private readonly reverseDeps: ReverseDeps,
-    private readonly transformDAG: TransformDAG
+    private readonly transformDAG: TransformDAG,
+    private readonly index: Index
   ) {}
 
   /**
@@ -252,7 +254,7 @@ export class TransformCompactor {
         const summaryData: Omit<Transformation, 'phi' | 'verification_result'> =
           {
             type: 'squash_summary',
-            timestamp: new Date().toISOString(),
+            timestamp: lastTx.timestamp || new Date().toISOString(),
             method: 'compaction',
             inputs: [summaryInput],
             outputs: [summaryOutput],
@@ -282,6 +284,39 @@ export class TransformCompactor {
         for (const input of summaryData.inputs) {
           await this.reverseDeps.add(input.hash, summaryId);
         }
+        for (const output of summaryData.outputs) {
+          await this.reverseDeps.add(output.hash, summaryId);
+        }
+
+        // Update Index history for the file
+        const existingIndex = await this.index.get(filePath);
+        if (existingIndex) {
+          const intermediateSet = new Set(intermediateIds);
+
+          // Find where to insert summary — between the first and last intermediate position
+          // Or just insert it after the first non-intermediate that comes before any intermediate
+          let insertIndex = -1;
+          for (let i = 0; i < existingIndex.history.length; i++) {
+            if (intermediateSet.has(existingIndex.history[i])) {
+              insertIndex = i;
+              break;
+            }
+          }
+
+          if (insertIndex !== -1) {
+            // Re-calculate the new history more carefully to ensure summary is in the right spot
+            const head = existingIndex.history.slice(0, insertIndex);
+            const tail = existingIndex.history
+              .slice(insertIndex)
+              .filter((id) => !intermediateSet.has(id));
+            const finalHistory = [...head, summaryId, ...tail];
+
+            await this.index.set(filePath, {
+              ...existingIndex,
+              history: finalHistory,
+            });
+          }
+        }
 
         // Prune intermediate indices and purge files
         for (const id of intermediateIds) {
@@ -289,6 +324,9 @@ export class TransformCompactor {
           if (tx) {
             for (const input of tx.inputs) {
               await this.reverseDeps.delete(input.hash, id);
+            }
+            for (const output of tx.outputs) {
+              await this.reverseDeps.delete(output.hash, id);
             }
           }
           await this.transformLog.purge(id);
