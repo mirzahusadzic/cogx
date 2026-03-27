@@ -22,15 +22,13 @@ export class MaintenanceStep extends BaseStep {
   }
 
   async execute(context: PipelineContext): Promise<StepResult> {
-    const processedFiles = context.processedFiles;
-
     if (this.options.gc) {
-      this.log('Running PGC Garbage Collection');
-      await this.runGarbageCollection(context, processedFiles);
+      this.log('Running PGC Garbage Collection', context);
+      await this.runGarbageCollection(context);
     }
 
     if (this.options.verify) {
-      this.log('Running PGC Verification');
+      this.log('Running PGC Verification', context);
       const verificationResult = await context.genesisOracle.verify();
       if (!verificationResult.success) {
         return this.failure(
@@ -38,56 +36,56 @@ export class MaintenanceStep extends BaseStep {
           new Error(verificationResult.messages.join('\n'))
         );
       }
-      this.log('PGC Verification complete. PGC is structurally coherent.');
+      this.log(
+        'PGC Verification complete. PGC is structurally coherent.',
+        context
+      );
     }
 
     return this.success();
   }
 
   /** @internal */
-  public async runGarbageCollection(
-    context: PipelineContext,
-    processedFiles: string[]
-  ) {
+  public async runGarbageCollection(context: PipelineContext) {
     const overlayReferencedHashes =
       await this.getOverlayReferencedHashes(context);
 
     // Phase 1: Clean up stale index entries
-    const allIndexedData = await context.pgc.index.getAllData();
-    const staleFilePaths = allIndexedData
-      .filter((data) => !processedFiles.includes(data.path))
-      .map((data) => data.path);
+    // Use filesToProcess instead of processedFiles to avoid deleting entries for files that failed processing
+    // but were still discovered as part of the project.
+    const filesToKeep = context.filesToProcess || [];
+    const allIndexedEntries = await context.pgc.index.getAllData();
+    const staleEntriesData = allIndexedEntries.filter(
+      (entry) => !filesToKeep.includes(entry.path)
+    );
 
-    let staleEntries = 0;
-    for (const staleFile of staleFilePaths) {
-      const indexData = await context.pgc.index.get(staleFile);
-      if (indexData) {
-        // Only delete hashes that are NOT referenced by overlays
-        if (!overlayReferencedHashes.has(indexData.content_hash)) {
-          await context.pgc.objectStore.delete(indexData.content_hash);
-        }
-        if (!overlayReferencedHashes.has(indexData.structural_hash)) {
-          await context.pgc.objectStore.delete(indexData.structural_hash);
-        }
-
-        // Clean up transform history
-        for (const transformId of indexData.history) {
-          await context.pgc.transformLog.purge(transformId);
-          await context.pgc.reverseDeps.delete(
-            indexData.content_hash,
-            transformId
-          );
-          await context.pgc.reverseDeps.delete(
-            indexData.structural_hash,
-            transformId
-          );
-        }
+    let staleEntriesCount = 0;
+    for (const entry of staleEntriesData) {
+      // Only delete hashes that are NOT referenced by overlays
+      if (!overlayReferencedHashes.has(entry.content_hash)) {
+        await context.pgc.objectStore.delete(entry.content_hash);
       }
-      await context.pgc.index.remove(staleFile);
-      staleEntries++;
+      if (!overlayReferencedHashes.has(entry.structural_hash)) {
+        await context.pgc.objectStore.delete(entry.structural_hash);
+      }
+
+      // Clean up transform history
+      for (const transformId of entry.history) {
+        await context.pgc.transformLog.purge(transformId);
+        await context.pgc.reverseDeps.delete(entry.content_hash, transformId);
+        await context.pgc.reverseDeps.delete(
+          entry.structural_hash,
+          transformId
+        );
+      }
+
+      // CRITICAL: Delete the specific file found in the index, not just the canonical one.
+      // This prevents orphaned index entries due to canonicalization changes.
+      await fs.remove(path.join(context.pgc.index.indexPath, entry.filename));
+      staleEntriesCount++;
     }
-    if (staleEntries > 0)
-      this.log(`Removed ${staleEntries} stale index entries.`);
+    if (staleEntriesCount > 0)
+      this.log(`Removed ${staleEntriesCount} stale index entries.`, context);
 
     // Phase 2: Clean up docs
     const removedDocs = await this.garbageCollectDocs(
@@ -95,7 +93,7 @@ export class MaintenanceStep extends BaseStep {
       overlayReferencedHashes
     );
     if (removedDocs > 0)
-      this.log(`Removed ${removedDocs} stale document index entries.`);
+      this.log(`Removed ${removedDocs} stale document index entries.`, context);
 
     // Phase 3: Clean up structural overlays
     const removedOverlays =
@@ -122,7 +120,7 @@ export class MaintenanceStep extends BaseStep {
     // Phase 6: Clean up orphans
     const removedOrphans = await context.docsOracle.cleanupOrphanedObjects();
     if (removedOrphans > 0)
-      this.log(`Removed ${removedOrphans} orphaned document objects.`);
+      this.log(`Removed ${removedOrphans} orphaned document objects.`, context);
 
     // Phase 6: Clean up stale ReverseDeps entries
     let cleanedReverseDeps = 0;
@@ -193,7 +191,7 @@ export class MaintenanceStep extends BaseStep {
     // Phase 8: Clean up empty directories
     await context.pgc.objectStore.removeEmptyShardedDirectories();
     await context.pgc.reverseDeps.removeEmptyShardedDirectories();
-    this.log('Cleaned up empty sharded directories.');
+    this.log('Cleaned up empty sharded directories.', context);
   }
 
   private async pruneVectorDB(context: PipelineContext): Promise<number> {

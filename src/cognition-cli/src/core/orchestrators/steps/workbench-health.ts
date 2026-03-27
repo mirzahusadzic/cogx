@@ -9,7 +9,7 @@ export class WorkbenchHealthCheckStep extends BaseStep {
 
   async execute(context: PipelineContext): Promise<StepResult> {
     const baseUrl = context.workbench.getBaseUrl();
-    this.log(`Checking workbench health at ${baseUrl}`);
+    this.log(`Checking workbench health at ${baseUrl}`, context);
 
     let isHealthy = false;
     try {
@@ -23,10 +23,11 @@ export class WorkbenchHealthCheckStep extends BaseStep {
 
     if (!isHealthy) {
       this.log(
-        `Workbench (eGemma) is not reachable at ${baseUrl}. Structural mining will be limited.`
+        `Workbench (eGemma) is not reachable at ${baseUrl}. Structural mining will be limited.`,
+        context
       );
     } else {
-      this.log('Workbench is healthy.');
+      this.log('Workbench is healthy.', context);
     }
 
     return this.success();

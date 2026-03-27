@@ -87,7 +87,7 @@ function canonicalizeSymbol(symbol: string): string {
  * const results = await index.search('my-component');
  */
 export class Index {
-  private indexPath: string;
+  public indexPath: string;
 
   /**
    * Creates a new Index instance.
@@ -277,7 +277,7 @@ export class Index {
    *
    * @see {@link getAll} to retrieve only file paths
    */
-  async getAllData(): Promise<IndexData[]> {
+  async getAllData(): Promise<(IndexData & { filename: string })[]> {
     if (!(await fs.pathExists(this.indexPath))) {
       return [];
     }
@@ -300,7 +300,7 @@ export class Index {
           const fullPath = path.join(this.indexPath, file);
           const rawData = await fs.readJSON(fullPath);
           const data = IndexDataSchema.parse(rawData);
-          return data;
+          return { ...data, filename: file };
         } catch (error) {
           // Ignore files that fail validation
           console.warn(
@@ -312,7 +312,9 @@ export class Index {
     );
 
     // Filter out null entries (failed validations)
-    return dataResults.filter((data) => data !== null) as IndexData[];
+    return dataResults.filter((data) => data !== null) as (IndexData & {
+      filename: string;
+    })[];
   }
 
   /**
@@ -463,7 +465,7 @@ export class Index {
    *
    * @private
    * @async
-   * @param {IndexData[]} allData - All index data to search
+   * @param {(IndexData & { filename: string })[]} allData - All index data to search
    * @param {string} term - Search term (canonicalized)
    * @param {ObjectStore} objectStore - Object store for retrieving structural data
    * @returns {Promise<IndexData[]>} Matching index entries
@@ -471,7 +473,7 @@ export class Index {
    * @see {@link search} for the public API that calls this method
    */
   private async searchSingleThreaded(
-    allData: IndexData[],
+    allData: (IndexData & { filename: string })[],
     term: string,
     objectStore: ObjectStore
   ): Promise<IndexData[]> {

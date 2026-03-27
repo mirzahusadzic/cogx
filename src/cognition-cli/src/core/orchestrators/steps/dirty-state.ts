@@ -109,7 +109,7 @@ export class ClearDirtyStateStep extends BaseStep {
   async execute(context: PipelineContext): Promise<StepResult> {
     const dirtyStateManager = context.dirtyStateManager as DirtyStateManager;
     if (dirtyStateManager) {
-      this.log('Clearing dirty state');
+      this.log('Clearing dirty state', context);
       await dirtyStateManager.clear();
     }
     return this.success();

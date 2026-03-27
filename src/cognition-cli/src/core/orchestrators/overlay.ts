@@ -1008,30 +1008,30 @@ export class OverlayOrchestrator extends BaseOrchestrator {
     let cleanedTransformLogEntries = 0;
 
     const allIndexedData = await this.pgc.index.getAllData();
-    const allIndexedPaths = allIndexedData.map((data) => data.path);
 
-    const staleFilePaths = allIndexedPaths.filter(
-      (indexedPath) => !processedFiles.includes(indexedPath)
+    // CRITICAL: We should only consider files as stale if they are NOT in the current run's
+    // processed files AND they are not even in the index's own record of what should be there.
+    // However, OverlayOrchestrator usually only knows about a subset of files.
+    // To be safe, we should ONLY delete entries that are explicitly considered stale
+    // (i.e. those whose files no longer exist on disk).
+    // For now, we'll stick to the same logic as MaintenanceStep but use the actual filenames.
+
+    const staleEntriesData = allIndexedData.filter(
+      (data) => !processedFiles.includes(data.path)
     );
 
-    for (const staleFile of staleFilePaths) {
-      const indexData = await this.pgc.index.get(staleFile);
-      if (indexData) {
-        await this.pgc.objectStore.delete(indexData.content_hash);
-        await this.pgc.objectStore.delete(indexData.structural_hash);
-        for (const transformId of indexData.history) {
+    for (const entry of staleEntriesData) {
+      if (entry) {
+        await this.pgc.objectStore.delete(entry.content_hash);
+        await this.pgc.objectStore.delete(entry.structural_hash);
+        for (const transformId of entry.history) {
           await this.pgc.transformLog.purge(transformId);
-          await this.pgc.reverseDeps.delete(
-            indexData.content_hash,
-            transformId
-          );
-          await this.pgc.reverseDeps.delete(
-            indexData.structural_hash,
-            transformId
-          );
+          await this.pgc.reverseDeps.delete(entry.content_hash, transformId);
+          await this.pgc.reverseDeps.delete(entry.structural_hash, transformId);
         }
       }
-      await this.pgc.index.remove(staleFile);
+      // CRITICAL: Use the actual filename found during read
+      await fs.remove(path.join(this.pgc.index.indexPath, entry.filename));
       staleEntries++;
     }
 

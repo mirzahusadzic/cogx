@@ -35,7 +35,7 @@ export class StructuralProcessingStep extends BaseStep {
   async execute(context: PipelineContext): Promise<StepResult> {
     const files = context.sourceFiles || [];
     if (files.length === 0) {
-      this.log('No files to process.');
+      this.log('No files to process.', context);
       return this.success();
     }
 
@@ -47,7 +47,8 @@ export class StructuralProcessingStep extends BaseStep {
     this.log(
       `Processing ${files.length} files (${nativeFiles.length} native, ${
         files.length - nativeFiles.length
-      } remote)`
+      } remote)`,
+      context
     );
 
     // Hoist IntentResolver for Phase 4 performance
@@ -104,7 +105,7 @@ export class StructuralProcessingStep extends BaseStep {
           );
         }
       } catch (error) {
-        this.log(`Error processing ${file.relativePath}: ${error}`);
+        this.log(`Error processing ${file.relativePath}: ${error}`, context);
         context.failedFiles.push(file.relativePath);
         // Continue to next file
       }
@@ -154,7 +155,10 @@ export class StructuralProcessingStep extends BaseStep {
         );
 
       if (!isWorkbenchHealthy && isWorkbenchDependent) {
-        this.log(`⸬ ${file.relativePath} (skipped workbench processing)`);
+        this.log(
+          `⸬ ${file.relativePath} (skipped workbench processing)`,
+          context
+        );
 
         // Update index with partial status
         await context.pgc.index.set(file.relativePath, {
@@ -251,7 +255,8 @@ export class StructuralProcessingStep extends BaseStep {
         const oldStructuralHash = existingIndex.structural_hash;
         if (oldStructuralHash && oldStructuralHash !== structuralHash) {
           this.log(
-            `Structural change detected for ${file.relativePath}. Propagating invalidation...`
+            `Structural change detected for ${file.relativePath}. Propagating invalidation...`,
+            context
           );
           await this.propagateInvalidation(oldStructuralHash, context);
         }
@@ -290,7 +295,7 @@ export class StructuralProcessingStep extends BaseStep {
 
         for (const output of transform.outputs) {
           if (output.path) {
-            this.log(`Invalidating dependent: ${output.path}`);
+            this.log(`Invalidating dependent: ${output.path}`, context);
             await context.pgc.index.remove(output.path);
             await this.propagateInvalidation(output.hash, context, visited);
           }
@@ -339,7 +344,8 @@ export class StructuralProcessingStep extends BaseStep {
             overlayData.symbolStructuralDataHash;
           if (sourceHash === oldStructuralHash) {
             this.log(
-              `Removing invalidated overlay: ${path.relative(context.pgc.pgcRoot, file)}`
+              `Removing invalidated overlay: ${path.relative(context.pgc.pgcRoot, file)}`,
+              context
             );
             await fs.remove(file);
 

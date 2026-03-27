@@ -31,11 +31,11 @@ export class DiscoveryStep extends BaseStep {
         : path.join(context.projectRoot, sourcePath);
 
       if (!(await fs.pathExists(actualSourcePath))) {
-        this.log(`Source path does not exist: ${actualSourcePath}`);
+        this.log(`Source path does not exist: ${actualSourcePath}`, context);
         continue;
       }
 
-      this.log(`Scanning for files in: ${actualSourcePath}`);
+      this.log(`Scanning for files in: ${actualSourcePath}`, context);
       const files = await this.discoverInPath(
         actualSourcePath,
         context.projectRoot
