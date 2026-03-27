@@ -3,6 +3,7 @@ import { PGCManager } from '../pgc/manager.js';
 import { execa } from 'execa';
 import { IntentResolver } from '../lineage/intent-resolver.js';
 import { RehydrationManifest } from '../pgc/rehydration-manifest.js';
+import { GLOBAL_SUPPORTED_EXTENSIONS } from '../../config.js';
 
 export interface RehydrateResult {
   recordedCount: number;
@@ -45,16 +46,9 @@ export interface BulkRenameGroup {
   count: number;
 }
 
-export const SUPPORTED_EXTENSIONS = new Set([
-  '.ts',
-  '.tsx',
-  '.js',
-  '.jsx',
-  '.mjs',
-  '.cjs',
-  '.py',
-  '.md',
-]);
+export const SUPPORTED_EXTENSIONS = new Set<string>(
+  GLOBAL_SUPPORTED_EXTENSIONS
+);
 
 export class RehydrateService {
   private readonly manifest: RehydrationManifest;

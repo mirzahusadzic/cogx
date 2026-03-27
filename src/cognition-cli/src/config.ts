@@ -306,6 +306,18 @@ export type LanguageType = (typeof SUPPORTED_LANGUAGES)[number];
 /** Supported file extensions (derived) */
 export const DEFAULT_FILE_EXTENSIONS = LANGUAGE_CONFIG.map((c) => c.ext);
 
+/**
+ * All supported file extensions across the system.
+ * Includes both "minable" code and other tracked files (markdown, ESM/CJS scripts).
+ * This is the central source of truth for rehydration and tracking.
+ */
+export const GLOBAL_SUPPORTED_EXTENSIONS = [
+  ...DEFAULT_FILE_EXTENSIONS,
+  '.mjs',
+  '.cjs',
+  '.md',
+] as const;
+
 /** Extension to display name mapping (derived) */
 export const LANGUAGE_MAP: Record<string, string> = Object.fromEntries(
   LANGUAGE_CONFIG.map((c) => [c.ext, c.displayName])
