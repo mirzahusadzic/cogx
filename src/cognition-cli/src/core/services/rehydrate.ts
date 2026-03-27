@@ -50,6 +50,72 @@ export const SUPPORTED_EXTENSIONS = new Set<string>(
   GLOBAL_SUPPORTED_EXTENSIONS
 );
 
+export function isSupportedFile(filePath: string): boolean {
+  const ext = path.extname(filePath).toLowerCase();
+  return SUPPORTED_EXTENSIONS.has(ext);
+}
+
+export function parseDiffTreeLine(line: string): ParsedDiffLine | null {
+  if (!line.trim()) return null;
+  const parts = line.split('\t');
+  const statusField = parts[0];
+
+  if (statusField === 'A') {
+    return { status: 'A', newPath: parts[1] };
+  } else if (statusField === 'M') {
+    return { status: 'M', oldPath: parts[1], newPath: parts[1] };
+  } else if (statusField === 'D') {
+    return { status: 'D', oldPath: parts[1] };
+  } else if (statusField.startsWith('R')) {
+    const similarity = parseInt(statusField.slice(1), 10);
+    return {
+      status: 'R',
+      similarity,
+      oldPath: parts[1],
+      newPath: parts[2],
+    };
+  }
+  return null;
+}
+
+export function detectBulkRename(
+  renames: RenameEntry[]
+): BulkRenameGroup | null {
+  if (renames.length < 5) return null;
+
+  const groups = new Map<string, RenameEntry[]>();
+  for (const rename of renames) {
+    const oldDir = path.dirname(rename.oldPath);
+    const newDir = path.dirname(rename.newPath);
+    const key = `${oldDir}\x00${newDir}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(rename);
+  }
+
+  for (const [key, files] of groups.entries()) {
+    if (files.length >= 5) {
+      const [oldDir, newDir] = key.split('\x00');
+      return {
+        pattern: `${oldDir}/* → ${newDir}/*`,
+        files,
+        count: files.length,
+      };
+    }
+  }
+
+  return null;
+}
+
+export function classifyCommitSize(
+  filesCount: number,
+  charsCount: number
+): 'micro' | 'small' | 'medium' | 'large' {
+  if (filesCount <= 2 && charsCount < 500) return 'micro';
+  if (filesCount <= 10 && charsCount < 2000) return 'small';
+  if (filesCount <= 30 && charsCount < 10000) return 'medium';
+  return 'large';
+}
+
 export class RehydrateService {
   private readonly manifest: RehydrationManifest;
 
@@ -171,7 +237,7 @@ export class RehydrateService {
       const parsedEntries: ParsedDiffLine[] = [];
 
       for (const line of lines) {
-        const parsed = this.parseDiffTreeLine(line);
+        const parsed = parseDiffTreeLine(line);
         if (!parsed) continue;
         parsedEntries.push(parsed);
         if (parsed.status === 'R' && parsed.oldPath && parsed.newPath) {
@@ -183,14 +249,14 @@ export class RehydrateService {
         }
       }
 
-      const bulkGroup = this.detectBulkRename(renames);
+      const bulkGroup = detectBulkRename(renames);
       const bulkOldPaths = new Set(
         bulkGroup?.files.map((r) => r.oldPath) ?? []
       );
 
       for (const parsed of parsedEntries) {
         const checkPath = parsed.newPath ?? parsed.oldPath;
-        if (!checkPath || !this.isSupportedFile(checkPath)) continue;
+        if (!checkPath || !isSupportedFile(checkPath)) continue;
 
         if (
           parsed.status === 'R' &&
@@ -266,14 +332,13 @@ export class RehydrateService {
       // Handle bulk renames
       if (bulkGroup) {
         const supportedBulkFiles = bulkGroup.files.filter(
-          (r) =>
-            this.isSupportedFile(r.oldPath) || this.isSupportedFile(r.newPath)
+          (r) => isSupportedFile(r.oldPath) || isSupportedFile(r.newPath)
         );
 
         if (supportedBulkFiles.length > 0) {
           const bulkInputs = await Promise.all(
             supportedBulkFiles
-              .filter((r) => this.isSupportedFile(r.oldPath))
+              .filter((r) => isSupportedFile(r.oldPath))
               .map(async (r) => ({
                 path: r.oldPath,
                 hash: await this.getContentHash(commit.hash, r.oldPath, true),
@@ -281,7 +346,7 @@ export class RehydrateService {
           );
           const bulkOutputs = await Promise.all(
             supportedBulkFiles
-              .filter((r) => this.isSupportedFile(r.newPath))
+              .filter((r) => isSupportedFile(r.newPath))
               .map(async (r) => ({
                 path: r.newPath,
                 hash: await this.getContentHash(commit.hash, r.newPath, false),
@@ -351,60 +416,6 @@ export class RehydrateService {
     } catch {
       return '';
     }
-  }
-
-  private parseDiffTreeLine(line: string): ParsedDiffLine | null {
-    if (!line.trim()) return null;
-    const parts = line.split('\t');
-    const statusField = parts[0];
-
-    if (statusField === 'A') {
-      return { status: 'A', newPath: parts[1] };
-    } else if (statusField === 'M') {
-      return { status: 'M', oldPath: parts[1], newPath: parts[1] };
-    } else if (statusField === 'D') {
-      return { status: 'D', oldPath: parts[1] };
-    } else if (statusField.startsWith('R')) {
-      const similarity = parseInt(statusField.slice(1), 10);
-      return {
-        status: 'R',
-        similarity,
-        oldPath: parts[1],
-        newPath: parts[2],
-      };
-    }
-    return null;
-  }
-
-  private isSupportedFile(filePath: string): boolean {
-    const ext = path.extname(filePath).toLowerCase();
-    return SUPPORTED_EXTENSIONS.has(ext);
-  }
-
-  private detectBulkRename(renames: RenameEntry[]): BulkRenameGroup | null {
-    if (renames.length < 5) return null;
-
-    const groups = new Map<string, RenameEntry[]>();
-    for (const rename of renames) {
-      const oldDir = path.dirname(rename.oldPath);
-      const newDir = path.dirname(rename.newPath);
-      const key = `${oldDir}\x00${newDir}`;
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(rename);
-    }
-
-    for (const [key, files] of groups.entries()) {
-      if (files.length >= 5) {
-        const [oldDir, newDir] = key.split('\x00');
-        return {
-          pattern: `${oldDir}/* → ${newDir}/*`,
-          files,
-          count: files.length,
-        };
-      }
-    }
-
-    return null;
   }
 
   private async getTransformIO(
