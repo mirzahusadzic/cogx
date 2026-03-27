@@ -1,9 +1,9 @@
 import path from 'node:path';
-import { PGCManager } from '../pgc/manager.js';
+import { PGCManager } from '../../pgc/manager.js';
 import { execa } from 'execa';
-import { IntentResolver } from '../lineage/intent-resolver.js';
-import { RehydrationManifest } from '../pgc/rehydration-manifest.js';
-import { GLOBAL_SUPPORTED_EXTENSIONS } from '../../config.js';
+import { IntentResolver } from '../../lineage/intent-resolver.js';
+import { RehydrationManifest } from '../../pgc/rehydration-manifest.js';
+import { GLOBAL_SUPPORTED_EXTENSIONS } from '../../../config.js';
 
 export interface RehydrateResult {
   recordedCount: number;

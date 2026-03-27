@@ -7,7 +7,7 @@ import crypto from 'node:crypto';
 import { PGCManager } from '../../pgc/manager.js';
 import { TransformCompactor } from '../transform-compactor.js';
 import { ProvenanceService } from '../provenance-service.js';
-import { RehydrateService } from '../../services/rehydrate.js';
+import { RehydrateService } from '../../services/lineage/rehydrate.js';
 import { StructuralMiner } from '../../orchestrators/miners/structural.js';
 import { WorkbenchClient } from '../../executors/workbench-client.js';
 import { GenesisOrchestrator } from '../../orchestrators/genesis.js';

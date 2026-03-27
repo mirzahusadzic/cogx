@@ -5,7 +5,7 @@ import { PGCManager } from '../core/pgc/manager.js';
 import { IntentResolver } from '../core/lineage/intent-resolver.js';
 import { EGemmaClient } from '../core/lineage/egemma-client.js';
 import { WorkbenchClient } from '../core/executors/workbench-client.js';
-import { RehydrateService } from '../core/services/rehydrate.js';
+import { RehydrateService } from '../core/services/lineage/rehydrate.js';
 
 interface RehydrateOptions {
   depth?: number;

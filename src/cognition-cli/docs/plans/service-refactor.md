@@ -13,9 +13,9 @@ This plan outlines the migration of core business logic from procedural orchestr
 
 Consolidate services related to PGC lineage, temporal history, and log compaction.
 
-- **[COMPLETED]** `RehydrateService`: Moved to `src/core/services/rehydrate.ts`.
-- **`ProvenanceService`**: Relocate from `src/core/lineage/provenance-service.ts` to `src/core/services/provenance.ts`.
-- **`TransformCompactor`**: Refactor into `TransformCompactionService` in `src/core/services/compaction.ts`.
+- **[COMPLETED]** `RehydrateService`: Moved to `src/core/services/lineage/rehydrate.ts`.
+- **`ProvenanceService`**: Relocate from `src/core/lineage/provenance-service.ts` to `src/core/services/lineage/provenance.ts`.
+- **`TransformCompactor`**: Refactor into `TransformCompactionService` in `src/core/services/lineage/compaction.ts`.
 
 ## 🧬 Phase 2: PGC Data Layer
 
@@ -29,8 +29,8 @@ Centralize the primary read/write APIs for the Grounded Context Pool.
 
 Transform the heavy ingestion and maintenance loops into injectable services.
 
-- **`GenesisService`**: Refactor `src/core/orchestrators/genesis.ts`.
-- **`IncrementalUpdateService`**: Refactor `src/core/orchestrators/update.ts`.
+- **`GenesisService`**: Refactor `src/core/orchestrators/genesis.ts` and move to `src/core/services/orchestration/genesis.ts`.
+- **`IncrementalUpdateService`**: Refactor `src/core/orchestrators/update.ts` and move to `src/core/services/orchestration/update.ts`.
 - **`PRAnalysisService`**: Refactor `src/core/orchestrators/pr-analyzer.ts` and move to `src/core/services/vcs/pr-analyzer.ts`.
 
 ## 🛡️ Phase 4: Security & Validation
@@ -42,7 +42,8 @@ Move system auditors and validators to the central service layer.
 
 ## 📝 Conventions
 
-1. **Filenames**: Kebab-case, no `-service` suffix (e.g., `rehydrate.ts`, `provenance.ts`).
-2. **Class Names**: PascalCase with `Service` suffix (e.g., `RehydrateService`, `ProvenanceService`).
-3. **Imports**: Use explicit `.js` extensions as per project ESM standards.
-4. **Wrappers**: CLI commands in `src/commands` should be thin wrappers that instantiate (or resolve) the service and call a single `execute()` or `run()` method.
+1. **Hierarchy**: Group services by their functional domain or Overlay (e.g., `lineage/`, `pgc/`, `security/`, `vcs/`).
+2. **Filenames**: Kebab-case, no `-service` suffix (e.g., `rehydrate.ts`, `provenance.ts`).
+3. **Class Names**: PascalCase with `Service` suffix (e.g., `RehydrateService`, `ProvenanceService`).
+4. **Imports**: Use explicit `.js` extensions as per project ESM standards.
+5. **Wrappers**: CLI commands in `src/commands` should be thin wrappers that instantiate (or resolve) the service and call a single `execute()` or `run()` method.

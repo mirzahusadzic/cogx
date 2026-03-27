@@ -8,7 +8,7 @@ import {
   detectBulkRename,
   classifyCommitSize,
   RenameEntry,
-} from '../../core/services/rehydrate.js';
+} from '../../core/services/lineage/rehydrate.js';
 import {
   RehydrationManifest,
   RehydrationManifestData,
