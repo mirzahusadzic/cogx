@@ -212,7 +212,7 @@ export interface WatcherOptions {
 
   /**
    * Whether to trigger update automatically after debounce.
-   * If true, runs UpdateOrchestrator.run() internally.
+   * If true, runs IncrementalUpdateService.run() internally.
    */
   autoUpdate?: boolean;
 

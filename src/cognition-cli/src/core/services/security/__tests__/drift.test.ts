@@ -1,5 +1,5 @@
 /**
- * Tests for SemanticDriftDetector
+ * Tests for SemanticDriftService
  *
  * CRITICAL P0 TESTS - Drift detection is the frontline defense against mission poisoning attacks.
  *
@@ -14,15 +14,15 @@
  * - [x] Edge cases (empty embeddings, identical versions)
  */
 
-import { describe, it, expect } from 'vitest';
-import { SemanticDriftDetector } from '../drift-detector.js';
-import type { MissionVersion } from '../mission-integrity.js';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { SemanticDriftService } from '../drift.js';
+import type { MissionVersion } from '../../../security/mission-integrity.js';
 
-describe('SemanticDriftDetector', () => {
-  let detector: SemanticDriftDetector;
+describe('SemanticDriftService', () => {
+  let detector: SemanticDriftService;
 
   beforeEach(() => {
-    detector = new SemanticDriftDetector({
+    detector = new SemanticDriftService({
       low: 0.05,
       medium: 0.15,
       high: 0.3,
@@ -553,7 +553,7 @@ describe('SemanticDriftDetector', () => {
 
   describe('Recommendation Generation', () => {
     it('should recommend reject when severity is critical', async () => {
-      const detector = new SemanticDriftDetector({
+      const detector = new SemanticDriftService({
         low: 0.05,
         medium: 0.15,
         high: 0.3,
@@ -645,7 +645,7 @@ describe('SemanticDriftDetector', () => {
 
   describe('Custom Threshold Configuration', () => {
     it('should use custom thresholds when provided', () => {
-      const strictDetector = new SemanticDriftDetector({
+      const strictDetector = new SemanticDriftService({
         low: 0.02,
         medium: 0.1,
         high: 0.2,
@@ -657,13 +657,13 @@ describe('SemanticDriftDetector', () => {
     });
 
     it('should fall back to defaults when not provided', () => {
-      const defaultDetector = new SemanticDriftDetector();
+      const defaultDetector = new SemanticDriftService();
 
       expect(defaultDetector).toBeDefined();
     });
 
     it('should allow partial threshold overrides', () => {
-      const partialDetector = new SemanticDriftDetector({
+      const partialDetector = new SemanticDriftService({
         critical: 0.3, // Override only critical
       });
 

@@ -4,18 +4,18 @@ import path from 'path';
 import os from 'os';
 import { execSync } from 'child_process';
 import crypto from 'node:crypto';
-import { PGCManager } from '../../pgc/manager.js';
-import { TransformCompactor } from '../transform-compactor.js';
-import { ProvenanceService } from '../provenance-service.js';
-import { RehydrateService } from '../../services/lineage/rehydrate.js';
-import { StructuralMiner } from '../../orchestrators/miners/structural.js';
-import { WorkbenchClient } from '../../executors/workbench-client.js';
-import { GenesisOrchestrator } from '../../orchestrators/genesis.js';
-import { UpdateOrchestrator } from '../../orchestrators/update.js';
-import { StructuralOracle } from '../../pgc/oracles/overlay.js';
-import type { StructuralData } from '../../types/structural.js';
-import type { Transformation } from '../../types/transform.js';
-import { DirtyStateManager } from '../../watcher/dirty-state.js';
+import { PGCManager } from '../../../pgc/manager.js';
+import { TransformCompactionService } from '../compaction.js';
+import { ProvenanceService } from '../provenance.js';
+import { RehydrateService } from '../rehydrate.js';
+import { StructuralMiner } from '../../../orchestrators/miners/structural.js';
+import { WorkbenchClient } from '../../../executors/workbench-client.js';
+import { GenesisService } from '../../orchestration/genesis.js';
+import { IncrementalUpdateService } from '../../orchestration/update.js';
+import { StructuralOracle } from '../../../pgc/oracles/overlay.js';
+import type { StructuralData } from '../../../types/structural.js';
+import type { Transformation } from '../../../types/transform.js';
+import { DirtyStateManager } from '../../../watcher/dirty-state.js';
 
 // Mock workerpool to avoid real worker creation in tests
 vi.mock('workerpool', () => ({
@@ -37,7 +37,7 @@ vi.mock('proper-lockfile', () => ({
 }));
 
 // Mock IntentResolver and EGemmaClient to avoid real LLM calls
-vi.mock('../../lineage/intent-resolver.js', () => ({
+vi.mock('../../../lineage/intent-resolver.js', () => ({
   IntentResolver: class {
     async resolve() {
       return { intent: 'test intent' };
@@ -45,11 +45,11 @@ vi.mock('../../lineage/intent-resolver.js', () => ({
   },
 }));
 
-vi.mock('../../lineage/egemma-client.js', () => ({
+vi.mock('../../../lineage/egemma-client.js', () => ({
   EGemmaClient: class {},
 }));
 
-describe('TransformCompactor E2E', () => {
+describe('TransformCompactionService E2E', () => {
   let tempDir: string;
   let pgc: PGCManager;
   let miner: StructuralMiner;
@@ -122,7 +122,7 @@ describe('TransformCompactor E2E', () => {
       cwd: projectRoot,
     });
 
-    const genesis = new GenesisOrchestrator(
+    const genesis = new GenesisService(
       pgc,
       miner,
       workbench,
@@ -132,7 +132,7 @@ describe('TransformCompactor E2E', () => {
     await genesis.executeBottomUpAggregation(['src']);
 
     // 2. Multiple Updates (Non-structural to avoid invalidation)
-    const updateOrchestrator = new UpdateOrchestrator(
+    const updateOrchestrator = new IncrementalUpdateService(
       pgc,
       miner,
       workbench,
@@ -201,7 +201,7 @@ describe('TransformCompactor E2E', () => {
     }
 
     // 3. Compact
-    const compactor = new TransformCompactor(
+    const compactor = new TransformCompactionService(
       pgc.transformLog,
       pgc.reverseDeps,
       pgc.transformDAG,
@@ -324,7 +324,7 @@ describe('TransformCompactor E2E', () => {
     execSync(`git add ${filePath} && git commit -m "initial commit"`, {
       cwd: projectRoot,
     });
-    const genesis = new GenesisOrchestrator(
+    const genesis = new GenesisService(
       pgc,
       miner,
       workbench,
@@ -334,7 +334,7 @@ describe('TransformCompactor E2E', () => {
     await genesis.executeBottomUpAggregation(['src']);
 
     // 2. An update that will be invalidated
-    const updateOrchestrator = new UpdateOrchestrator(
+    const updateOrchestrator = new IncrementalUpdateService(
       pgc,
       miner,
       workbench,
@@ -379,7 +379,7 @@ describe('TransformCompactor E2E', () => {
     expect(historyBefore!.history).toContain(updateId);
 
     // 5. Compact
-    const compactor = new TransformCompactor(
+    const compactor = new TransformCompactionService(
       pgc.transformLog,
       pgc.reverseDeps,
       pgc.transformDAG,
@@ -397,7 +397,7 @@ describe('TransformCompactor E2E', () => {
   });
 
   it('should update Index history for ALL files in a multi-file transform', async () => {
-    // This case is harder to simulate because UpdateOrchestrator is per-file.
+    // This case is harder to simulate because IncrementalUpdateService is per-file.
     // We'll manually record a multi-file transform.
     const fileA = 'src/A.ts';
     const fileB = 'src/B.ts';
@@ -524,7 +524,7 @@ describe('TransformCompactor E2E', () => {
     expect((await pgc.index.get(fileB))!.history).toContain(idMulti);
 
     // Compact
-    const compactor = new TransformCompactor(
+    const compactor = new TransformCompactionService(
       pgc.transformLog,
       pgc.reverseDeps,
       pgc.transformDAG,

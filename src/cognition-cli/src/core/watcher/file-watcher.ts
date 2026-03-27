@@ -65,7 +65,7 @@ import {
   UntrackedFile,
 } from '../types/watcher.js';
 
-import { UpdateOrchestrator } from '../orchestrators/update.js';
+import { IncrementalUpdateService } from '../services/orchestration/update.js';
 import { PGCManager } from '../pgc/manager.js';
 import { StructuralMiner } from '../orchestrators/miners/structural.js';
 import { WorkbenchClient } from '../executors/workbench-client.js';
@@ -419,7 +419,7 @@ export class FileWatcher extends EventEmitter {
       const miner = new StructuralMiner(workbench);
       const genesisOracle = new GenesisOracle(pgc);
 
-      const orchestrator = new UpdateOrchestrator(
+      const orchestrator = new IncrementalUpdateService(
         pgc,
         miner,
         workbench,

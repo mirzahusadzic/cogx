@@ -1904,7 +1904,7 @@ export class OverlayOrchestrator extends BaseOrchestrator {
 
   /**
    * Regenerate only the specified symbols in the overlay (selective re-embedding).
-   * Called by UpdateOrchestrator after propagateInvalidation identifies affected symbols.
+   * Called by IncrementalUpdateService after propagateInvalidation identifies affected symbols.
    * Deletes manifest entries for the affected file paths so they are re-embedded on
    * the next full run() call.
    *

@@ -20,15 +20,15 @@
  * COMPONENTS:
  * - MissionIntegrityMonitor: Immutable audit trail of mission versions
  * - SemanticDriftDetector: Pattern detection + embedding-based distance
- * - MissionValidator: Multi-layer pre-ingestion validation
+ * - MissionValidatorService: Multi-layer pre-ingestion validation
  * - SecurityConfig: User-configurable settings
  *
  * USAGE:
  * ```typescript
- * import { MissionValidator, loadSecurityConfig } from './security/index.js';
+ * import { MissionValidatorService, loadSecurityConfig } from './security/index.js';
  *
  * const config = await loadSecurityConfig(projectRoot);
- * const validator = new MissionValidator(pgcRoot, config);
+ * const validator = new MissionValidatorService(pgcRoot, config);
  * const result = await validator.validate('VISION.md');
  *
  * if (!result.safe) {
@@ -42,13 +42,16 @@ export {
   type MissionVersion,
 } from './mission-integrity.js';
 
-export { SemanticDriftDetector, type DriftAnalysis } from './drift-detector.js';
+export {
+  SemanticDriftService,
+  type DriftAnalysis,
+} from '../services/security/drift.js';
 
 export {
-  MissionValidator,
+  MissionValidatorService,
   type ValidationLayer,
   type ValidationResult,
-} from './mission-validator.js';
+} from '../services/security/mission.js';
 
 export {
   loadSecurityConfig,

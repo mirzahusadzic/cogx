@@ -6,7 +6,7 @@ import { TransformLog } from '../core/pgc/transform-log.js';
 import { ReverseDeps } from '../core/pgc/reverse-deps.js';
 import { TransformDAG } from '../core/pgc/transform-dag.js';
 import { Index } from '../core/pgc/index.js';
-import { TransformCompactor } from '../core/lineage/transform-compactor.js';
+import { TransformCompactionService } from '../core/services/lineage/compaction.js';
 
 /**
  * Create the `transforms compact` subcommand.
@@ -60,7 +60,7 @@ export function createTransformsCompactCommand(): Command {
         const reverseDeps = new ReverseDeps(pgcRoot);
         const transformDAG = new TransformDAG(pgcRoot);
         const index = new Index(pgcRoot);
-        const compactor = new TransformCompactor(
+        const compactor = new TransformCompactionService(
           transformLog,
           reverseDeps,
           transformDAG,

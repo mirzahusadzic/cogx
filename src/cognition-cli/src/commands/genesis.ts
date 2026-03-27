@@ -33,7 +33,7 @@ import { glob } from 'glob';
 import { PGCManager } from '../core/pgc/manager.js';
 import { StructuralMiner } from '../core/orchestrators/miners/structural.js';
 import { WorkbenchClient } from '../core/executors/workbench-client.js';
-import { GenesisOrchestrator } from '../core/orchestrators/genesis.js';
+import { GenesisService } from '../core/services/orchestration/genesis.js';
 import { GenesisOracle } from '../core/pgc/oracles/genesis.js';
 import { LineagePatternsManager } from '../core/overlays/lineage/manager.js';
 import { LanceVectorStore } from '../core/overlays/vector-db/lance-store.js';
@@ -69,7 +69,7 @@ interface GenesisOptions {
  * Progress tracking for genesis resume functionality
  *
  * NOTE: Resume capability relies on PGC index idempotency, not granular file tracking.
- * The GenesisOrchestrator skips files whose content hashes already exist in the index.
+ * The GenesisService skips files whose content hashes already exist in the index.
  * This progress file serves as a session marker to detect interrupted runs and inform
  * the user, rather than tracking individual file progress.
  */
@@ -444,14 +444,14 @@ export async function genesisCommand(options: GenesisOptions) {
     systemDiagnosticsService.debugLog('GenesisOracle initialized');
 
     // Create genesis orchestrator
-    const orchestrator = new GenesisOrchestrator(
+    const orchestrator = new GenesisService(
       pgc,
       miner,
       workbench,
       genesisOracle,
       options.projectRoot
     );
-    systemDiagnosticsService.debugLog('GenesisOrchestrator created');
+    systemDiagnosticsService.debugLog('GenesisService created');
 
     // Initialize or update progress tracking
     const genesisProgressData: GenesisProgress = existingProgress || {

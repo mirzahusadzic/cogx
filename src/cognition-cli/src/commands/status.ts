@@ -59,7 +59,7 @@ import { DirtyState } from '../core/types/watcher.js';
 import { addExamples, combineHelpSections } from '../utils/help-formatter.js';
 import { resolvePgcRoot } from './sugar/utils.js';
 import { intro } from '@clack/prompts';
-import { ProvenanceService } from '../core/lineage/provenance-service.js';
+import { ProvenanceService } from '../core/services/lineage/provenance.js';
 import { TransformLog } from '../core/pgc/transform-log.js';
 import { TransformDAG } from '../core/pgc/transform-dag.js';
 import { ObjectStore } from '../core/pgc/object-store.js';

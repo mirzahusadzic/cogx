@@ -12,7 +12,7 @@ const { mockLanceVectorStore } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('../../overlays/vector-db/lance-store.js', () => ({
+vi.mock('../../../overlays/vector-db/lance-store.js', () => ({
   LanceVectorStore: vi.fn().mockImplementation(() => mockLanceVectorStore),
 }));
 
@@ -35,12 +35,12 @@ vi.mock('workerpool', () => ({
   })),
 }));
 
-import { GenesisOrchestrator } from '../genesis.js';
-import { PGCManager } from '../../pgc/manager.js';
-import { StructuralMiner } from '../miners/structural.js';
-import { WorkbenchClient } from '../../executors/workbench-client.js';
-import type { StructuralData } from '../../types/structural.js';
-import { StructuralOracle } from '../../pgc/oracles/overlay.js';
+import { GenesisService } from '../genesis.js';
+import { PGCManager } from '../../../pgc/manager.js';
+import { StructuralMiner } from '../../../orchestrators/miners/structural.js';
+import { WorkbenchClient } from '../../../executors/workbench-client.js';
+import type { StructuralData } from '../../../types/structural.js';
+import { StructuralOracle } from '../../../pgc/oracles/overlay.js';
 
 // Mock fs-extra to use memfs's vol
 vi.mock('fs-extra', async () => {
@@ -81,11 +81,11 @@ vi.mock('fs-extra', async () => {
   };
 });
 
-describe('GenesisOrchestrator idempotency', () => {
+describe('GenesisService idempotency', () => {
   let pgcManager: PGCManager;
   let structuralMiner: StructuralMiner;
   let workbenchClient: WorkbenchClient;
-  let orchestrator: GenesisOrchestrator;
+  let orchestrator: GenesisService;
   const projectRoot = '/test-project';
 
   beforeEach(async () => {
@@ -133,7 +133,7 @@ describe('GenesisOrchestrator idempotency', () => {
       verify: vi.fn(async () => ({ success: true, messages: [] })),
     } as unknown as StructuralOracle;
 
-    orchestrator = new GenesisOrchestrator(
+    orchestrator = new GenesisService(
       pgcManager,
       structuralMiner,
       workbenchClient,

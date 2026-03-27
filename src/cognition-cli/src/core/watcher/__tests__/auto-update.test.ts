@@ -3,11 +3,11 @@ import path from 'path';
 import fs from 'fs-extra';
 import os from 'os';
 import { FileWatcher } from '../file-watcher.js';
-import { UpdateOrchestrator } from '../../orchestrators/update.js';
+import { IncrementalUpdateService } from '../../services/orchestration/update.js';
 import { Index } from '../../pgc/index.js';
 
-vi.mock('../../orchestrators/update.js', () => ({
-  UpdateOrchestrator: vi.fn().mockImplementation(() => ({
+vi.mock('../../services/orchestration/update.js', () => ({
+  IncrementalUpdateService: vi.fn().mockImplementation(() => ({
     run: vi.fn().mockResolvedValue(undefined),
   })),
 }));
@@ -71,7 +71,7 @@ describe('FileWatcher Auto-Update', () => {
 
     await updateCompletePromise;
 
-    expect(UpdateOrchestrator).toHaveBeenCalled();
+    expect(IncrementalUpdateService).toHaveBeenCalled();
   });
 
   it('should batch multiple changes within debounce window', async () => {
@@ -98,8 +98,8 @@ describe('FileWatcher Auto-Update', () => {
     // Wait for the debounce to expire
     await new Promise((resolve) => setTimeout(resolve, 300));
 
-    // Should only have called UpdateOrchestrator once
-    expect(UpdateOrchestrator).toHaveBeenCalledTimes(1);
+    // Should only have called IncrementalUpdateService once
+    expect(IncrementalUpdateService).toHaveBeenCalledTimes(1);
     expect(updateCompleteSpy).toHaveBeenCalledTimes(1);
   });
 });

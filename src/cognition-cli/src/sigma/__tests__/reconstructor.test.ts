@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { latticeQueryService } from '../../core/services/lattice/LatticeQueryService.js';
+import { latticeQueryService } from '../../core/services/lattice/query.js';
 const reconstructContext =
   latticeQueryService.reconstructContext.bind(latticeQueryService);
 const getReconstructionStats =

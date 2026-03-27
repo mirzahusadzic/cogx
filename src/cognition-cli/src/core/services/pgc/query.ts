@@ -1,7 +1,10 @@
-import { PGCStoreContext } from './store-context.js';
-import { IndexData } from '../types/index.js';
-import { StructuralData, ClassData } from '../types/structural.js';
-import { LineageQueryResult, Dependency } from '../overlays/lineage/manager.js';
+import { PGCStoreContext } from '../../pgc/store-context.js';
+import { IndexData } from '../../types/index.js';
+import { StructuralData, ClassData } from '../../types/structural.js';
+import {
+  LineageQueryResult,
+  Dependency,
+} from '../../overlays/lineage/manager.js';
 
 /**
  * PGCQueryService provides read-only access to the PGC data.

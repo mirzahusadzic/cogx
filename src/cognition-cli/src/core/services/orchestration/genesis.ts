@@ -1,14 +1,17 @@
-import { BaseOrchestrator } from './base.js';
-import { GenericOrchestrator } from './generic.js';
-import type { ProgressCallback, OrchestratorConfig } from './types.js';
-import { WorkbenchHealthCheckStep } from './steps/workbench-health.js';
-import { DiscoveryStep } from './steps/discovery.js';
-import { StructuralProcessingStep } from './steps/structural-processing.js';
-import { MaintenanceStep } from './steps/maintenance.js';
-import type { PGCManager } from '../pgc/manager.js';
-import type { StructuralMiner } from './miners/structural.js';
-import type { WorkbenchClient } from '../executors/workbench-client.js';
-import type { GenesisOracle } from '../pgc/oracles/genesis.js';
+import { BaseOrchestrator } from '../../orchestrators/base.js';
+import { GenericOrchestrator } from '../../orchestrators/generic.js';
+import type {
+  ProgressCallback,
+  OrchestratorConfig,
+} from '../../orchestrators/types.js';
+import { WorkbenchHealthCheckStep } from '../../orchestrators/steps/workbench-health.js';
+import { DiscoveryStep } from '../../orchestrators/steps/discovery.js';
+import { StructuralProcessingStep } from '../../orchestrators/steps/structural-processing.js';
+import { MaintenanceStep } from '../../orchestrators/steps/maintenance.js';
+import type { PGCManager } from '../../pgc/manager.js';
+import type { StructuralMiner } from '../../orchestrators/miners/structural.js';
+import type { WorkbenchClient } from '../../executors/workbench-client.js';
+import type { GenesisOracle } from '../../pgc/oracles/genesis.js';
 
 /**
  * Genesis Orchestrator: Main entry point for structural data extraction and PGC initialization
@@ -30,13 +33,13 @@ import type { GenesisOracle } from '../pgc/oracles/genesis.js';
  *
  * @example
  * const pgc = new PGCManager(projectRoot);
- * const orchestrator = new GenesisOrchestrator(pgc, miner, workbench, genesisOracle, projectRoot);
+ * const orchestrator = new GenesisService(pgc, miner, workbench, genesisOracle, projectRoot);
  * await orchestrator.run();
  * // → Extracts all TypeScript/JavaScript/Python files from src/
  * // → Stores in .open_cognition/index/, .open_cognition/objects/
  * // → PGC is now ready for overlay generation
  */
-export class GenesisOrchestrator extends BaseOrchestrator {
+export class GenesisService extends BaseOrchestrator {
   constructor(
     pgc: PGCManager,
     miner: StructuralMiner,

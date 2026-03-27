@@ -1,7 +1,7 @@
-import { PGCStoreContext } from './store-context.js';
-import { EmbedResponse } from '../types/workbench.js';
-import { IndexData } from '../types/index.js';
-import { Transformation } from '../types/transform.js';
+import { PGCStoreContext } from '../../pgc/store-context.js';
+import { EmbedResponse } from '../../types/workbench.js';
+import { IndexData } from '../../types/index.js';
+import { Transformation } from '../../types/transform.js';
 
 /**
  * PGCIndexerService handles write-heavy updates to the PGC data.

@@ -34,7 +34,7 @@
  *
  * @example
  * // Analyze current branch changes
- * const analyzer = new PRAnalyzer(pgcManager);
+ * const analyzer = new PRAnalysisService(pgcManager);
  * const analysis = await analyzer.analyze();
  * console.log(`Security issues: ${analysis.security.threats.length}`);
  * console.log(`Blast radius: ${analysis.blastRadius.totalImpacted} symbols`);
@@ -45,13 +45,13 @@
  * console.log(`Mission alignment: ${analysis.missionAlignment.confidence}%`);
  */
 
-import { PGCManager } from '../pgc/manager.js';
-import { GraphTraversal } from '../graph/traversal.js';
-import { StructuralPatternsManager } from '../overlays/structural-patterns/manager.js';
-import { SecurityGuidelinesManager } from '../overlays/security-guidelines/manager.js';
-import { MissionConceptsManager } from '../overlays/mission-concepts/manager.js';
-import { StrategicCoherenceManager } from '../overlays/strategic-coherence/manager.js';
-import { DirtyStateManager } from '../watcher/dirty-state.js';
+import { PGCManager } from '../../pgc/manager.js';
+import { GraphTraversal } from '../../graph/traversal.js';
+import { StructuralPatternsManager } from '../../overlays/structural-patterns/manager.js';
+import { SecurityGuidelinesManager } from '../../overlays/security-guidelines/manager.js';
+import { MissionConceptsManager } from '../../overlays/mission-concepts/manager.js';
+import { StrategicCoherenceManager } from '../../overlays/strategic-coherence/manager.js';
+import { DirtyStateManager } from '../../watcher/dirty-state.js';
 import { execa } from 'execa';
 
 /**
@@ -140,7 +140,7 @@ export interface PRAnalysis {
 /**
  * PR Analyzer Options
  */
-export interface PRAnalyzerOptions {
+export interface PRAnalysisServiceOptions {
   branch?: string; // Branch to analyze (default: current)
   maxDepth?: number; // Max depth for blast radius (default: 3)
 }
@@ -150,7 +150,7 @@ export interface PRAnalyzerOptions {
  *
  * Orchestrates cross-overlay analysis for pull request impact assessment
  */
-export class PRAnalyzer {
+export class PRAnalysisService {
   private structuralManager: StructuralPatternsManager;
   private securityManager: SecurityGuidelinesManager;
   private missionManager: MissionConceptsManager;
@@ -171,7 +171,7 @@ export class PRAnalyzer {
   /**
    * Analyze PR impact across all overlays
    */
-  async analyze(options: PRAnalyzerOptions = {}): Promise<PRAnalysis> {
+  async analyze(options: PRAnalysisServiceOptions = {}): Promise<PRAnalysis> {
     const maxDepth = options.maxDepth ?? 3;
 
     // Step 1: Get changed files

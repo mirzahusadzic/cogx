@@ -2,13 +2,13 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs-extra';
 import path from 'path';
 import os from 'os';
-import { ProvenanceService } from '../provenance-service.js';
-import { TransformLog } from '../../pgc/transform-log.js';
-import { TransformDAG } from '../../pgc/transform-dag.js';
-import { ObjectStore } from '../../pgc/object-store.js';
-import { Index } from '../../pgc/index.js';
-import { ReverseDeps } from '../../pgc/reverse-deps.js';
-import type { IndexData } from '../../types/index.js';
+import { ProvenanceService } from '../provenance.js';
+import { TransformLog } from '../../../pgc/transform-log.js';
+import { TransformDAG } from '../../../pgc/transform-dag.js';
+import { ObjectStore } from '../../../pgc/object-store.js';
+import { Index } from '../../../pgc/index.js';
+import { ReverseDeps } from '../../../pgc/reverse-deps.js';
+import type { IndexData } from '../../../types/index.js';
 
 describe('ProvenanceService', () => {
   let tempDir: string;

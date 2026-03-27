@@ -5,7 +5,7 @@
  * Achieves 30-50x compression while preserving paradigm shifts.
  */
 
-import { latticeQueryService } from '../core/services/lattice/LatticeQueryService.js';
+import { latticeQueryService } from '../core/services/lattice/query.js';
 import type {
   TurnAnalysis,
   CompressionResult,

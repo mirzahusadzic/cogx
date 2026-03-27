@@ -69,7 +69,7 @@ import { basename, relative, dirname } from 'path';
 import fs from 'fs-extra';
 import path from 'path';
 import {
-  MissionValidator,
+  MissionValidatorService,
   MissionIntegrityMonitor,
   loadSecurityConfig,
   type SecurityConfig,
@@ -98,7 +98,7 @@ export class GenesisDocTransform {
   private pgcRoot: string;
   private projectRoot: string;
   private securityConfig?: SecurityConfig;
-  private validator?: MissionValidator;
+  private validator?: MissionValidatorService;
   private integrityMonitor?: MissionIntegrityMonitor;
 
   // Overlay managers for multi-overlay routing
@@ -162,7 +162,10 @@ export class GenesisDocTransform {
     }
 
     // Initialize validator and monitor
-    this.validator = new MissionValidator(this.pgcRoot, this.securityConfig);
+    this.validator = new MissionValidatorService(
+      this.pgcRoot,
+      this.securityConfig
+    );
     this.integrityMonitor = new MissionIntegrityMonitor(this.pgcRoot);
   }
 

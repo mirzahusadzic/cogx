@@ -3,11 +3,11 @@ import fs from 'fs-extra';
 import path from 'path';
 import os from 'os';
 import crypto from 'node:crypto';
-import { TransformLog } from '../../pgc/transform-log.js';
-import { ReverseDeps } from '../../pgc/reverse-deps.js';
-import { TransformDAG } from '../../pgc/transform-dag.js';
-import { Index } from '../../pgc/index.js';
-import { TransformCompactor } from '../transform-compactor.js';
+import { TransformLog } from '../../../pgc/transform-log.js';
+import { ReverseDeps } from '../../../pgc/reverse-deps.js';
+import { TransformDAG } from '../../../pgc/transform-dag.js';
+import { Index } from '../../../pgc/index.js';
+import { TransformCompactionService } from '../compaction.js';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -55,13 +55,13 @@ function daysAgo(n: number): string {
 
 // ─── Setup ──────────────────────────────────────────────────────────────────
 
-describe('TransformCompactor', () => {
+describe('TransformCompactionService', () => {
   let tempDir: string;
   let log: TransformLog;
   let reverseDeps: ReverseDeps;
   let transformDAG: TransformDAG;
   let index: Index;
-  let compactor: TransformCompactor;
+  let compactor: TransformCompactionService;
 
   beforeEach(async () => {
     tempDir = path.join(
@@ -73,7 +73,12 @@ describe('TransformCompactor', () => {
     reverseDeps = new ReverseDeps(tempDir);
     transformDAG = new TransformDAG(tempDir);
     index = new Index(tempDir);
-    compactor = new TransformCompactor(log, reverseDeps, transformDAG, index);
+    compactor = new TransformCompactionService(
+      log,
+      reverseDeps,
+      transformDAG,
+      index
+    );
   });
 
   afterEach(async () => {

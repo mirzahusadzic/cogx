@@ -36,7 +36,7 @@ import path from 'path';
 import { PGCManager } from '../core/pgc/manager.js';
 import { StructuralMiner } from '../core/orchestrators/miners/structural.js';
 import { WorkbenchClient } from '../core/executors/workbench-client.js';
-import { UpdateOrchestrator } from '../core/orchestrators/update.js';
+import { IncrementalUpdateService } from '../core/services/orchestration/update.js';
 import { GenesisOracle } from '../core/pgc/oracles/genesis.js';
 import { environmentService } from '../core/services/environment/EnvironmentService.js';
 
@@ -207,7 +207,7 @@ export async function runUpdate(options: UpdateOptions) {
     const genesisOracle = new GenesisOracle(pgc);
 
     // Create update orchestrator
-    const orchestrator = new UpdateOrchestrator(
+    const orchestrator = new IncrementalUpdateService(
       pgc,
       miner,
       workbench,

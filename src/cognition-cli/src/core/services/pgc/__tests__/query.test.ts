@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { PGCQueryService } from '../query-service.js';
-import { PGCStoreContext } from '../store-context.js';
-import { IndexData } from '../../types/index.js';
+import { PGCQueryService } from '../query.js';
+import { PGCStoreContext } from '../../../pgc/store-context.js';
+import { IndexData } from '../../../types/index.js';
 
 describe('PGCQueryService', () => {
   const mockContext = {

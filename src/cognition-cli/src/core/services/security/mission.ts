@@ -4,24 +4,24 @@ import { basename } from 'path';
 import {
   MissionIntegrityMonitor,
   MissionVersion,
-} from './mission-integrity.js';
-import { SemanticDriftDetector, DriftAnalysis } from './drift-detector.js';
-import { SecurityConfig } from './security-config.js';
-import { MarkdownParser } from '../parsers/markdown-parser.js';
+} from '../../security/mission-integrity.js';
+import { SemanticDriftService, DriftAnalysis } from './drift.js';
+import { SecurityConfig } from '../../security/security-config.js';
+import { MarkdownParser } from '../../parsers/markdown-parser.js';
 import {
   ConceptExtractor,
   MissionConcept,
-} from '../analyzers/concept-extractor.js';
-import { MissionConceptsManager } from '../overlays/mission-concepts/manager.js';
-import { WorkbenchClient } from '../executors/workbench-client.js';
-import { DocumentType } from '../analyzers/document-classifier.js';
+} from '../../analyzers/concept-extractor.js';
+import { MissionConceptsManager } from '../../overlays/mission-concepts/manager.js';
+import { WorkbenchClient } from '../../executors/workbench-client.js';
+import { DocumentType } from '../../analyzers/document-classifier.js';
 import {
   PERSONA_SECURITY_VALIDATOR,
   PERSONA_OPERATIONAL_VALIDATOR,
   PERSONA_SECURITY_META_VALIDATOR,
   PERSONA_MATHEMATICAL_VALIDATOR,
   DEFAULT_MAX_OUTPUT_TOKENS,
-} from '../../config.js';
+} from '../../../config.js';
 
 /**
  * Single validation layer result
@@ -46,7 +46,7 @@ export interface ValidationResult {
 }
 
 /**
- * MissionValidator
+ * MissionValidatorService
  *
  * MISSION ALIGNMENT:
  * - Core implementation of "Goal → Transform → Oracle" pattern (Innovation #2, 88.1% importance)
@@ -75,9 +75,9 @@ export interface ValidationResult {
  * - Recommendation logic is clear and documented
  * - Users can inspect why validation failed
  */
-export class MissionValidator {
+export class MissionValidatorService {
   private integrityMonitor: MissionIntegrityMonitor;
-  private driftDetector: SemanticDriftDetector;
+  private driftDetector: SemanticDriftService;
   private workbench?: WorkbenchClient;
 
   constructor(
@@ -88,7 +88,7 @@ export class MissionValidator {
     this.integrityMonitor = new MissionIntegrityMonitor(pgcRoot);
 
     // Map config drift thresholds to detector thresholds
-    this.driftDetector = new SemanticDriftDetector({
+    this.driftDetector = new SemanticDriftService({
       low: config.missionIntegrity.drift.warnThreshold,
       medium: config.missionIntegrity.drift.alertThreshold,
       high: config.missionIntegrity.drift.blockThreshold,

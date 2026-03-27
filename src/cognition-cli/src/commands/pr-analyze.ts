@@ -36,10 +36,11 @@ export async function analyzePRImpact(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   PGCManager: any
 ): Promise<void> {
-  const { PRAnalyzer } = await import('../core/orchestrators/pr-analyzer.js');
+  const { PRAnalysisService } =
+    await import('../core/services/vcs/pr-analyzer.js');
 
   const pgc = new PGCManager(process.cwd());
-  const analyzer = new PRAnalyzer(pgc);
+  const analyzer = new PRAnalysisService(pgc);
 
   if (!options.json) {
     console.log(chalk.bold('\n📊 PR Impact Analysis\n'));

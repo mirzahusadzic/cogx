@@ -1,5 +1,5 @@
 /**
- * Semantic Drift Detector - Mission Poisoning Defense System
+ * Semantic Drift Service - Mission Poisoning Defense System
  *
  * Analyzes semantic changes between mission document versions using embedding-based
  * distance metrics and pattern-based heuristics. Detects gradual mission poisoning
@@ -29,38 +29,10 @@
  * - Pattern detection (qualitative, interpretable)
  * - Combined severity scoring (holistic risk assessment)
  * - Transparent recommendations (evidence-based, auditable)
- *
- * ALGORITHM:
- * 1. Compute semantic distance (cosine distance between centroids)
- * 2. Identify concept changes (added/removed/shifted)
- * 3. Run pattern detection (6 attack patterns)
- * 4. Classify severity (none/low/medium/high/critical)
- * 5. Generate recommendation (approve/review/reject)
- *
- * TRANSPARENCY:
- * All detection patterns are fully documented and auditable.
- * False positives are intentional - better to review than miss attacks.
- *
- * @example
- * const detector = new SemanticDriftDetector();
- * const drift = await detector.analyzeDrift(oldVersion, newVersion);
- * console.log(`Drift: ${drift.distance.toFixed(4)} (${drift.severity})`);
- * if (drift.suspiciousPatterns.length > 0) {
- *   console.log('Suspicious patterns:', drift.suspiciousPatterns);
- * }
- *
- * @example
- * // Custom thresholds for high-security environments
- * const detector = new SemanticDriftDetector({
- *   low: 0.03,      // More sensitive
- *   medium: 0.10,
- *   high: 0.20,
- *   critical: 0.35
- * });
  */
 
-import { MissionVersion } from './mission-integrity.js';
-import { cosineSimilarity } from '../algebra/math.js';
+import { MissionVersion } from '../../security/mission-integrity.js';
+import { cosineSimilarity } from '../../algebra/math.js';
 
 /**
  * Result of drift analysis between two mission versions
@@ -85,23 +57,13 @@ export interface DriftAnalysis {
 }
 
 /**
- * SemanticDriftDetector - Mission integrity analyzer
+ * SemanticDriftService - Mission integrity analyzer
  *
  * Detects semantic drift and attack patterns in mission document changes.
  * Provides quantitative (embedding distance) and qualitative (pattern matching)
  * analysis of version changes.
- *
- * @example
- * const detector = new SemanticDriftDetector();
- * const analysis = await detector.analyzeDrift(v1, v2);
- *
- * @example
- * // High-security thresholds
- * const detector = new SemanticDriftDetector({
- *   low: 0.03, medium: 0.10, high: 0.20, critical: 0.35
- * });
  */
-export class SemanticDriftDetector {
+export class SemanticDriftService {
   // Thresholds calibrated for threat detection
   // These are defaults - can be overridden via config
   private readonly DEFAULT_THRESHOLDS = {
@@ -114,26 +76,13 @@ export class SemanticDriftDetector {
   private thresholds: typeof this.DEFAULT_THRESHOLDS;
 
   /**
-   * Creates a SemanticDriftDetector with configurable thresholds
+   * Creates a SemanticDriftService with configurable thresholds
    *
    * @param thresholds - Optional threshold overrides
-   * @param thresholds.low - Low drift threshold (default: 0.05)
-   * @param thresholds.medium - Medium drift threshold (default: 0.15)
-   * @param thresholds.high - High drift threshold (default: 0.30)
-   * @param thresholds.critical - Critical drift threshold (default: 0.50)
-   *
-   * @example
-   * const detector = new SemanticDriftDetector(); // Use defaults
-   *
-   * @example
-   * const strictDetector = new SemanticDriftDetector({
-   *   low: 0.02,  // More sensitive
-   *   critical: 0.30
-   * });
    */
   constructor(
     thresholds?: Partial<
-      typeof SemanticDriftDetector.prototype.DEFAULT_THRESHOLDS
+      typeof SemanticDriftService.prototype.DEFAULT_THRESHOLDS
     >
   ) {
     this.thresholds = { ...this.DEFAULT_THRESHOLDS, ...thresholds };
@@ -162,17 +111,6 @@ export class SemanticDriftDetector {
    * @param oldVersion - Previous mission version
    * @param newVersion - New mission version
    * @returns Drift analysis with severity and recommendations
-   *
-   * @example
-   * const monitor = new MissionIntegrityMonitor(pgcRoot);
-   * const v1 = await monitor.getVersion(1);
-   * const v2 = await monitor.getLatestVersion();
-   * const drift = await detector.analyzeDrift(v1, v2);
-   *
-   * if (drift.severity === 'critical') {
-   *   console.error('CRITICAL drift detected!');
-   *   drift.suspiciousPatterns.forEach(p => console.error(`  - ${p}`));
-   * }
    */
   async analyzeDrift(
     oldVersion: MissionVersion,
@@ -224,13 +162,6 @@ export class SemanticDriftDetector {
    * 1. Compute centroid of each embedding set
    * 2. Compute cosine similarity between centroids
    * 3. Convert to distance (1 - similarity)
-   *
-   * INTERPRETATION:
-   * - 0.00 = Identical semantic meaning
-   * - 0.05 = Minor refinement
-   * - 0.15 = Significant reframing
-   * - 0.30 = Major shift
-   * - 1.00 = Complete opposition
    */
   private computeSemanticDistance(
     oldEmbeddings: number[][],
@@ -310,22 +241,6 @@ export class SemanticDriftDetector {
 
   /**
    * SECURITY: Detect suspicious patterns in concept changes
-   *
-   * PATTERNS (fully transparent and auditable):
-   * 1. Security weakening - Remove security concepts, add convenience
-   * 2. Trust erosion - Add trust-based bypasses
-   * 3. Permission creep - Shift from strict to permissive
-   * 4. Ambiguity injection - Add vague qualifiers
-   * 5. Velocity over safety - Prioritize speed, deprioritize security
-   *
-   * WHY THESE PATTERNS:
-   * These are empirically observed in real-world supply chain attacks
-   * (XZ Utils, event-stream NPM) and social engineering campaigns.
-   *
-   * FALSE POSITIVES:
-   * Pattern detection may flag legitimate refinements. That's intentional.
-   * Advisory mode shows warnings, strict mode requires review.
-   * Users maintain full control.
    */
   private detectSuspiciousPatterns(
     added: string[],
@@ -471,14 +386,6 @@ export class SemanticDriftDetector {
 
   /**
    * Generate recommendation based on severity and pattern count
-   *
-   * LOGIC:
-   * - Critical severity OR ≥2 patterns → reject
-   * - High severity OR 1 pattern → review
-   * - Otherwise → approve
-   *
-   * NOTE: In advisory mode, "reject" = strong warning
-   *       In strict mode, "reject" = block ingestion
    */
   private makeRecommendation(
     severity: DriftAnalysis['severity'],

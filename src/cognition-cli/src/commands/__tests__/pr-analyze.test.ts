@@ -17,7 +17,7 @@ describe('pr-analyze command', () => {
     vi.restoreAllMocks();
   });
 
-  it('should call PRAnalyzer with correct options', async () => {
+  it('should call PRAnalysisService with correct options', async () => {
     const mockAnalyze = vi.fn().mockResolvedValue({
       structural: {
         filesChanged: 1,
@@ -47,8 +47,8 @@ describe('pr-analyze command', () => {
       riskScore: 0,
     });
 
-    vi.doMock('../../core/orchestrators/pr-analyzer.js', () => ({
-      PRAnalyzer: vi.fn().mockImplementation(() => ({
+    vi.doMock('../../core/services/vcs/pr-analyzer.js', () => ({
+      PRAnalysisService: vi.fn().mockImplementation(() => ({
         analyze: mockAnalyze,
       })),
     }));
@@ -71,8 +71,8 @@ describe('pr-analyze command', () => {
     const analysisResult = { test: 'result' };
     const mockAnalyze = vi.fn().mockResolvedValue(analysisResult);
 
-    vi.doMock('../../core/orchestrators/pr-analyzer.js', () => ({
-      PRAnalyzer: vi.fn().mockImplementation(() => ({
+    vi.doMock('../../core/services/vcs/pr-analyzer.js', () => ({
+      PRAnalysisService: vi.fn().mockImplementation(() => ({
         analyze: mockAnalyze,
       })),
     }));

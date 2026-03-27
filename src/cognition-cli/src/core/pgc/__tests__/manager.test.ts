@@ -85,7 +85,7 @@ vi.mock('fs-extra', async () => {
   };
 });
 
-describe('GenesisOrchestrator Garbage Collection', () => {
+describe('GenesisService Garbage Collection', () => {
   let pgcManager: PGCManager;
   let objectStore: ObjectStore;
 

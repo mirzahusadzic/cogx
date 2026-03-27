@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { PGCIndexerService } from '../indexer-service.js';
-import { PGCStoreContext } from '../store-context.js';
-import { IndexData } from '../../types/index.js';
+import { PGCIndexerService } from '../indexer.js';
+import { PGCStoreContext } from '../../../pgc/store-context.js';
+import { IndexData } from '../../../types/index.js';
 
 describe('PGCIndexerService', () => {
   const mockContext = {

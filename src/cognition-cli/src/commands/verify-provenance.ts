@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { intro, outro } from '@clack/prompts';
 import { resolvePgcRoot } from './sugar/utils.js';
-import { ProvenanceService } from '../core/lineage/provenance-service.js';
+import { ProvenanceService } from '../core/services/lineage/provenance.js';
 import { TransformLog } from '../core/pgc/transform-log.js';
 import { TransformDAG } from '../core/pgc/transform-dag.js';
 import { ObjectStore } from '../core/pgc/object-store.js';

@@ -1,7 +1,7 @@
 /**
  * Vitest Test Setup
  *
- * Worker pools are mocked in tests that use GenesisOrchestrator to prevent
+ * Worker pools are mocked in tests that use GenesisService to prevent
  * real worker creation and cleanup timing issues.
  *
  * See:

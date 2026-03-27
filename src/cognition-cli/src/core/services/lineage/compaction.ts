@@ -18,17 +18,17 @@
  * - dry-run mode computes the plan without writing any changes
  *
  * @example
- * const compactor = new TransformCompactor(new TransformLog(pgcRoot));
+ * const compactor = new TransformCompactionService(new TransformLog(pgcRoot));
  * const plan = await compactor.scan({ minAgeDays: 90 });
  * const result = await compactor.compact(plan, { dryRun: false });
  * console.log(`Purged ${result.purged}, squashed ${result.squashed}`);
  */
 
-import { TransformLog } from '../pgc/transform-log.js';
-import { ReverseDeps } from '../pgc/reverse-deps.js';
-import { TransformDAG } from '../pgc/transform-dag.js';
-import { Index } from '../pgc/index.js';
-import { Transformation } from '../types/transform.js';
+import { TransformLog } from '../../pgc/transform-log.js';
+import { ReverseDeps } from '../../pgc/reverse-deps.js';
+import { TransformDAG } from '../../pgc/transform-dag.js';
+import { Index } from '../../pgc/index.js';
+import { Transformation } from '../../types/transform.js';
 
 /** Compaction plan produced by scan(). Describes what would be done. */
 export interface CompactionPlan {
@@ -65,13 +65,13 @@ export interface CompactionResult {
 }
 
 /**
- * TransformCompactor scans and compacts the PGC transform log.
+ * TransformCompactionService scans and compacts the PGC transform log.
  *
  * Two-phase API:
  * 1. `scan()` — analyse the log and produce a CompactionPlan
  * 2. `compact()` — execute the plan (or simulate with dryRun)
  */
-export class TransformCompactor {
+export class TransformCompactionService {
   constructor(
     private readonly transformLog: TransformLog,
     private readonly reverseDeps: ReverseDeps,

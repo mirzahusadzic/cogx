@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { LatticeQueryService } from '../LatticeQueryService.js';
+import { LatticeQueryService } from '../query.js';
 import { ConversationLattice, ConversationNode } from '../../../sigma/types.js';
 
 describe('LatticeQueryService', () => {

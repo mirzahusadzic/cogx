@@ -1,18 +1,21 @@
-import { BaseOrchestrator } from './base.js';
-import { GenericOrchestrator } from './generic.js';
-import type { ProgressCallback, OrchestratorConfig } from './types.js';
-import { WorkbenchHealthCheckStep } from './steps/workbench-health.js';
+import { BaseOrchestrator } from '../../orchestrators/base.js';
+import { GenericOrchestrator } from '../../orchestrators/generic.js';
+import type {
+  ProgressCallback,
+  OrchestratorConfig,
+} from '../../orchestrators/types.js';
+import { WorkbenchHealthCheckStep } from '../../orchestrators/steps/workbench-health.js';
 import {
   DirtyStateDiscoveryStep,
   ClearDirtyStateStep,
-} from './steps/dirty-state.js';
-import { StructuralProcessingStep } from './steps/structural-processing.js';
-import { MaintenanceStep } from './steps/maintenance.js';
-import type { PGCManager } from '../pgc/manager.js';
-import type { StructuralMiner } from './miners/structural.js';
-import type { WorkbenchClient } from '../executors/workbench-client.js';
-import type { GenesisOracle } from '../pgc/oracles/genesis.js';
-import { CoherenceDriftDetector } from '../overlays/coherence-drift.js';
+} from '../../orchestrators/steps/dirty-state.js';
+import { StructuralProcessingStep } from '../../orchestrators/steps/structural-processing.js';
+import { MaintenanceStep } from '../../orchestrators/steps/maintenance.js';
+import type { PGCManager } from '../../pgc/manager.js';
+import type { StructuralMiner } from '../../orchestrators/miners/structural.js';
+import type { WorkbenchClient } from '../../executors/workbench-client.js';
+import type { GenesisOracle } from '../../pgc/oracles/genesis.js';
+import { CoherenceDriftDetector } from '../../overlays/coherence-drift.js';
 
 /**
  * Update Orchestrator: Implements surgical invalidation for incremental PGC updates
@@ -43,7 +46,7 @@ import { CoherenceDriftDetector } from '../overlays/coherence-drift.js';
  * - Lazy verification: Only verifies if files were actually processed
  *
  * @example
- * const orchestrator = new UpdateOrchestrator(pgc, miner, workbench, oracle, '.');
+ * const orchestrator = new IncrementalUpdateService(pgc, miner, workbench, oracle, '.');
  * await orchestrator.run();
  * // → Reads dirty_state.json written by file watcher
  * // → Re-processes changed files, processes new files
@@ -55,11 +58,11 @@ import { CoherenceDriftDetector } from '../overlays/coherence-drift.js';
  * When file A changes and file B imports A, B's lineage_patterns become stale.
  * This orchestrator detects and invalidates B's O₂ patterns automatically.
  *
- * @see GenesisOrchestrator - Used for initial structural extraction
+ * @see GenesisService - Used for initial structural extraction
  * @see DirtyStateManager - Reads dirty_state.json from file watcher
  * @see reverseDeps - Used for surgical invalidation propagation
  */
-export class UpdateOrchestrator extends BaseOrchestrator {
+export class IncrementalUpdateService extends BaseOrchestrator {
   constructor(
     pgc: PGCManager,
     miner: StructuralMiner,

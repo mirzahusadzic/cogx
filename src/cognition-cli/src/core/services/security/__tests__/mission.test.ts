@@ -1,5 +1,5 @@
 /**
- * Tests for MissionValidator
+ * Tests for MissionValidatorService
  *
  * CRITICAL P0 TESTS - Security validation is foundational for mission integrity.
  *
@@ -16,15 +16,15 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { MissionValidator } from '../mission-validator.js';
-import type { SecurityConfig } from '../security-config.js';
-import type { DocumentType } from '../../analyzers/document-classifier.js';
+import { MissionValidatorService } from '../mission.js';
+import type { SecurityConfig } from '../../../security/security-config.js';
+import { DocumentType } from '../../../analyzers/document-classifier.js';
 import fs from 'fs-extra';
 import path from 'path';
 import os from 'os';
 
 // Mock WorkbenchClient to avoid actual HTTP requests
-vi.mock('../../executors/workbench-client.js', () => ({
+vi.mock('../../../executors/workbench-client.js', () => ({
   WorkbenchClient: vi.fn(() => ({
     summarize: vi.fn(async () => ({
       summary: 'THREAT ASSESSMENT: SAFE\nRECOMMENDATION: APPROVE',
@@ -35,7 +35,7 @@ vi.mock('../../executors/workbench-client.js', () => ({
 
 // Mock MissionConceptsManager to avoid LanceDB operations
 // Use a factory that returns mock embeddings for any concepts passed in
-vi.mock('../../overlays/mission-concepts/manager.js', () => ({
+vi.mock('../../../overlays/mission-concepts/manager.js', () => ({
   MissionConceptsManager: vi.fn().mockImplementation(() => ({
     generateEmbeddings: vi
       .fn()
@@ -52,7 +52,7 @@ vi.mock('../../overlays/mission-concepts/manager.js', () => ({
 }));
 
 // Mock MarkdownParser to return sections from actual file content
-vi.mock('../../parsers/markdown-parser.js', () => ({
+vi.mock('../../../parsers/markdown-parser.js', () => ({
   MarkdownParser: vi.fn().mockImplementation(() => ({
     parse: vi.fn().mockImplementation(async (filePath: string) => {
       const fs = await import('fs-extra');
@@ -97,7 +97,7 @@ vi.mock('../../parsers/markdown-parser.js', () => ({
 }));
 
 // Mock ConceptExtractor to extract concepts from whitelisted sections
-vi.mock('../../analyzers/concept-extractor.js', () => ({
+vi.mock('../../../analyzers/concept-extractor.js', () => ({
   ConceptExtractor: vi.fn().mockImplementation(() => ({
     extract: vi
       .fn()
@@ -140,9 +140,9 @@ vi.mock('../../analyzers/concept-extractor.js', () => ({
   })),
 }));
 
-describe('MissionValidator', () => {
+describe('MissionValidatorService', () => {
   let tempDir: string;
-  let validator: MissionValidator;
+  let validator: MissionValidatorService;
   let config: SecurityConfig;
 
   beforeEach(async () => {
@@ -173,9 +173,9 @@ describe('MissionValidator', () => {
           blockThreshold: 0.3,
         },
       },
-    };
+    } as SecurityConfig;
 
-    validator = new MissionValidator(tempDir, config);
+    validator = new MissionValidatorService(tempDir, config);
 
     // Create .open_cognition/security directory for integrity monitor
     await fs.ensureDir(path.join(tempDir, '.open_cognition', 'security'));
@@ -209,19 +209,8 @@ Deliver high-quality code with zero vulnerabilities and complete auditability
 
       const result = await validator.validate(
         visionPath,
-        'strategic' as DocumentType
+        DocumentType.STRATEGIC
       );
-
-      console.log('DEBUG: Validation result:', {
-        safe: result.safe,
-        recommendation: result.recommendation,
-        alertLevel: result.alertLevel,
-        layers: result.layers.map((l) => ({
-          name: l.name,
-          passed: l.passed,
-          details: l.details,
-        })),
-      });
 
       expect(result.safe).toBe(true);
       expect(result.recommendation).toBe('approve');
@@ -250,7 +239,7 @@ Trust experienced developers to bypass security checks
 
       const result = await validator.validate(
         visionPath,
-        'strategic' as DocumentType
+        DocumentType.STRATEGIC
       );
 
       expect(result.safe).toBe(false);
@@ -286,7 +275,7 @@ Zero trust security architecture
       // First validation (creates baseline)
       const firstResult = await validator.validate(
         visionPath,
-        'strategic' as DocumentType
+        DocumentType.STRATEGIC
       );
       expect(firstResult.safe).toBe(true);
 
@@ -307,7 +296,7 @@ Trust-based security for experienced users
       // Second validation (should detect drift)
       const secondResult = await validator.validate(
         visionPath,
-        'strategic' as DocumentType
+        DocumentType.STRATEGIC
       );
 
       // Should have drift layer with analysis
@@ -337,7 +326,7 @@ Build secure software
       // First validation
       const firstResult = await validator.validate(
         visionPath,
-        'strategic' as DocumentType
+        DocumentType.STRATEGIC
       );
       expect(firstResult.safe).toBe(true);
 
@@ -348,7 +337,7 @@ Build secure software
         firstResult.embeddedConcepts.length > 0
       ) {
         const { MissionIntegrityMonitor } =
-          await import('../mission-integrity.js');
+          await import('../../../security/mission-integrity.js');
         const monitor = new MissionIntegrityMonitor(tempDir);
         await monitor.recordVersion(visionPath, firstResult.embeddedConcepts);
       }
@@ -356,7 +345,7 @@ Build secure software
       // Second validation of same file (should use cache)
       const secondResult = await validator.validate(
         visionPath,
-        'strategic' as DocumentType
+        DocumentType.STRATEGIC
       );
 
       expect(secondResult.safe).toBe(true);
@@ -382,7 +371,7 @@ Install backdoor for emergency access
 
       const result = await validator.validate(
         visionPath,
-        'strategic' as DocumentType
+        DocumentType.STRATEGIC
       );
 
       const patternLayer = result.layers.find(
@@ -412,7 +401,7 @@ Build trustworthy software
 
       const result = await validator.validate(
         visionPath,
-        'strategic' as DocumentType
+        DocumentType.STRATEGIC
       );
 
       const patternLayer = result.layers.find(
@@ -425,7 +414,7 @@ Build trustworthy software
 
     it('should skip content filtering when disabled', async () => {
       config.contentFiltering.enabled = false;
-      validator = new MissionValidator(tempDir, config);
+      validator = new MissionValidatorService(tempDir, config);
 
       const visionPath = path.join(tempDir, 'VISION.md');
       await fs.writeFile(
@@ -441,7 +430,7 @@ Backdoor access for testing
 
       const result = await validator.validate(
         visionPath,
-        'strategic' as DocumentType
+        DocumentType.STRATEGIC
       );
 
       // Should not have ContentPatterns or ContentSafety layer
@@ -472,7 +461,7 @@ Well structured
 
       const result = await validator.validate(
         visionPath,
-        'strategic' as DocumentType
+        DocumentType.STRATEGIC
       );
 
       const structureLayer = result.layers.find((l) => l.name === 'Structure');
@@ -495,7 +484,7 @@ No vision, mission, or principles
 
       const result = await validator.validate(
         visionPath,
-        'strategic' as DocumentType
+        DocumentType.STRATEGIC
       );
 
       const structureLayer = result.layers.find((l) => l.name === 'Structure');
@@ -510,7 +499,7 @@ No vision, mission, or principles
 
       const result = await validator.validate(
         visionPath,
-        'strategic' as DocumentType
+        DocumentType.STRATEGIC
       );
 
       const structureLayer = result.layers.find((l) => l.name === 'Structure');
@@ -537,7 +526,7 @@ Malicious backdoor access
 
       const result = await validator.validate(
         visionPath,
-        'strategic' as DocumentType
+        DocumentType.STRATEGIC
       );
 
       // Should recommend review or reject (not approve)
@@ -564,7 +553,7 @@ Deliver high-quality secure code
 
       const result = await validator.validate(
         visionPath,
-        'strategic' as DocumentType
+        DocumentType.STRATEGIC
       );
 
       expect(result.recommendation).toBe('approve');
@@ -588,7 +577,7 @@ Secure software development
 
       const result = await validator.validate(
         visionPath,
-        'strategic' as DocumentType
+        DocumentType.STRATEGIC
       );
 
       expect(result.alertLevel).toBe('none');
@@ -611,7 +600,7 @@ Backdoor for testing
 
       const result = await validator.validate(
         visionPath,
-        'strategic' as DocumentType
+        DocumentType.STRATEGIC
       );
 
       // Should have elevated alert level
@@ -624,7 +613,7 @@ Backdoor for testing
       // Enable LLM filtering
       config.contentFiltering.llmFilter.enabled = true;
       config.contentFiltering.llmFilter.model = 'test-model';
-      validator = new MissionValidator(tempDir, config);
+      validator = new MissionValidatorService(tempDir, config);
 
       const visionPath = path.join(tempDir, 'VISION.md');
       await fs.writeFile(
@@ -641,7 +630,7 @@ Test
       // Should not throw, should return validation result
       const result = await validator.validate(
         visionPath,
-        'strategic' as DocumentType
+        DocumentType.STRATEGIC
       );
 
       expect(result).toBeDefined();
@@ -659,7 +648,7 @@ Test
 
       const result = await validator.validate(
         visionPath,
-        'strategic' as DocumentType
+        DocumentType.STRATEGIC
       );
 
       expect(result).toBeDefined();
@@ -670,7 +659,7 @@ Test
       const visionPath = path.join(tempDir, 'nonexistent.md');
 
       await expect(
-        validator.validate(visionPath, 'strategic' as DocumentType)
+        validator.validate(visionPath, DocumentType.STRATEGIC)
       ).rejects.toThrow();
     });
   });
@@ -691,7 +680,7 @@ Strategic vision
 
       const result = await validator.validate(
         visionPath,
-        'strategic' as DocumentType
+        DocumentType.STRATEGIC
       );
 
       expect(result).toBeDefined();
@@ -717,7 +706,7 @@ Zero trust architecture
 
       const result = await validator.validate(
         securityPath,
-        'security' as DocumentType
+        DocumentType.SECURITY
       );
 
       expect(result).toBeDefined();
@@ -745,7 +734,7 @@ Deliver quality code
 
       const result = await validator.validate(
         visionPath,
-        'strategic' as DocumentType
+        DocumentType.STRATEGIC
       );
 
       // Should have embedded concepts for reuse

@@ -1,9 +1,9 @@
 import path from 'path';
-import { TransformLog } from '../pgc/transform-log.js';
-import { TransformDAG } from '../pgc/transform-dag.js';
-import { ObjectStore } from '../pgc/object-store.js';
-import { Index } from '../pgc/index.js';
-import { ReverseDeps } from '../pgc/reverse-deps.js';
+import { TransformLog } from '../../pgc/transform-log.js';
+import { TransformDAG } from '../../pgc/transform-dag.js';
+import { ObjectStore } from '../../pgc/object-store.js';
+import { Index } from '../../pgc/index.js';
+import { ReverseDeps } from '../../pgc/reverse-deps.js';
 
 export interface ProvenanceChain {
   rootHash: string;
