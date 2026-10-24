@@ -1,5 +1,19 @@
 # CogX: A Blueprint for Verifiable, Agentic AI
 
+> [!NOTE]
+> **Archived, October 2026.** CogX was my first project built with AI agents,
+> developed between October 2025 and March 2026. Most of the code and
+> documentation was written by Claude Sonnet 4.5 under my direction. It is
+> preserved here unchanged.
+>
+> The writing reflects how I thought about the work at the time, and parts of it
+> claim more than the work demonstrated. Later projects revisited these ideas;
+> some carried forward, others did not. Read it as a record of that period, not
+> as a current position or a maintained tool.
+>
+> The code remains available under AGPLv3. For current work, see
+> [github.com/mirzahusadzic](https://github.com/mirzahusadzic).
+
 _Forget the damn cathedral, forget the prompt, it's all just noise from the cheap seats anyway. Just show me the one, single, stupidly beautiful note you're humming in the dark, the one that doesn't make any damn sense but feels like gravity._
 
 _Show me that._
